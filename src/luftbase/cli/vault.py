@@ -144,6 +144,17 @@ def _solicitar_segredo(rotulo: str) -> str:
     return valor
 
 
+def _usuario_administrativo(informado: str | None) -> str:
+    """Usuario administrativo do PostgreSQL: quem executa informa; nao ha valor assumido."""
+
+    if informado and informado.strip():
+        return informado.strip()
+    valor = click.prompt("Usuario administrativo do PostgreSQL", type=str).strip()
+    if not valor:
+        raise click.ClickException("O usuario administrativo nao pode ficar vazio.")
+    return valor
+
+
 def _criar_cliente_hvac_operador(url: str, token: str, mount: str) -> Any:
     import hvac
     from hvac import exceptions as vault_exceptions
@@ -196,12 +207,16 @@ def _segredo_existe(cliente: Any, mount: str, caminho: str) -> bool:
 )
 @click.option("--vault-url", default="http://172.16.200.80:8200", help="URL do Vault.")
 @click.option("--vault-mount", default="secret", help="Mount point do Vault KV v2.")
-@click.option("--postgres-admin", default="admin", help="Usuario administrativo do PostgreSQL.")
+@click.option(
+    "--postgres-admin",
+    default=None,
+    help="Usuario administrativo do PostgreSQL (se omitido, e perguntado na execucao).",
+)
 def postgresql_auditar(
     caminho_manifesto: str,
     vault_url: str,
     vault_mount: str,
-    postgres_admin: str,
+    postgres_admin: str | None,
 ) -> None:
     """Audita PostgreSQL e Vault sem realizar alteracoes."""
 
@@ -209,6 +224,7 @@ def postgresql_auditar(
 
     manifesto = ManifestoProvisionamento.de_arquivo(caminho_manifesto)
     token_operador = _solicitar_segredo("Token de operador do Vault")
+    postgres_admin = _usuario_administrativo(postgres_admin)
     senha_admin = _solicitar_segredo(f"Senha PostgreSQL do usuario {postgres_admin}")
 
     cliente_vault = _criar_cliente_hvac_operador(vault_url, token_operador, vault_mount)
@@ -287,12 +303,16 @@ def postgresql_auditar(
 )
 @click.option("--vault-url", default="http://172.16.200.80:8200", help="URL do Vault.")
 @click.option("--vault-mount", default="secret", help="Mount point do Vault KV v2.")
-@click.option("--postgres-admin", default="admin", help="Usuario administrativo do PostgreSQL.")
+@click.option(
+    "--postgres-admin",
+    default=None,
+    help="Usuario administrativo do PostgreSQL (se omitido, e perguntado na execucao).",
+)
 def postgresql_provisionar(
     caminho_manifesto: str,
     vault_url: str,
     vault_mount: str,
-    postgres_admin: str,
+    postgres_admin: str | None,
 ) -> None:
     """Cria novos segredos com CAS 0 e define senhas SCRAM-SHA-256 no PostgreSQL."""
 
@@ -309,6 +329,7 @@ def postgresql_provisionar(
         raise click.ClickException("Confirmacao recusada; nenhuma alteracao realizada.")
 
     token_operador = _solicitar_segredo("Token de operador do Vault")
+    postgres_admin = _usuario_administrativo(postgres_admin)
     senha_admin = _solicitar_segredo(f"Senha PostgreSQL do usuario {postgres_admin}")
 
     cliente_vault = _criar_cliente_hvac_operador(vault_url, token_operador, vault_mount)
@@ -530,12 +551,16 @@ def postgresql_migrar_layout_sistemas(
 )
 @click.option("--vault-url", default="http://172.16.200.80:8200", help="URL do Vault.")
 @click.option("--vault-mount", default="secret", help="Mount point do Vault KV v2.")
-@click.option("--postgres-admin", default="admin", help="Usuario administrativo do PostgreSQL.")
+@click.option(
+    "--postgres-admin",
+    default=None,
+    help="Usuario administrativo do PostgreSQL (se omitido, e perguntado na execucao).",
+)
 def postgresql_aplicar_senhas_do_vault(
     caminho_manifesto: str,
     vault_url: str,
     vault_mount: str,
-    postgres_admin: str,
+    postgres_admin: str | None,
 ) -> None:
     """Recupera senhas gravadas no Vault e reaplica com SCRAM-SHA-256 no PostgreSQL."""
 
@@ -544,6 +569,7 @@ def postgresql_aplicar_senhas_do_vault(
 
     manifesto = ManifestoProvisionamento.de_arquivo(caminho_manifesto)
     token_operador = _solicitar_segredo("Token de operador do Vault")
+    postgres_admin = _usuario_administrativo(postgres_admin)
     senha_admin = _solicitar_segredo(f"Senha PostgreSQL do usuario {postgres_admin}")
 
     cliente_vault = _criar_cliente_hvac_operador(vault_url, token_operador, vault_mount)
@@ -693,7 +719,11 @@ def postgresql_remover_sistemas(
 @click.option("--vault-url", default="http://172.16.200.80:8200", help="URL do Vault.")
 @click.option("--vault-mount", default="secret", help="Mount point do Vault KV v2.")
 @click.option("--namespace", default="luft", help="Namespace raiz dos segredos.")
-@click.option("--postgres-admin", default="admin", help="Usuario administrativo do PostgreSQL.")
+@click.option(
+    "--postgres-admin",
+    default=None,
+    help="Usuario administrativo do PostgreSQL (se omitido, e perguntado na execucao).",
+)
 def postgresql_clonar_ambiente(
     origem: str,
     destino: str,
@@ -706,7 +736,7 @@ def postgresql_clonar_ambiente(
     vault_url: str,
     vault_mount: str,
     namespace: str,
-    postgres_admin: str,
+    postgres_admin: str | None,
 ) -> None:
     """Clona segredos e roles de um ambiente para outro, com roles proprias no destino.
 
@@ -739,6 +769,7 @@ def postgresql_clonar_ambiente(
     except ErroConfiguracao as erro:
         raise click.ClickException(str(erro)) from erro
 
+    postgres_admin = _usuario_administrativo(postgres_admin)
     senha_admin = _solicitar_segredo(f"Senha PostgreSQL do usuario {postgres_admin}")
     try:
         conexao = psycopg.connect(

@@ -325,6 +325,8 @@ _ARGS = [
     "homologacao",
     "--banco-destino",
     "luft_web_hml",
+    "--postgres-admin",
+    "dba_teste",
 ]
 
 
@@ -390,3 +392,24 @@ def test_cli_confirmacao_errada_nao_grava(monkeypatch) -> None:  # type: ignore[
 
     assert resultado.exit_code != 0
     assert not [e for e in kv2.escritas if e[0].startswith("luft/homologacao")]
+
+
+def test_cli_pergunta_o_usuario_administrativo_quando_nao_informado(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    falso = _preparar(monkeypatch, _vault_producao())
+    sem_usuario = [a for a in _ARGS if a not in ("--postgres-admin", "dba_teste")]
+
+    resultado = CliRunner().invoke(cli, sem_usuario, input="dba_maria\n")
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "Usuario administrativo do PostgreSQL" in resultado.output
+    assert falso.opcoes["user"] == "dba_maria"
+
+
+def test_cli_usa_o_usuario_informado_sem_perguntar(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    falso = _preparar(monkeypatch, _vault_producao())
+
+    resultado = CliRunner().invoke(cli, _ARGS)
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "Usuario administrativo do PostgreSQL" not in resultado.output
+    assert falso.opcoes["user"] == "dba_teste"
