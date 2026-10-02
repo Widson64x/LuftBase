@@ -1,0 +1,71 @@
+:root,
+[data-luft-theme="luft"][data-luft-mode="claro"],
+[data-luft-theme="luft"][data-luft-mode="sistema"] {
+  color-scheme: light;
+  --luft-cor-fundo: #f4f7fb;
+  --luft-cor-superficie: #ffffff;
+  --luft-cor-superficie-elevada: #eaf0f8;
+  --luft-cor-texto: #172033;
+  --luft-cor-texto-suave: #526078;
+  --luft-cor-texto-inverso: #ffffff;
+  --luft-cor-borda: #c9d3e2;
+  --luft-cor-destaque: #0057b8;
+  --luft-cor-foco: #e05a00;
+  --luft-cor-sucesso: #08783e;
+  --luft-cor-alerta: #8a5700;
+  --luft-cor-perigo: #b42318;
+  --luft-espaco-1: 0.25rem;
+  --luft-espaco-2: 0.5rem;
+  --luft-espaco-3: 0.75rem;
+  --luft-espaco-4: 1rem;
+  --luft-espaco-5: 1.5rem;
+  --luft-raio-medio: 0.625rem;
+  --luft-raio-grande: 1rem;
+  --luft-sombra-media: 0 0.5rem 1.5rem rgb(23 32 51 / 0.09);
+}
+
+[data-luft-theme="luft"][data-luft-mode="escuro"] {
+  color-scheme: dark;
+  --luft-cor-fundo: #0d1422;
+  --luft-cor-superficie: #151f31;
+  --luft-cor-superficie-elevada: #202d43;
+  --luft-cor-texto: #f4f7fb;
+  --luft-cor-texto-suave: #b5c0d1;
+  --luft-cor-texto-inverso: #08101d;
+  --luft-cor-borda: #3a4961;
+  --luft-cor-destaque: #79b8ff;
+  --luft-cor-foco: #ffad66;
+  --luft-cor-sucesso: #5ed796;
+  --luft-cor-alerta: #ffd166;
+  --luft-cor-perigo: #ff8c85;
+  --luft-sombra-media: 0 0.5rem 1.5rem rgb(0 0 0 / 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-luft-theme="luft"][data-luft-mode="sistema"] {
+    color-scheme: dark;
+    --luft-cor-fundo: #0d1422;
+    --luft-cor-superficie: #151f31;
+    --luft-cor-superficie-elevada: #202d43;
+    --luft-cor-texto: #f4f7fb;
+    --luft-cor-texto-suave: #b5c0d1;
+    --luft-cor-texto-inverso: #08101d;
+    --luft-cor-borda: #3a4961;
+    --luft-cor-destaque: #79b8ff;
+    --luft-cor-foco: #ffad66;
+    --luft-cor-sucesso: #5ed796;
+    --luft-cor-alerta: #ffd166;
+    --luft-cor-perigo: #ff8c85;
+    --luft-sombra-media: 0 0.5rem 1.5rem rgb(0 0 0 / 0.3);
+  }
+}
+
+/* Marca do tema luft sobre superficies escuras: o azul de acao precisa ser mais claro
+   para manter contraste. O seletor inclui o <body> porque themes.css tambem redefine
+   tokens em [data-theme="dark"] nele. */
+html[data-luft-theme="luft"][data-theme="dark"],
+html[data-luft-theme="luft"][data-theme="dark"] body {
+  --luft-brand: #60a5fa;
+  --luft-brand-rgb: 96, 165, 250;
+  --luft-primary-hover: #3b82f6;
+}

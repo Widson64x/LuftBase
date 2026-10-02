@@ -1,0 +1,1864 @@
+/* ==========================================================================
+   LUFTBASE - COMPONENTS STYLESHEET
+   Estilos dedicados para todos os macros de components.html
+   Importar APÓS global.css e themes.css
+   ========================================================================== */
+
+
+/* ==========================================================================
+   7. ALERTAS INLINE (.luft-alert)
+   ========================================================================== */
+
+.luft-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--luft-radius-lg);
+    border: 1px solid transparent;
+    font-size: var(--luft-text-sm);
+    line-height: 1.6;
+}
+
+.luft-alert-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.luft-alert-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.luft-alert-title {
+    font-size: var(--luft-text-sm);
+    font-weight: 700;
+    margin: 0 0 4px;
+}
+
+.luft-alert-text {
+    margin: 0;
+    color: inherit;
+}
+
+/* Variantes */
+.luft-alert-info {
+    background: var(--luft-info-50, #eff6ff);
+    border-color: var(--luft-info-200, #bfdbfe);
+    color: var(--luft-info-700, #1d4ed8);
+}
+.luft-alert-success {
+    background: var(--luft-success-50, #f0fdf4);
+    border-color: var(--luft-success-200, #bbf7d0);
+    color: var(--luft-success-700, #15803d);
+}
+.luft-alert-warning {
+    background: var(--luft-warning-50, #fffbeb);
+    border-color: var(--luft-warning-200, #fde68a);
+    color: var(--luft-warning-700, #b45309);
+}
+.luft-alert-danger {
+    background: var(--luft-danger-50, #fef2f2);
+    border-color: var(--luft-danger-200, #fecaca);
+    color: var(--luft-danger-700, #b91c1c);
+}
+
+
+/* ==========================================================================
+   7A. NOTIFICACOES / POPUPS (.luft-status-popup, .luft-toast)
+   ========================================================================== */
+
+.luft-status-popups-container,
+.luft-alerts-container {
+    position: fixed;
+    top: var(--luft-popup-offset-top, 24px);
+    right: var(--luft-popup-offset-right, 24px);
+    z-index: var(--luft-z-toast, 9999);
+    display: flex;
+    flex-direction: column;
+    width: min(380px, calc(100vw - 48px));
+    pointer-events: none;
+}
+
+.luft-alerts-container {
+    gap: 10px;
+}
+
+.luft-status-popups-container {
+    gap: 12px;
+}
+
+.luft-toast {
+    width: 100%;
+    background: var(--luft-bg-panel);
+    border-left: 4px solid;
+    box-shadow: var(--luft-shadow-lg);
+    border-radius: 10px;
+    padding: 14px 14px 18px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    pointer-events: all;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.luft-toast-success { border-color: var(--luft-success-500); }
+.luft-toast-danger  { border-color: var(--luft-danger-500); }
+.luft-toast-warning { border-color: var(--luft-warning-500); }
+.luft-toast-info    { border-color: var(--luft-info-500); }
+
+.luft-toast-icon {
+    flex-shrink: 0;
+    font-size: 1.35rem;
+    display: flex;
+    align-items: center;
+    margin-top: 1px;
+}
+
+.luft-toast-success .luft-toast-icon { color: var(--luft-success-500); }
+.luft-toast-danger  .luft-toast-icon { color: var(--luft-danger-500); }
+.luft-toast-warning .luft-toast-icon { color: var(--luft-warning-500); }
+.luft-toast-info    .luft-toast-icon { color: var(--luft-info-500); }
+
+.luft-toast-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.luft-toast-title {
+    font-weight: 700;
+    color: var(--luft-text-main);
+    font-size: 0.9rem;
+}
+
+.luft-toast-text {
+    color: var(--luft-text-muted);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    margin-top: 3px;
+    word-break: break-word;
+}
+
+.luft-toast-close {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: var(--luft-text-muted);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--luft-radius-sm);
+    width: 20px;
+    height: 20px;
+    transition: color 0.15s, background 0.15s;
+    margin-top: -1px;
+    font-size: 0.75rem;
+}
+
+.luft-toast-close:hover {
+    color: var(--luft-text-main);
+    background: var(--luft-bg-app);
+}
+
+.luft-toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    border-radius: 0 0 0 10px;
+    animation: luftToastProgress 6s linear forwards;
+    pointer-events: none;
+}
+
+.luft-toast-success .luft-toast-progress { background: var(--luft-success-500); }
+.luft-toast-danger  .luft-toast-progress { background: var(--luft-danger-500); }
+.luft-toast-warning .luft-toast-progress { background: var(--luft-warning-500); }
+.luft-toast-info    .luft-toast-progress { background: var(--luft-info-500); }
+
+.luft-status-popup {
+    width: 100%;
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border);
+    border-left: 4px solid;
+    box-shadow: var(--luft-shadow-lg);
+    border-radius: 16px;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: flex-start;
+    position: relative;
+    overflow: hidden;
+    pointer-events: all;
+    cursor: pointer;
+    transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.luft-status-popup::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 55%);
+    pointer-events: none;
+}
+
+.luft-status-popup > * {
+    position: relative;
+    z-index: 1;
+}
+
+.luft-status-popup-success { border-color: var(--luft-success-500); }
+.luft-status-popup-danger  { border-color: var(--luft-danger-500); }
+.luft-status-popup-warning { border-color: var(--luft-warning-500); }
+.luft-status-popup-info    { border-color: var(--luft-info-500); }
+
+.luft-status-popup-media {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+}
+
+.luft-status-popup-success .luft-status-popup-media {
+    background: var(--luft-success-50);
+    color: var(--luft-success-600);
+}
+
+.luft-status-popup-danger .luft-status-popup-media {
+    background: var(--luft-danger-50);
+    color: var(--luft-danger-600);
+}
+
+.luft-status-popup-warning .luft-status-popup-media {
+    background: var(--luft-warning-50);
+    color: var(--luft-warning-600);
+}
+
+.luft-status-popup-info .luft-status-popup-media {
+    background: var(--luft-info-50);
+    color: var(--luft-info-600);
+}
+
+.luft-status-popup-spinner {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2.5px solid currentColor;
+    border-right-color: transparent;
+    animation: luftStatusPopupSpin 0.85s linear infinite;
+    display: inline-block;
+}
+
+.luft-status-popup-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.luft-status-popup-title {
+    font-weight: 800;
+    color: var(--luft-text-main);
+    font-size: 0.92rem;
+    line-height: 1.2;
+}
+
+.luft-status-popup-text {
+    margin-top: 4px;
+    color: var(--luft-text-muted);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.luft-status-popup-close {
+    background: transparent;
+    border: none;
+    color: var(--luft-text-muted);
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.luft-status-popup-close:hover {
+    color: var(--luft-text-main);
+    background: var(--luft-bg-app);
+}
+
+@keyframes luftStatusPopupSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .luft-status-popups-container,
+    .luft-alerts-container {
+        top: 16px;
+        right: 16px;
+        width: calc(100vw - 32px);
+    }
+}
+
+
+/* ==========================================================================
+   8. TOGGLE SWITCH (.luft-switch)
+   ========================================================================== */
+
+.luft-switch-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.luft-switch-label {
+    font-size: var(--luft-text-sm);
+    font-weight: 500;
+    color: var(--luft-text-main);
+}
+
+.luft-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.luft-switch input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.luft-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--luft-slate-300);
+    border-radius: var(--luft-radius-full);
+    transition: background 0.25s ease;
+    cursor: pointer;
+}
+
+.luft-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    left: 3px;
+    top: 3px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.luft-switch input:checked + .luft-slider {
+    background: var(--luft-primary-600);
+}
+
+.luft-switch input:checked + .luft-slider::before {
+    transform: translateX(20px);
+}
+
+.luft-switch input:disabled + .luft-slider {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.luft-switch-wrapper:has(input:disabled) {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+
+/* ==========================================================================
+   9. BARRAS DE PROGRESSO (.luft-progress)
+   ========================================================================== */
+
+.luft-progress-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.luft-progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.luft-progress-label {
+    font-size: var(--luft-text-sm);
+    font-weight: 500;
+    color: var(--luft-text-main);
+}
+
+.luft-progress-value {
+    font-size: var(--luft-text-xs);
+    font-weight: 700;
+    color: var(--luft-text-muted);
+}
+
+.luft-progress-track {
+    width: 100%;
+    background: var(--luft-slate-100);
+    border-radius: var(--luft-radius-full);
+    overflow: hidden;
+}
+
+[data-theme="dark"] .luft-progress-track {
+    background: var(--luft-slate-700);
+}
+
+.luft-progress-bar {
+    height: 100%;
+    border-radius: var(--luft-radius-full);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 4px;
+}
+
+/* Tamanhos */
+.luft-progress-sm { height: 4px; }
+.luft-progress-md { height: 8px; }
+.luft-progress-lg { height: 12px; }
+
+/* Cores via utility bg-* */
+.luft-progress-bar.bg-primary { background: var(--luft-primary-600); }
+.luft-progress-bar.bg-success { background: var(--luft-success-500); }
+.luft-progress-bar.bg-danger  { background: var(--luft-danger-500); }
+.luft-progress-bar.bg-warning { background: var(--luft-warning-500); }
+.luft-progress-bar.bg-info    { background: var(--luft-info-500); }
+
+
+/* ==========================================================================
+   10. AVATARES (.luft-avatar-box)
+   ========================================================================== */
+
+.luft-avatar-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--luft-radius-md);
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+    line-height: 1;
+}
+
+.luft-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+}
+
+.luft-avatar-initials {
+    line-height: 1;
+}
+
+/* Tamanhos */
+.luft-avatar-xs { width: 24px; height: 24px; font-size: 0.65rem; }
+.luft-avatar-sm { width: 32px; height: 32px; font-size: 0.75rem; border-radius: var(--luft-radius-sm); }
+.luft-avatar-md { width: 40px; height: 40px; font-size: 0.9rem; }
+.luft-avatar-lg { width: 56px; height: 56px; font-size: 1.1rem; border-radius: var(--luft-radius-xl); }
+.luft-avatar-xl { width: 72px; height: 72px; font-size: 1.4rem; border-radius: var(--luft-radius-xl); }
+
+/* Cores via bg-*-light + text-* (geradas por utilitários) */
+
+
+/* ==========================================================================
+   11. SPINNERS / LOADERS (.luft-spinner)
+   ========================================================================== */
+
+@keyframes luft-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+.luft-spinner-container {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.luft-spinner {
+    animation: luft-spin 0.8s linear infinite;
+    display: block;
+}
+
+.luft-spinner-sm  { width: 20px; height: 20px; }
+.luft-spinner-md  { width: 32px; height: 32px; }
+.luft-spinner-lg  { width: 48px; height: 48px; }
+.luft-spinner-xl  { width: 64px; height: 64px; }
+
+.luft-spinner-text {
+    font-size: var(--luft-text-sm);
+    font-weight: 500;
+}
+
+
+/* ==========================================================================
+   12. EMPTY STATE (.luft-empty-state)
+   ========================================================================== */
+
+.luft-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 48px 24px;
+    gap: 12px;
+}
+
+.luft-empty-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--luft-radius-2xl, 20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    margin-bottom: 4px;
+}
+
+.luft-empty-title {
+    font-size: var(--luft-text-lg);
+    font-weight: 700;
+    color: var(--luft-text-main);
+    margin: 0;
+}
+
+.luft-empty-text {
+    font-size: var(--luft-text-sm);
+    color: var(--luft-text-muted);
+    max-width: 380px;
+    margin: 0;
+    line-height: 1.6;
+}
+
+
+/* ==========================================================================
+   15–17. TABS (.luft-tabs)
+   ========================================================================== */
+
+.luft-tabs {
+    display: flex;
+    flex-direction: column;
+}
+
+.luft-tabs-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-bottom: 2px solid var(--luft-border);
+    padding-bottom: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.luft-tabs-nav::-webkit-scrollbar { display: none; }
+
+.luft-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: var(--luft-radius-md) var(--luft-radius-md) 0 0;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.luft-tab-btn:hover {
+    color: var(--luft-text-main);
+    background: var(--luft-bg-panel-hover);
+}
+
+.luft-tab-btn.ativo {
+    color: var(--luft-primary-600);
+    border-bottom-color: var(--luft-primary-600);
+}
+
+.luft-tab-content {
+    padding-top: 20px;
+}
+
+.luft-tab-panel {
+    display: none;
+    animation: luft-fade-in 0.2s ease;
+}
+
+.luft-tab-panel.ativo {
+    display: block;
+}
+
+@keyframes luft-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ==========================================================================
+   18–19. ACCORDION (.luft-accordion)
+   ========================================================================== */
+
+.luft-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.luft-accordion-item {
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-lg);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.luft-accordion-item:has(.luft-accordion-header.aberto) {
+    box-shadow: var(--luft-shadow-sm);
+}
+
+.luft-accordion-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: var(--luft-bg-panel);
+    border: none;
+    color: var(--luft-text-main);
+    font-size: var(--luft-text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.luft-accordion-header:hover {
+    background: var(--luft-bg-panel-hover);
+}
+
+.luft-accordion-header.aberto {
+    color: var(--luft-primary-600);
+    background: var(--luft-primary-50);
+    border-bottom: 1px solid var(--luft-border-light);
+}
+
+.luft-accordion-icon {
+    font-size: 0.9rem;
+    color: var(--luft-text-muted);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.luft-accordion-header.aberto .luft-accordion-icon {
+    transform: rotate(180deg);
+    color: var(--luft-primary-600);
+}
+
+.luft-accordion-body {
+    display: none;
+    padding: 16px 18px;
+    background: var(--luft-bg-panel);
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-sm);
+    line-height: 1.7;
+    animation: luft-fade-in 0.2s ease;
+}
+
+.luft-accordion-body.aberto {
+    display: block;
+}
+
+
+/* ==========================================================================
+   20–22. DROPDOWN (.luft-dropdown)
+   ========================================================================== */
+
+.luft-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.luft-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 180px;
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-lg);
+    box-shadow: var(--luft-shadow-lg);
+    z-index: var(--luft-z-dropdown, 1050);
+    padding: 4px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px) scale(0.97);
+    transform-origin: top right;
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+}
+
+.luft-dropdown-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+.luft-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--luft-radius-md);
+    color: var(--luft-text-main);
+    font-size: var(--luft-text-sm);
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.luft-dropdown-item:hover {
+    background: var(--luft-bg-panel-hover);
+    color: var(--luft-primary-600);
+}
+
+.luft-dropdown-item.perigoso {
+    color: var(--luft-danger-600);
+}
+
+.luft-dropdown-item.perigoso:hover {
+    background: var(--luft-danger-50);
+    color: var(--luft-danger-700);
+}
+
+.luft-dropdown-divider {
+    height: 1px;
+    background: var(--luft-border-light);
+    margin: 4px 0;
+}
+
+
+/* ==========================================================================
+   23. SECTION HEADER (.luft-section-header)
+   ========================================================================== */
+
+.luft-section-header {
+    margin-bottom: 28px;
+}
+
+.luft-section-header-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.luft-section-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--luft-radius-xl);
+    background: var(--luft-primary-100);
+    color: var(--luft-primary-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.luft-section-title {
+    font-size: var(--luft-text-2xl);
+    font-weight: 800;
+    color: var(--luft-text-main);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.luft-section-subtitle {
+    margin: 8px 0 0;
+    font-size: var(--luft-text-sm);
+    color: var(--luft-text-muted);
+    line-height: 1.6;
+}
+
+
+/* ==========================================================================
+   24. DIVIDER (.luft-divider)
+   ========================================================================== */
+
+.luft-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.luft-divider::before,
+.luft-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--luft-border);
+}
+
+.luft-divider.align-left::before { flex: 0 0 20px; }
+.luft-divider.align-right::after { flex: 0 0 20px; }
+
+.luft-divider:not(:has(span))::after {
+    flex: 1;
+}
+
+
+/* ==========================================================================
+   25. TABLE (.luft-table)
+   ========================================================================== */
+
+.luft-table-wrapper {
+    overflow-x: auto;
+    border-radius: var(--luft-radius-lg);
+    scrollbar-width: thin;
+    scrollbar-color: var(--luft-border) transparent;
+}
+
+.luft-table-wrapper::-webkit-scrollbar { height: 6px; }
+.luft-table-wrapper::-webkit-scrollbar-track { background: transparent; }
+.luft-table-wrapper::-webkit-scrollbar-thumb { background: var(--luft-border); border-radius: 10px; }
+
+.luft-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--luft-text-sm);
+    color: var(--luft-text-main);
+}
+
+.luft-table thead {
+    background: var(--luft-bg-app);
+    border-bottom: 1px solid var(--luft-border);
+}
+
+.luft-table thead th {
+    padding: 11px 16px;
+    font-weight: 700;
+    font-size: var(--luft-text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--luft-text-muted);
+    white-space: nowrap;
+    text-align: left;
+}
+
+.luft-table tbody tr {
+    border-bottom: 1px solid var(--luft-border-light);
+    transition: background 0.15s ease;
+}
+
+.luft-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.luft-table tbody tr:hover {
+    background: var(--luft-bg-panel-hover);
+}
+
+.luft-table tbody td {
+    padding: 13px 16px;
+    vertical-align: middle;
+    color: var(--luft-text-main);
+}
+
+
+/* ==========================================================================
+   26. DRAWER (.luft-drawer)
+   ========================================================================== */
+
+.luft-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(3px);
+    z-index: var(--luft-z-modal-backdrop, 1040);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s;
+}
+
+.luft-drawer-backdrop.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.luft-drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border);
+    box-shadow: var(--luft-shadow-2xl);
+    z-index: var(--luft-z-modal, 1050);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s;
+    visibility: hidden;
+}
+
+/* Posições */
+.luft-drawer-right {
+    right: 0;
+    transform: translateX(100%);
+    border-right: none;
+    border-radius: var(--luft-radius-2xl, 20px) 0 0 var(--luft-radius-2xl, 20px);
+}
+
+.luft-drawer-left {
+    left: 0;
+    transform: translateX(-100%);
+    border-left: none;
+    border-radius: 0 var(--luft-radius-2xl, 20px) var(--luft-radius-2xl, 20px) 0;
+}
+
+.luft-drawer.show {
+    transform: translateX(0);
+    visibility: visible;
+}
+
+/* Tamanhos */
+.luft-drawer-sm { width: 320px; max-width: 95vw; }
+.luft-drawer-md { width: 480px; max-width: 95vw; }
+.luft-drawer-lg { width: 680px; max-width: 95vw; }
+.luft-drawer-xl { width: 860px; max-width: 95vw; }
+
+.luft-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--luft-border-light);
+    flex-shrink: 0;
+}
+
+.luft-drawer-title {
+    font-size: var(--luft-text-lg);
+    font-weight: 700;
+    color: var(--luft-text-main);
+}
+
+.luft-drawer-close {
+    background: transparent;
+    border: none;
+    font-size: 1.4rem;
+    color: var(--luft-text-muted);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s, color 0.2s;
+}
+
+.luft-drawer-close:hover {
+    background: var(--luft-danger-50);
+    color: var(--luft-danger-600);
+}
+
+.luft-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--luft-border) transparent;
+}
+
+.luft-drawer-body::-webkit-scrollbar { width: 6px; }
+.luft-drawer-body::-webkit-scrollbar-track { background: transparent; }
+.luft-drawer-body::-webkit-scrollbar-thumb { background: var(--luft-border); border-radius: 10px; }
+
+
+/* ==========================================================================
+   27. TOOLTIP ([data-tooltip])
+   ========================================================================== */
+
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--luft-slate-900);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: var(--luft-radius-md);
+    white-space: nowrap;
+    max-width: 240px;
+    white-space: normal;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform: translateX(-50%) translateY(4px);
+    z-index: 9000;
+    line-height: 1.4;
+}
+
+[data-tooltip]::after {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    border: 5px solid transparent;
+    border-top-color: var(--luft-slate-900);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 9000;
+}
+
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Posição: bottom */
+[data-tooltip-pos="bottom"]::before {
+    bottom: auto;
+    top: calc(100% + 8px);
+    transform: translateX(-50%) translateY(-4px);
+}
+[data-tooltip-pos="bottom"]::after {
+    bottom: auto;
+    top: calc(100% + 2px);
+    border-top-color: transparent;
+    border-bottom-color: var(--luft-slate-900);
+    transform: translateX(-50%) translateY(-4px);
+}
+[data-tooltip-pos="bottom"]:hover::before,
+[data-tooltip-pos="bottom"]:hover::after {
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Posição: left */
+[data-tooltip-pos="left"]::before {
+    bottom: auto;
+    top: 50%;
+    left: auto;
+    right: calc(100% + 8px);
+    transform: translateY(-50%) translateX(4px);
+}
+[data-tooltip-pos="left"]::after {
+    bottom: auto;
+    top: 50%;
+    left: auto;
+    right: calc(100% + 2px);
+    transform: translateY(-50%) translateX(4px);
+    border-top-color: transparent;
+    border-left-color: var(--luft-slate-900);
+}
+[data-tooltip-pos="left"]:hover::before,
+[data-tooltip-pos="left"]:hover::after {
+    transform: translateY(-50%) translateX(0);
+}
+
+/* Posição: right */
+[data-tooltip-pos="right"]::before {
+    bottom: auto;
+    top: 50%;
+    left: calc(100% + 8px);
+    transform: translateY(-50%) translateX(-4px);
+}
+[data-tooltip-pos="right"]::after {
+    bottom: auto;
+    top: 50%;
+    left: calc(100% + 2px);
+    transform: translateY(-50%) translateX(-4px);
+    border-top-color: transparent;
+    border-right-color: var(--luft-slate-900);
+}
+[data-tooltip-pos="right"]:hover::before,
+[data-tooltip-pos="right"]:hover::after {
+    transform: translateY(-50%) translateX(0);
+}
+
+
+/* ==========================================================================
+   28–29. SKELETON (.luft-skeleton)
+   ========================================================================== */
+
+@keyframes luft-shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+
+.luft-skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--luft-slate-100) 25%,
+        var(--luft-slate-200) 50%,
+        var(--luft-slate-100) 75%
+    );
+    background-size: 800px 100%;
+    animation: luft-shimmer 1.4s ease-in-out infinite;
+    border-radius: var(--luft-radius-md);
+}
+
+[data-theme="dark"] .luft-skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--luft-slate-700) 25%,
+        var(--luft-slate-600) 50%,
+        var(--luft-slate-700) 75%
+    );
+    background-size: 800px 100%;
+}
+
+.luft-skeleton-block  { display: block; border-radius: var(--luft-radius-md); }
+.luft-skeleton-circle { border-radius: 50%; }
+.luft-skeleton-avatar { width: 40px; height: 40px; border-radius: var(--luft-radius-md); }
+.luft-skeleton-btn    { height: 36px; border-radius: var(--luft-radius-md); }
+.luft-skeleton-text   { border-radius: var(--luft-radius-sm); }
+.luft-skeleton-w75    { width: 75% !important; }
+
+
+/* ==========================================================================
+   31. STAT MINI (.luft-stat-mini)
+   ========================================================================== */
+
+.luft-stat-mini {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-xl);
+    box-shadow: var(--luft-shadow-sm);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.luft-stat-mini:hover {
+    box-shadow: var(--luft-shadow-md);
+    transform: translateY(-1px);
+}
+
+.luft-stat-mini-left {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.luft-stat-mini-label {
+    font-size: var(--luft-text-xs);
+    font-weight: 600;
+    color: var(--luft-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.luft-stat-mini-value {
+    font-size: var(--luft-text-2xl);
+    font-weight: 800;
+    color: var(--luft-text-main);
+    line-height: 1.1;
+}
+
+.luft-stat-mini-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--luft-text-xs);
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.luft-stat-mini-trend.up    { color: var(--luft-success-600); }
+.luft-stat-mini-trend.down  { color: var(--luft-danger-600); }
+.luft-stat-mini-trend.flat  { color: var(--luft-text-muted); }
+
+.luft-stat-mini-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--luft-radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+/* Cores do ícone via classe dinâmica (primary, success, danger, etc.) */
+.luft-stat-mini-icon.primary { background: var(--luft-primary-100); color: var(--luft-primary-600); }
+.luft-stat-mini-icon.success { background: var(--luft-success-100); color: var(--luft-success-600); }
+.luft-stat-mini-icon.danger  { background: var(--luft-danger-100);  color: var(--luft-danger-600);  }
+.luft-stat-mini-icon.warning { background: var(--luft-warning-100); color: var(--luft-warning-600); }
+.luft-stat-mini-icon.info    { background: var(--luft-info-100);    color: var(--luft-info-600);    }
+
+
+/* ==========================================================================
+   32. IMAGE CARD (.luft-image-card)
+   ========================================================================== */
+
+.luft-image-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--luft-bg-panel);
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-xl);
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--luft-text-main);
+    box-shadow: var(--luft-shadow-sm);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+a.luft-image-card:hover {
+    box-shadow: var(--luft-shadow-lg);
+    transform: translateY(-3px);
+}
+
+.luft-image-card-img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    display: block;
+}
+
+.luft-image-card-body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.luft-image-card-title {
+    font-size: var(--luft-text-base);
+    font-weight: 700;
+    color: var(--luft-text-main);
+    margin: 0;
+}
+
+.luft-image-card-subtitle {
+    font-size: var(--luft-text-sm);
+    color: var(--luft-text-muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+
+/* ==========================================================================
+   33–34. TIMELINE (.luft-timeline)
+   ========================================================================== */
+
+.luft-timeline {
+    display: flex;
+    flex-direction: column;
+}
+
+.luft-timeline-item {
+    display: flex;
+    gap: 16px;
+    position: relative;
+}
+
+.luft-timeline-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 36px;
+}
+
+.luft-timeline-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+/* Cores do dot */
+.luft-timeline-dot.primary { background: var(--luft-primary-100); color: var(--luft-primary-600); }
+.luft-timeline-dot.success { background: var(--luft-success-100); color: var(--luft-success-600); }
+.luft-timeline-dot.danger  { background: var(--luft-danger-100);  color: var(--luft-danger-600);  }
+.luft-timeline-dot.warning { background: var(--luft-warning-100); color: var(--luft-warning-600); }
+.luft-timeline-dot.info    { background: var(--luft-info-100);    color: var(--luft-info-600);    }
+
+.luft-timeline-line {
+    flex: 1;
+    width: 2px;
+    background: var(--luft-border);
+    margin-top: 4px;
+    min-height: 24px;
+    border-radius: 2px;
+}
+
+.luft-timeline-item:last-child .luft-timeline-line {
+    display: none;
+}
+
+.luft-timeline-content {
+    padding-bottom: 24px;
+    flex: 1;
+    padding-top: 6px;
+}
+
+.luft-timeline-title {
+    font-size: var(--luft-text-sm);
+    font-weight: 700;
+    color: var(--luft-text-main);
+    margin: 0 0 4px;
+}
+
+.luft-timeline-time {
+    font-size: var(--luft-text-xs);
+    color: var(--luft-text-muted);
+    margin: 0 0 6px;
+    font-weight: 500;
+}
+
+.luft-timeline-desc {
+    font-size: var(--luft-text-sm);
+    color: var(--luft-text-muted);
+    margin: 0;
+    line-height: 1.6;
+}
+
+
+/* ==========================================================================
+   35. KBD (.luft-kbd)
+   ========================================================================== */
+
+.luft-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 7px;
+    background: var(--luft-bg-app);
+    border: 1px solid var(--luft-border-dark);
+    border-bottom-width: 3px;
+    border-radius: var(--luft-radius-sm);
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, 'Courier New', monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--luft-text-main);
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+
+/* ==========================================================================
+   36. COLOR BADGE (.luft-color-badge)
+   ========================================================================== */
+
+.luft-color-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--luft-text-sm);
+    font-weight: 500;
+    color: var(--luft-text-main);
+}
+
+.luft-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+
+/* ==========================================================================
+   37. SELECT (.form-select)
+   ========================================================================== */
+
+.form-select {
+    width: 100%;
+    padding: 0.6rem 2.5rem 0.6rem 1rem;
+    background: var(--luft-bg-app);
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-md);
+    color: var(--luft-text-main);
+    font-size: var(--luft-text-sm);
+    font-family: inherit;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-select:focus {
+    border-color: var(--luft-primary-500);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(var(--luft-focus-rgb, 59, 130, 246), 0.15);
+}
+
+.form-select:disabled {
+    opacity: 0.7;
+    background-color: var(--luft-slate-100);
+    cursor: not-allowed;
+}
+
+.form-select option {
+    background: var(--luft-bg-panel);
+    color: var(--luft-text-main);
+}
+
+
+/* ==========================================================================
+   38. FILE UPLOAD (.luft-file-upload)
+   ========================================================================== */
+
+.luft-file-upload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 32px 24px;
+    border: 2px dashed var(--luft-border-dark);
+    border-radius: var(--luft-radius-xl);
+    background: var(--luft-bg-app);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.luft-file-upload:hover {
+    border-color: var(--luft-primary-500);
+    background: var(--luft-primary-50);
+}
+
+.luft-file-upload input[type="file"] {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.luft-file-upload-icon {
+    font-size: 2rem;
+    color: var(--luft-primary-500);
+}
+
+.luft-file-upload-text {
+    font-size: var(--luft-text-sm);
+    font-weight: 600;
+    color: var(--luft-text-main);
+    margin: 0;
+}
+
+.luft-file-upload-hint {
+    font-size: var(--luft-text-xs);
+    color: var(--luft-text-muted);
+    margin: 0;
+}
+
+.luft-file-name {
+    font-size: var(--luft-text-xs);
+    font-weight: 600;
+    color: var(--luft-primary-600);
+    margin-top: 4px;
+    word-break: break-all;
+}
+
+
+/* ==========================================================================
+   39. COPY FIELD (.luft-copy-field)
+   ========================================================================== */
+
+.luft-copy-field {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-md);
+    overflow: hidden;
+    background: var(--luft-bg-app);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.luft-copy-field:focus-within {
+    border-color: var(--luft-primary-500);
+    box-shadow: 0 0 0 3px rgba(var(--luft-focus-rgb, 59, 130, 246), 0.15);
+}
+
+.luft-copy-field input {
+    flex: 1;
+    padding: 0.6rem 1rem;
+    background: transparent;
+    border: none;
+    color: var(--luft-text-main);
+    font-size: var(--luft-text-sm);
+    font-family: ui-monospace, 'SFMono-Regular', monospace;
+    outline: none;
+    min-width: 0;
+}
+
+.luft-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px;
+    background: var(--luft-bg-panel);
+    border: none;
+    border-left: 1px solid var(--luft-border);
+    color: var(--luft-text-muted);
+    font-size: var(--luft-text-xs);
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.luft-copy-btn:hover {
+    background: var(--luft-primary-50);
+    color: var(--luft-primary-600);
+}
+
+
+/* ==========================================================================
+   40. RATING (.luft-rating)
+   ========================================================================== */
+
+.luft-rating {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: 2px;
+}
+
+.luft-rating input {
+    display: none;
+}
+
+.luft-rating label {
+    font-size: 1.6rem;
+    color: var(--luft-slate-300);
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s ease;
+    line-height: 1;
+    user-select: none;
+}
+
+.luft-rating label:hover,
+.luft-rating label:hover ~ label,
+.luft-rating input:checked ~ label {
+    color: var(--luft-warning-400, #fbbf24);
+}
+
+.luft-rating label:hover {
+    transform: scale(1.2);
+}
+
+.luft-rating.readonly label {
+    cursor: default;
+    pointer-events: none;
+}
+
+.luft-rating.readonly label:hover {
+    transform: none;
+}
+
+
+/* ==========================================================================
+   41. STEPS (.luft-steps)
+   ========================================================================== */
+
+.luft-steps {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    counter-reset: step;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+
+.luft-steps::-webkit-scrollbar { display: none; }
+
+.luft-step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    position: relative;
+    min-width: 80px;
+}
+
+/* Linha de conexão entre steps */
+.luft-step-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 18px;
+    left: calc(50% + 18px);
+    right: calc(-50% + 18px);
+    height: 2px;
+    background: var(--luft-border);
+    transition: background 0.3s ease;
+}
+
+.luft-step-item.concluido:not(:last-child)::after {
+    background: var(--luft-primary-400);
+}
+
+.luft-step-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    background: var(--luft-slate-100);
+    color: var(--luft-text-muted);
+    border: 2px solid var(--luft-border);
+    transition: all 0.3s ease;
+    z-index: 1;
+}
+
+.luft-step-item.concluido .luft-step-circle {
+    background: var(--luft-primary-600);
+    color: #fff;
+    border-color: var(--luft-primary-600);
+}
+
+.luft-step-item.ativo .luft-step-circle {
+    background: #fff;
+    color: var(--luft-primary-600);
+    border-color: var(--luft-primary-600);
+    box-shadow: 0 0 0 4px var(--luft-primary-100);
+}
+
+.luft-step-label {
+    margin-top: 8px;
+    font-size: var(--luft-text-xs);
+    font-weight: 600;
+    color: var(--luft-text-muted);
+    text-align: center;
+    line-height: 1.3;
+}
+
+.luft-step-item.ativo .luft-step-label {
+    color: var(--luft-primary-600);
+}
+
+.luft-step-item.concluido .luft-step-label {
+    color: var(--luft-text-main);
+}
+
+
+/* ==========================================================================
+   42–43. LIST GROUP (.luft-list-group)
+   ========================================================================== */
+
+.luft-list-group {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-xl);
+    overflow: hidden;
+    background: var(--luft-bg-panel);
+}
+
+.luft-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--luft-border-light);
+    text-decoration: none;
+    color: var(--luft-text-main);
+    transition: background 0.15s ease;
+}
+
+.luft-list-item:last-child {
+    border-bottom: none;
+}
+
+a.luft-list-item:hover,
+div.luft-list-item:hover {
+    background: var(--luft-bg-panel-hover);
+}
+
+.luft-list-item-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--luft-primary-100);
+    color: var(--luft-primary-600);
+    border-radius: var(--luft-radius-md);
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.luft-list-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.luft-list-item-title {
+    font-size: var(--luft-text-sm);
+    font-weight: 600;
+    color: var(--luft-text-main);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.luft-list-item-sub {
+    font-size: var(--luft-text-xs);
+    color: var(--luft-text-muted);
+    margin: 2px 0 0;
+}
+
+
+/* ==========================================================================
+   44. CHIP (.luft-chip)
+   ========================================================================== */
+
+.luft-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: var(--luft-radius-full);
+    font-size: var(--luft-text-xs);
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.luft-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+    transition: opacity 0.15s ease, background 0.15s ease;
+    padding: 0;
+    margin-left: 2px;
+}
+
+.luft-chip-remove:hover {
+    opacity: 1;
+    background: rgba(0,0,0,0.15);
+}
+
+/* Variantes de cor */
+.luft-chip-primary { background: var(--luft-primary-100); color: var(--luft-primary-700); }
+.luft-chip-success { background: var(--luft-success-100); color: var(--luft-success-700); }
+.luft-chip-danger  { background: var(--luft-danger-100);  color: var(--luft-danger-700);  }
+.luft-chip-warning { background: var(--luft-warning-100); color: var(--luft-warning-700); }
+.luft-chip-info    { background: var(--luft-info-100);    color: var(--luft-info-700);    }
+.luft-chip-gray    { background: var(--luft-slate-100);   color: var(--luft-slate-700);   }
+
+
+/* ==========================================================================
+   45. TAG (.luft-tag)
+   ========================================================================== */
+
+.luft-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: var(--luft-radius-full);
+    font-size: var(--luft-text-xs);
+    font-weight: 500;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: opacity 0.2s ease, box-shadow 0.2s ease;
+    white-space: nowrap;
+}
+
+a.luft-tag:hover {
+    opacity: 0.8;
+    box-shadow: var(--luft-shadow-sm);
+}
+
+/* Variantes de cor */
+.luft-tag-primary { background: var(--luft-primary-50);  color: var(--luft-primary-700); border-color: var(--luft-primary-200); }
+.luft-tag-success { background: var(--luft-success-50);  color: var(--luft-success-700); border-color: var(--luft-success-200); }
+.luft-tag-danger  { background: var(--luft-danger-50);   color: var(--luft-danger-700);  border-color: var(--luft-danger-200);  }
+.luft-tag-warning { background: var(--luft-warning-50);  color: var(--luft-warning-700); border-color: var(--luft-warning-200); }
+.luft-tag-info    { background: var(--luft-info-50);     color: var(--luft-info-700);    border-color: var(--luft-info-200);    }
+.luft-tag-gray    { background: var(--luft-slate-50);    color: var(--luft-slate-700);   border-color: var(--luft-slate-200);   }
+
+
+/* ==========================================================================
+   HOVER LIFT (utilitário global)
+   ========================================================================== */
+
+.hover-lift {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.hover-lift:hover {
+    box-shadow: var(--luft-shadow-md);
+    transform: translateY(-2px);
+}

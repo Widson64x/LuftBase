@@ -1,0 +1,291 @@
+{% extends layout_base | default('luftbase/base.html') %}
+{% import "luftbase/components.html" as ui %}
+
+{% set eh_comunicado = tipo_publicacao == 'COMUNICADO' %}
+{% set nome_plural = 'Comunicados' if eh_comunicado else 'Notas de Atualização' %}
+{% set nome_singular = 'Comunicado' if eh_comunicado else 'Nota de Atualização' %}
+
+{% block titulo %}{{ nome_plural }} - Painel de Controle{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/publicacoes.css') }}">
+{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_raiz_aplicacao | default('/') }}" class="luft-breadcrumb-item d-flex align-items-center gap-1 text-muted text-decoration-none" style="text-decoration: none;">
+    <i class="ph-fill ph-house"></i> {{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default(luft_app_name) | default('Luft-WorkSpace') }}
+</a>
+<i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
+<a href="{{ url_for('Configuracoes.visualizar_painel') }}" class="luft-breadcrumb-item text-muted text-decoration-none" style="text-decoration: none;">Painel de Controle</a>
+<i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
+<span class="luft-breadcrumb-item active font-semibold">{{ nome_plural }}</span>
+{% endblock %}
+
+{% block content %}
+<main class="publicacoes-shell">
+    <header class="publicacoes-header">
+        <div class="publicacoes-title-group">
+            <a href="{{ url_for('Configuracoes.visualizar_painel') }}" class="publicacoes-back" title="Voltar ao Painel de Controle">
+                <i class="ph-bold ph-arrow-left"></i>
+            </a>
+            <div class="publicacoes-title-icon">
+                <i class="ph-bold {{ 'ph-megaphone' if eh_comunicado else 'ph-rocket-launch' }}"></i>
+            </div>
+            <div>
+                <div class="publicacoes-eyebrow">Painel de Controle · Comunicação</div>
+                <h1>{{ nome_plural }}</h1>
+                <p>{{ 'Informações corporativas para todos ou para grupos selecionados.' if eh_comunicado else 'Histórico de versões, melhorias, correções e novidades do sistema.' }}</p>
+            </div>
+        </div>
+        {% if pode_criar %}
+        <button class="btn btn-primary publicacoes-create" type="button" onclick="LuftPublicacoesPainel.abrirNovo()">
+            <i class="ph-bold ph-plus"></i> Novo {{ nome_singular }}
+        </button>
+        {% endif %}
+    </header>
+
+    <section class="publicacoes-toolbar luft-card">
+        <div class="publicacoes-switcher" aria-label="Tipo de publicação">
+            {% if pode_ver_comunicados %}
+            <a href="{{ url_for('LuftPublicacoes.painel_comunicados') }}" class="{{ 'active' if eh_comunicado else '' }}">
+                <i class="ph-bold ph-megaphone"></i> Comunicados
+            </a>
+            {% endif %}
+            {% if pode_ver_atualizacoes %}
+            <a href="{{ url_for('LuftPublicacoes.painel_atualizacoes') }}" class="{{ 'active' if not eh_comunicado else '' }}">
+                <i class="ph-bold ph-rocket-launch"></i> Changelog
+            </a>
+            {% endif %}
+        </div>
+        <div class="publicacoes-search">
+            <i class="ph ph-magnifying-glass"></i>
+            <input id="publicacoesBusca" type="search" placeholder="Buscar por título, status ou versão..." autocomplete="off">
+        </div>
+        <select id="publicacoesFiltroStatus" class="form-select" aria-label="Filtrar status">
+            <option value="">Todos os status</option>
+            <option value="RASCUNHO">Rascunhos</option>
+            <option value="AGENDADO">Agendados</option>
+            <option value="PUBLICADO">Publicados</option>
+            <option value="ARQUIVADO">Arquivados</option>
+        </select>
+    </section>
+
+    {% if eh_comunicado %}
+    <aside class="publicacoes-integration-card">
+        <div class="publicacoes-integration-icon"><i class="ph-bold ph-envelope-simple"></i></div>
+        <div>
+            <strong>Integração Gmail preparada</strong>
+            <span>O contrato de importação já suporta ID da mensagem, thread, remetente, URL e metadados com sincronização idempotente.</span>
+        </div>
+        <span class="publicacoes-ready"><i class="ph-bold ph-plugs-connected"></i> Aguardando credenciais</span>
+    </aside>
+    {% endif %}
+
+    <section id="publicacoesLista" class="publicacoes-list">
+        {% for publicacao in publicacoes %}
+        <article class="publicacao-card" data-publicacao-id="{{ publicacao.id }}" data-status="{{ publicacao.status }}" data-busca="{{ (publicacao.titulo ~ ' ' ~ (publicacao.versao or '') ~ ' ' ~ publicacao.status)|lower }}">
+            <div class="publicacao-accent prioridade-{{ publicacao.prioridade|lower }}"></div>
+            <div class="publicacao-main">
+                <div class="publicacao-topline">
+                    <div class="publicacao-badges">
+                        <span class="publicacao-status status-{{ publicacao.status|lower }}">{{ publicacao.status }}</span>
+                        {% if publicacao.id_sistema == 0 %}
+                        <span class="publicacao-chip global"><i class="ph-bold ph-globe"></i> Global</span>
+                        {% else %}
+                        <span class="publicacao-chip"><i class="ph-bold ph-app-window"></i> Sistema {{ publicacao.id_sistema }}</span>
+                        {% endif %}
+                        <span class="publicacao-chip"><i class="ph-bold {{ 'ph-users-three' if publicacao.tipo_audiencia == 'GRUPOS' else 'ph-users' }}"></i> {{ publicacao.ids_grupos|length ~ ' grupo(s)' if publicacao.tipo_audiencia == 'GRUPOS' else 'Geral' }}</span>
+                        {% if publicacao.fonte != 'INTERNO' %}<span class="publicacao-chip fonte"><i class="ph-bold ph-envelope"></i> {{ publicacao.fonte }}</span>{% endif %}
+                    </div>
+                    {% if publicacao.fixado %}<i class="ph-fill ph-push-pin text-primary" title="Publicação fixada"></i>{% endif %}
+                </div>
+                <div class="publicacao-heading">
+                    {% if publicacao.versao %}<span class="publicacao-version">v{{ publicacao.versao|replace('v', '') }}</span>{% endif %}
+                    <h2>{{ publicacao.titulo }}</h2>
+                </div>
+                <p>{{ publicacao.resumo or publicacao.conteudo|truncate(220) }}</p>
+                {% if publicacao.itens_atualizacao %}
+                <div class="publicacao-items-preview">
+                    {% for item in publicacao.itens_atualizacao[:4] %}
+                    <span class="item-{{ item.tipo|lower }}">{{ item.tipo }} · {{ item.titulo }}</span>
+                    {% endfor %}
+                    {% if publicacao.itens_atualizacao|length > 4 %}<span>+{{ publicacao.itens_atualizacao|length - 4 }} itens</span>{% endif %}
+                </div>
+                {% endif %}
+                <div class="publicacao-meta">
+                    <span><i class="ph ph-user"></i> {{ publicacao.criado_por }}</span>
+                    <span><i class="ph ph-calendar-blank"></i> {{ (publicacao.data_publicacao or publicacao.data_criacao or '')[:16]|replace('T', ' ') }}</span>
+                    {% if publicacao.exibir_a_partir_de %}<span><i class="ph ph-clock"></i> Exibição: {{ publicacao.exibir_a_partir_de[:16]|replace('T', ' ') }}</span>{% endif %}
+                    {% if publicacao.notificar %}<span class="text-primary"><i class="ph ph-bell-ringing"></i> Notificação ativa</span>{% endif %}
+                </div>
+            </div>
+            <div class="publicacao-actions">
+                {% if pode_editar and publicacao.status in ['RASCUNHO', 'AGENDADO'] %}
+                <button type="button" class="btn btn-outline btn-sm" onclick="LuftPublicacoesPainel.editar({{ publicacao.id }})" title="Editar">
+                    <i class="ph-bold ph-pencil-simple"></i><span>Editar</span>
+                </button>
+                {% endif %}
+                {% if pode_publicar and publicacao.status in ['RASCUNHO', 'AGENDADO'] %}
+                <button type="button" class="btn btn-primary btn-sm" onclick="LuftPublicacoesPainel.publicar({{ publicacao.id }})" title="Publicar">
+                    <i class="ph-bold ph-paper-plane-tilt"></i><span>Publicar</span>
+                </button>
+                {% endif %}
+                {% if pode_arquivar and publicacao.status != 'ARQUIVADO' %}
+                <button type="button" class="btn btn-outline btn-sm text-danger" onclick="LuftPublicacoesPainel.arquivar({{ publicacao.id }})" title="Arquivar">
+                    <i class="ph-bold ph-archive"></i><span>Arquivar</span>
+                </button>
+                {% endif %}
+            </div>
+        </article>
+        {% else %}
+        <div class="publicacoes-empty">
+            <div><i class="ph-thin {{ 'ph-megaphone' if eh_comunicado else 'ph-rocket-launch' }}"></i></div>
+            <h2>Nenhuma publicação por aqui</h2>
+            <p>Crie o primeiro {{ nome_singular|lower }} para iniciar esta linha do tempo.</p>
+            {% if pode_criar %}<button class="btn btn-primary" type="button" onclick="LuftPublicacoesPainel.abrirNovo()"><i class="ph-bold ph-plus"></i> Criar agora</button>{% endif %}
+        </div>
+        {% endfor %}
+    </section>
+
+    <div id="publicacoesSemResultado" class="publicacoes-empty compact" hidden>
+        <div><i class="ph-thin ph-magnifying-glass"></i></div>
+        <h2>Nenhum resultado</h2>
+        <p>Ajuste a busca ou o filtro de status.</p>
+    </div>
+</main>
+
+{% call ui.modal('modalPublicacao', nome_singular, 'lg', 'ph-bold ' ~ ('ph-megaphone' if eh_comunicado else 'ph-rocket-launch')) %}
+<form id="formPublicacao" class="publicacao-form" novalidate onsubmit="LuftPublicacoesPainel.salvar(event)">
+    <input id="publicacaoId" type="hidden">
+    <div id="publicacaoErros" class="publicacao-erros" role="alert" aria-live="assertive" hidden></div>
+    <p class="publicacao-legenda">Campos com <span class="publicacao-obrigatorio">*</span> são obrigatórios. O restante é opcional.</p>
+    <div class="publicacao-form-grid cols-2">
+        <label class="publicacao-field span-2">
+            <span>Título <b class="publicacao-obrigatorio">*</b></span>
+            <input id="publicacaoTitulo" class="form-control" type="text" maxlength="200" required placeholder="Um título claro e objetivo">
+        </label>
+        {% if not eh_comunicado %}
+        <label class="publicacao-field">
+            <span>Versão <b class="publicacao-obrigatorio">*</b></span>
+            <input id="publicacaoVersao" class="form-control" type="text" maxlength="50" required placeholder="Ex.: 2.4.0">
+        </label>
+        {% endif %}
+        <label class="publicacao-field {{ '' if not eh_comunicado else 'span-2' }}">
+            <span>Prioridade</span>
+            <select id="publicacaoPrioridade" class="form-select">
+                <option value="BAIXA">Baixa</option><option value="NORMAL" selected>Normal</option><option value="ALTA">Alta</option><option value="CRITICA">Crítica</option>
+            </select>
+        </label>
+        <label class="publicacao-field span-2">
+            <span>Resumo</span>
+            <textarea id="publicacaoResumo" class="form-control" rows="2" maxlength="500" placeholder="Texto curto exibido na notificação"></textarea>
+            <small>Se ficar vazio, o LuftBase criará um resumo a partir do conteúdo.</small>
+        </label>
+        <label class="publicacao-field span-2">
+            <span>Conteúdo <b class="publicacao-obrigatorio">*</b></span>
+            <textarea id="publicacaoConteudo" class="form-control publicacao-editor" rows="8" required placeholder="Escreva a mensagem completa. Quebras de linha serão preservadas."></textarea>
+        </label>
+    </div>
+
+    {% if not eh_comunicado %}
+    <section class="publicacao-form-section">
+        <div class="publicacao-form-section-head">
+            <div><strong>Itens do changelog</strong><small>Separe as mudanças por categoria.</small></div>
+            <button class="btn btn-outline btn-sm" type="button" onclick="LuftPublicacoesPainel.adicionarItem()"><i class="ph-bold ph-plus"></i> Adicionar item</button>
+        </div>
+        <div id="publicacaoItens" class="publicacao-items-editor"></div>
+    </section>
+    {% endif %}
+
+    <section class="publicacao-form-section">
+        <div class="publicacao-form-section-head"><div><strong>Distribuição</strong><small>Defina onde e para quem a publicação será entregue.</small></div></div>
+        <div class="publicacao-form-grid cols-2">
+            <label class="publicacao-field">
+                <span>Escopo do sistema</span>
+                <select id="publicacaoSistema" class="form-select" {% if sistema_atual_id != 0 %}disabled{% endif %}>
+                    {% for sistema in sistemas_publicacao %}<option value="{{ sistema.id }}">{{ sistema.nome }}{% if sistema.id == 0 %} — GLOBAL{% endif %}</option>{% endfor %}
+                </select>
+                <small>{% if sistema_atual_id != 0 %}Fixo neste sistema: só o sistema global (ID 0) escolhe outro escopo.{% else %}Escolha "GLOBAL" (ID 0) para exibir em todas as aplicações.{% endif %}</small>
+            </label>
+            <label class="publicacao-field">
+                <span>Audiência</span>
+                <select id="publicacaoAudiencia" class="form-select" onchange="LuftPublicacoesPainel.alternarAudiencia()">
+                    <option value="GERAL">Geral — todos os usuários</option>
+                    <option value="GRUPOS">Grupos selecionados</option>
+                </select>
+                <small>"Geral" atinge todos os usuários. "Grupos" abre a lista para você escolher quem recebe.</small>
+            </label>
+            <div id="publicacaoGruposCampo" class="publicacao-field span-2" hidden>
+                <span>Grupos destinatários <b class="publicacao-obrigatorio">*</b></span>
+                <div class="publicacao-groups-tools">
+                    <input id="publicacaoGrupoBusca" class="form-control" type="search" placeholder="Buscar grupo pelo nome ou número..." oninput="LuftPublicacoesPainel.filtrarGrupos()" autocomplete="off">
+                    <button class="btn btn-outline btn-sm" type="button" onclick="LuftPublicacoesPainel.marcarGrupos(true)">Marcar visíveis</button>
+                    <button class="btn btn-outline btn-sm" type="button" onclick="LuftPublicacoesPainel.marcarGrupos(false)">Limpar</button>
+                </div>
+                <div class="publicacao-groups">
+                    {% for grupo in grupos_publicacao %}
+                    <label><input type="checkbox" name="publicacaoGrupo" value="{{ grupo.id }}"> <span>{{ grupo.nome }}</span><small>#{{ grupo.id }}</small></label>
+                    {% else %}<p class="text-muted">Nenhum grupo foi disponibilizado pelo modelo de segurança da aplicação.</p>{% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="publicacao-form-section">
+        <div class="publicacao-form-section-head"><div><strong>Entrega e vigência</strong><small>Programe a publicação e sua permanência.</small></div></div>
+        <div class="publicacao-form-grid cols-2">
+            <label class="publicacao-field">
+                <span>Exibir a partir de</span>
+                <input id="publicacaoInicio" class="form-control" type="datetime-local">
+                <small>Vazio = aparece assim que for publicado. Preencha para agendar.</small>
+                <span class="publicacao-atalhos">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="LuftPublicacoesPainel.definirData('inicio', null)">Imediato</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="LuftPublicacoesPainel.definirData('inicio', 1)">Amanhã</button>
+                </span>
+            </label>
+            <label class="publicacao-field">
+                <span>Expirar em</span>
+                <input id="publicacaoExpiracao" class="form-control" type="datetime-local">
+                <small>Vazio = nunca expira. Depois dessa data a publicação some do feed.</small>
+                <span class="publicacao-atalhos">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="LuftPublicacoesPainel.definirData('expiracao', null)">Nunca</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="LuftPublicacoesPainel.definirData('expiracao', 7)">7 dias</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="LuftPublicacoesPainel.definirData('expiracao', 30)">30 dias</button>
+                </span>
+            </label>
+        </div>
+        <div class="publicacao-options">
+            <label><input id="publicacaoNotificar" type="checkbox" checked> <span><strong>Gerar notificação</strong><small>Cria automaticamente a notificação geral ou uma por grupo.</small></span></label>
+            <label><input id="publicacaoFixado" type="checkbox"> <span><strong>Fixar publicação</strong><small>Mantém o item em destaque na administração.</small></span></label>
+        </div>
+    </section>
+
+    <div id="publicacaoResumoEntrega" class="publicacao-resumo-entrega" aria-live="polite"></div>
+
+    <div class="publicacao-form-footer">
+        <span><i class="ph-bold ph-info"></i> {% if pode_publicar %}"Salvar rascunho" guarda sem entregar. "Salvar e publicar" entrega agora.{% else %}O salvamento cria um rascunho. A entrega só ocorre ao publicar.{% endif %}</span>
+        <div>
+            <button class="btn btn-outline" type="button" onclick="LuftBase.fecharModal('modalPublicacao')">Cancelar</button>
+            <button id="publicacaoSalvar" class="btn {{ 'btn-outline' if pode_publicar else 'btn-primary' }}" type="submit" data-acao="rascunho"><i class="ph-bold ph-floppy-disk"></i> Salvar rascunho</button>
+            {% if pode_publicar %}<button id="publicacaoSalvarPublicar" class="btn btn-primary" type="submit" data-acao="publicar"><i class="ph-bold ph-paper-plane-tilt"></i> Salvar e publicar</button>{% endif %}
+        </div>
+    </div>
+</form>
+{% endcall %}
+
+<script id="publicacoes-config" type="application/json">{{ {
+    'tipo': tipo_publicacao,
+    'publicacoes': publicacoes,
+    'sistema_atual_id': sistema_atual_id,
+    'endpoints': {
+        'comunicados': url_for('LuftPublicacoes.criar_comunicado'),
+        'atualizacoes': url_for('LuftPublicacoes.criar_atualizacao')
+    }
+}|tojson }}</script>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ super() }}
+<script src="{{ url_for('luftbase.static', filename='js/publicacoes.js') }}"></script>
+{% endblock %}

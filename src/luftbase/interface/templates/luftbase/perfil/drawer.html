@@ -1,0 +1,370 @@
+{# ================================================================
+   DRAWER DE PERFIL DO USUÁRIO — LuftBase
+   Gerenciamento completo de identidade corporativa, tema, fotos e sessões.
+   ================================================================ #}
+
+<!-- Backdrop do Perfil -->
+<div id="luft-perfil-backdrop" class="luft-perfil-backdrop" aria-hidden="true"></div>
+
+<!-- Drawer do Perfil -->
+<div id="luft-perfil-drawer" class="luft-perfil-drawer" role="dialog" aria-modal="true" aria-labelledby="luft-perfil-title">
+
+    <!-- Header do Drawer -->
+    <div class="luft-perfil-header">
+        <div class="luft-perfil-header-title-box">
+            <div class="luft-perfil-header-icon">
+                <i class="ph-bold ph-user-gear"></i>
+            </div>
+            <div>
+                <h3 id="luft-perfil-title" class="luft-perfil-header-title">Configurações de Perfil</h3>
+                <span class="luft-perfil-header-sub">Gestão da sua conta corporativa Luft</span>
+            </div>
+        </div>
+        <button id="luft-perfil-close-btn" class="luft-perfil-close-btn" type="button" title="Fechar painel (Esc)">
+            <i class="ph-bold ph-x"></i>
+        </button>
+    </div>
+
+    <!-- Identity Hero Card -->
+    <div class="luft-perfil-hero">
+        <div class="luft-perfil-avatar-container">
+            <div class="luft-perfil-avatar-wrap">
+                <img id="luft-perfil-avatar-img" class="luft-perfil-avatar-img" src="" alt="Foto de perfil" style="display: none;">
+                <span id="luft-perfil-avatar-initials" class="luft-perfil-avatar-initials">--</span>
+                <span class="luft-status-dot online" title="Status de presença: Online agora"></span>
+
+                <!-- Overlay de Troca de Foto -->
+                <button type="button" id="luft-perfil-avatar-upload-trigger" class="luft-perfil-avatar-overlay" title="Alterar foto de perfil">
+                    <i class="ph-bold ph-camera"></i>
+                    <span>Alterar</span>
+                </button>
+            </div>
+            <input type="file" id="luft-perfil-file-input" accept="image/png, image/jpeg, image/webp" style="display: none;">
+        </div>
+
+        <div class="luft-perfil-hero-info">
+            <div class="luft-perfil-hero-top">
+                <h4 id="luft-perfil-hero-name" class="luft-perfil-hero-name">Carregando...</h4>
+                <div class="luft-perfil-status-badge">
+                    <span class="luft-pulse-dot"></span>
+                    <span id="luft-perfil-hero-status">Online</span>
+                </div>
+            </div>
+            <p id="luft-perfil-hero-role" class="luft-perfil-hero-role">Usuário Corporativo</p>
+
+            <!-- Badges Corporativos Imutáveis -->
+            <div class="luft-perfil-id-badges">
+                <span class="luft-badge-corporate" title="Identificador corporativo oficial e imutável vinculado ao LuftInforma">
+                    <i class="ph-bold ph-identification-badge text-primary"></i>
+                    <span>ID LuftInforma: <strong id="luft-perfil-badge-codigo">#--</strong></span>
+                    <i class="ph-bold ph-lock-simple text-muted" title="Campo corporativo protegido"></i>
+                </span>
+                <span class="luft-badge-corporate" title="Conta de rede Active Directory">
+                    <i class="ph-bold ph-shield-check text-primary"></i>
+                    <span>Login: <strong id="luft-perfil-badge-login">--</strong></span>
+                    <i class="ph-bold ph-lock-simple text-muted" title="Login de rede imutável"></i>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações Rápidas de Avatar -->
+    <div class="luft-perfil-avatar-actions">
+        <button type="button" id="btn-luft-alterar-foto" class="luft-btn-perfil-sm luft-btn-secondary">
+            <i class="ph-bold ph-upload-simple"></i>
+            <span>Carregar nova foto</span>
+        </button>
+        <button type="button" id="btn-luft-remover-foto" class="luft-btn-perfil-sm luft-btn-ghost text-danger">
+            <i class="ph-bold ph-trash"></i>
+            <span>Remover foto</span>
+        </button>
+    </div>
+
+    <!-- Navegação de Abas -->
+    <div class="luft-perfil-tabs">
+        <button type="button" class="luft-perfil-tab-btn active" data-tab="dados">
+            <i class="ph-bold ph-user-circle"></i>
+            <span>Dados & Contatos</span>
+        </button>
+        <button type="button" class="luft-perfil-tab-btn" data-tab="aparencia">
+            <i class="ph-bold ph-paint-brush"></i>
+            <span>Aparência & Tema</span>
+        </button>
+        <button type="button" class="luft-perfil-tab-btn" data-tab="sessoes">
+            <i class="ph-bold ph-shield-check"></i>
+            <span>Sessões & Segurança</span>
+        </button>
+    </div>
+
+    <!-- Conteúdo do Drawer (Scrollável) -->
+    <div class="luft-perfil-content">
+
+        <!-- ABA 1: DADOS PESSOAIS & CONTATOS -->
+        <div id="luft-perfil-tab-dados" class="luft-perfil-pane active">
+            <form id="form-luft-perfil-dados" onsubmit="event.preventDefault();">
+                <div class="luft-form-group">
+                    <label for="campo-perfil-nome" class="luft-form-label">
+                        Nome de Exibição
+                        <span class="luft-label-hint">Como você aparece nos sistemas</span>
+                    </label>
+                    <div class="luft-input-icon-wrap">
+                        <i class="ph-bold ph-user luft-input-icon"></i>
+                        <input type="text" id="campo-perfil-nome" name="nome_usuario" class="luft-input" placeholder="Seu nome de preferência" required>
+                    </div>
+                </div>
+
+                <div class="luft-form-row">
+                    <div class="luft-form-group">
+                        <label for="campo-perfil-cargo" class="luft-form-label">Cargo / Função</label>
+                        <div class="luft-input-icon-wrap">
+                            <i class="ph-bold ph-briefcase luft-input-icon"></i>
+                            <input type="text" id="campo-perfil-cargo" name="cargo_usuario" class="luft-input" placeholder="Ex: Analista de TI, Coordenador...">
+                        </div>
+                    </div>
+
+                    <div class="luft-form-group">
+                        <label for="campo-perfil-departamento" class="luft-form-label">Departamento</label>
+                        <div class="luft-input-icon-wrap">
+                            <i class="ph-bold ph-buildings luft-input-icon"></i>
+                            <input type="text" id="campo-perfil-departamento" name="departamento_usuario" class="luft-input" placeholder="Ex: Tecnologia da Informação...">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="luft-form-group">
+                    <label for="campo-perfil-unidade" class="luft-form-label">Unidade / Filial</label>
+                    <div class="luft-input-icon-wrap">
+                        <i class="ph-bold ph-map-pin luft-input-icon"></i>
+                        <input type="text" id="campo-perfil-unidade" name="unidade_filial" class="luft-input" placeholder="Ex: Matriz Itapevi, Filial Cajamar...">
+                    </div>
+                </div>
+
+                <div class="luft-form-row">
+                    <div class="luft-form-group">
+                        <label for="campo-perfil-telefone" class="luft-form-label">Telefone Fixo / Ramal</label>
+                        <div class="luft-input-icon-wrap">
+                            <i class="ph-bold ph-phone luft-input-icon"></i>
+                            <input type="tel" id="campo-perfil-telefone" name="telefone_usuario" class="luft-input" placeholder="(11) 4000-0000">
+                        </div>
+                    </div>
+
+                    <div class="luft-form-group">
+                        <label for="campo-perfil-celular" class="luft-form-label">Celular / WhatsApp</label>
+                        <div class="luft-input-icon-wrap">
+                            <i class="ph-bold ph-device-mobile luft-input-icon"></i>
+                            <input type="tel" id="campo-perfil-celular" name="celular_usuario" class="luft-input" placeholder="(11) 99999-9999">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção Informativa de Identificadores Corporativos Imutáveis -->
+                <div class="luft-perfil-readonly-card">
+                    <div class="luft-readonly-header">
+                        <i class="ph-bold ph-info text-primary"></i>
+                        <strong>Vínculo Corporativo LuftInforma (Imutável)</strong>
+                    </div>
+                    <p class="luft-readonly-desc">
+                        As informações abaixo foram sincronizadas com o Active Directory e o LuftInforma e não podem ser alteradas diretamente por este painel.
+                    </p>
+                    <div class="luft-readonly-grid">
+                        <div class="luft-readonly-item">
+                            <span class="luft-readonly-label">Código no LuftInforma:</span>
+                            <span id="campo-perfil-codigo-info" class="luft-readonly-value font-mono">#--</span>
+                        </div>
+                        <div class="luft-readonly-item">
+                            <span class="luft-readonly-label">Login de Rede:</span>
+                            <span id="campo-perfil-login-info" class="luft-readonly-value font-mono">--</span>
+                        </div>
+                        <div class="luft-readonly-item">
+                            <span class="luft-readonly-label">E-mail Corporativo:</span>
+                            <span id="campo-perfil-email-info" class="luft-readonly-value">--</span>
+                        </div>
+                        <div class="luft-readonly-item">
+                            <span class="luft-readonly-label">Grupo RBAC:</span>
+                            <span id="campo-perfil-grupo-info" class="luft-readonly-value">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="luft-perfil-form-actions">
+                    <button type="submit" id="btn-luft-salvar-dados" class="luft-btn-perfil luft-btn-primary">
+                        <i class="ph-bold ph-floppy-disk"></i>
+                        <span>Salvar Informações</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ABA 2: APARÊNCIA & TEMA -->
+        <div id="luft-perfil-tab-aparencia" class="luft-perfil-pane">
+            <div class="luft-perfil-section">
+                <h5 class="luft-perfil-section-title">Modo de Exibição</h5>
+                <p class="luft-perfil-section-sub">Claro, escuro ou automático (segue o seu dispositivo). É independente do tema de cores escolhido abaixo.</p>
+                <p id="luft-modo-bloqueado-aviso" class="luft-modo-aviso" role="status" hidden></p>
+
+                <div class="luft-mode-selector-grid">
+                    <button type="button" class="luft-mode-card" data-mode="CLARO">
+                        <div class="luft-mode-preview light-preview">
+                            <div class="preview-header"></div>
+                            <div class="preview-sidebar"></div>
+                            <div class="preview-body"></div>
+                        </div>
+                        <div class="luft-mode-label">
+                            <i class="ph-bold ph-sun"></i>
+                            <span>Claro</span>
+                        </div>
+                    </button>
+
+                    <button type="button" class="luft-mode-card" data-mode="ESCURO">
+                        <div class="luft-mode-preview dark-preview">
+                            <div class="preview-header"></div>
+                            <div class="preview-sidebar"></div>
+                            <div class="preview-body"></div>
+                        </div>
+                        <div class="luft-mode-label">
+                            <i class="ph-bold ph-moon"></i>
+                            <span>Escuro</span>
+                        </div>
+                    </button>
+
+                    <button type="button" class="luft-mode-card" data-mode="SISTEMA">
+                        <div class="luft-mode-preview auto-preview">
+                            <div class="preview-header"></div>
+                            <div class="preview-sidebar"></div>
+                            <div class="preview-body"></div>
+                        </div>
+                        <div class="luft-mode-label">
+                            <i class="ph-bold ph-laptop"></i>
+                            <span>Automático</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <div class="luft-perfil-section" style="margin-top: 24px;">
+                <h5 class="luft-perfil-section-title">Tema & Paleta de Cores</h5>
+                <p class="luft-perfil-section-sub">A família de cores do ecossistema Luft. Alguns temas têm apenas um modo (claro ou escuro).</p>
+
+                <div class="luft-theme-selector-grid">
+                    {% for tema_opcao in (luft_temas_disponiveis or []) %}
+                    <label class="luft-theme-radio-card{{ ' selected' if tema_opcao.identificador == luft_tema else '' }}" data-tema="{{ tema_opcao.identificador }}">
+                        <input type="radio" name="perfil_tema_preferido" value="{{ tema_opcao.identificador }}"{{ ' checked' if tema_opcao.identificador == luft_tema else '' }}>
+                        <div class="luft-theme-pill">
+                            <span class="luft-theme-swatch" aria-hidden="true">
+                                {% for cor in tema_opcao.cores_previa %}<i style="background: {{ cor }};"></i>{% else %}<i style="background: #64748b;"></i>{% endfor %}
+                            </span>
+                            <div class="luft-theme-name">
+                                <strong>{{ tema_opcao.nome }}</strong>
+                                <small>{{ tema_opcao.descricao }}</small>
+                                {% if tema_opcao.modo_unico %}
+                                <em class="luft-theme-modo-fixo"><i class="ph-bold ph-lock-simple"></i> Somente modo {{ tema_opcao.modo_unico.value | lower }}</em>
+                                {% else %}
+                                <em class="luft-theme-modo-livre"><i class="ph-bold ph-circle-half"></i> Claro e escuro</em>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </label>
+                    {% else %}
+                    <label class="luft-theme-radio-card selected">
+                        <input type="radio" name="perfil_tema_preferido" value="luft" checked>
+                        <div class="luft-theme-pill">
+                            <span class="luft-theme-swatch" aria-hidden="true"><i style="background: var(--luft-brand, #1d63d8);"></i></span>
+                            <div class="luft-theme-name">
+                                <strong>Luft Corporativo</strong>
+                                <small>Azul corporativo clássico</small>
+                            </div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="luft-perfil-section" style="margin-top: 24px;">
+                <h5 class="luft-perfil-section-title">Idioma da Interface</h5>
+                <div class="luft-input-icon-wrap">
+                    <i class="ph-bold ph-translate luft-input-icon"></i>
+                    <select id="campo-perfil-idioma" class="luft-input">
+                        <option value="pt-BR">Português (Brasil)</option>
+                        <option value="en-US">English (United States)</option>
+                        <option value="es-ES">Español</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="luft-perfil-form-actions" style="margin-top: 28px;">
+                <button type="button" id="btn-luft-salvar-aparencia" class="luft-btn-perfil luft-btn-primary">
+                    <i class="ph-bold ph-check"></i>
+                    <span>Salvar Preferências Visuais</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ABA 3: SESSÕES & SEGURANÇA -->
+        <div id="luft-perfil-tab-sessoes" class="luft-perfil-pane">
+
+            <!-- Card de Telemetria de Acesso -->
+            <div class="luft-telemetria-card">
+                <div class="luft-telemetria-item">
+                    <i class="ph-bold ph-shield-check text-success"></i>
+                    <div>
+                        <span class="luft-telemetria-label">Status Atual</span>
+                        <strong class="luft-telemetria-value text-success">Online & Ativo</strong>
+                    </div>
+                </div>
+                <div class="luft-telemetria-item">
+                    <i class="ph-bold ph-sign-in text-primary"></i>
+                    <div>
+                        <span class="luft-telemetria-label">Total de Logins</span>
+                        <strong id="luft-telemetria-total-logins" class="luft-telemetria-value">0</strong>
+                    </div>
+                </div>
+                <div class="luft-telemetria-item">
+                    <i class="ph-bold ph-clock-counter-clockwise text-muted"></i>
+                    <div>
+                        <span class="luft-telemetria-label">Último Acesso</span>
+                        <strong id="luft-telemetria-ultimo-acesso" class="luft-telemetria-value">Agora mesmo</strong>
+                    </div>
+                </div>
+                <div class="luft-telemetria-item">
+                    <i class="ph-bold ph-globe text-info"></i>
+                    <div>
+                        <span class="luft-telemetria-label">IP Registrado</span>
+                        <strong id="luft-telemetria-ultimo-ip" class="luft-telemetria-value font-mono">127.0.0.1</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de Sessões Ativas -->
+            <div class="luft-sessoes-section" style="margin-top: 24px;">
+                <div class="luft-sessoes-header">
+                    <div>
+                        <h5 class="luft-perfil-section-title">Dispositivos Conectados</h5>
+                        <p class="luft-perfil-section-sub">Sessões autenticadas ativas no banco corporativo core.</p>
+                    </div>
+                    <button type="button" id="btn-luft-revogar-outras-sessoes" class="luft-btn-perfil-sm luft-btn-outline-danger" title="Encerra todas as sessões em outros navegadores ou computadores">
+                        <i class="ph-bold ph-sign-out"></i>
+                        <span>Desconectar outras sessões</span>
+                    </button>
+                </div>
+
+                <div id="luft-perfil-sessoes-lista" class="luft-sessoes-lista">
+                    <!-- Renderizado dinamicamente via JavaScript -->
+                    <div class="luft-sessoes-carregando">
+                        <i class="ph-bold ph-spinner ph-spin"></i>
+                        <span>Carregando sessões ativas...</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Footer do Drawer -->
+    <div class="luft-perfil-footer">
+        <span class="luft-perfil-footer-text">
+            LuftBase Identity &copy; 2026 &bull; Conectado de forma segura
+        </span>
+    </div>
+
+</div>

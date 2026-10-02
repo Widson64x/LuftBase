@@ -1,0 +1,173 @@
+<link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/auditoria.css') }}">
+
+<section
+    class="audit-shell"
+    id="luftAuditoria"
+    data-resumo-url="{{ url_for('Auditoria.api_resumo') }}"
+    data-acessos-url="{{ url_for('Auditoria.api_acessos') }}"
+    data-detalhes-url="{{ url_for('Auditoria.api_detalhes') }}"
+    data-alteracoes-url="{{ url_for('Auditoria.api_alteracoes') }}"
+    data-registro-url="{{ url_for('Auditoria.api_detalhe', tipo='TIPO', identificador=999999) }}"
+    data-exportar-url="{{ url_for('Auditoria.api_exportar') }}"
+    data-temporarios-url="{{ url_for('Auditoria.api_temporarios') }}"
+    data-fisicos-url="{{ url_for('Auditoria.api_fisicos') }}"
+    data-pode-ver-sensiveis="{{ 'true' if pode_ver_dados_sensiveis_auditoria else 'false' }}"
+>
+    <header class="audit-header">
+        <div>
+            <span class="audit-eyebrow"><i class="ph-bold ph-pulse"></i> Inteligência operacional</span>
+            <h3>Auditoria & Análise</h3>
+            <p>Investigue acessos, comportamento de usuários e grupos, falhas e eventos de negócio.</p>
+        </div>
+        <div class="audit-header-actions">
+            <span class="audit-freshness" id="auditAtualizadoEm">
+                <i class="ph-bold ph-clock"></i> Aguardando consulta
+            </span>
+            {% if pode_exportar_auditoria %}
+            <button class="btn btn-outline" id="auditBtnExportar" type="button">
+                <i class="ph-bold ph-download-simple"></i> Exportar CSV
+            </button>
+            {% endif %}
+            <button class="btn btn-primary" id="auditBtnAtualizar" type="button">
+                <i class="ph-bold ph-arrows-clockwise"></i> Atualizar
+            </button>
+        </div>
+    </header>
+
+    <div class="audit-filters" aria-label="Filtros da auditoria">
+        <label class="audit-field audit-field-periodo">
+            <span>Período</span>
+            <select id="auditPeriodo">
+                <option value="1">Última hora</option>
+                <option value="24" selected>Últimas 24 horas</option>
+                <option value="168">Últimos 7 dias</option>
+                <option value="720">Últimos 30 dias</option>
+                <option value="custom">Personalizado</option>
+            </select>
+        </label>
+        <label class="audit-field audit-custom-date" hidden>
+            <span>Início</span>
+            <input id="auditInicio" type="datetime-local">
+        </label>
+        <label class="audit-field audit-custom-date" hidden>
+            <span>Fim</span>
+            <input id="auditFim" type="datetime-local">
+        </label>
+        <label class="audit-field">
+            <span>Sistema</span>
+            <select id="auditSistema"><option value="todos">Todos</option></select>
+        </label>
+        <label class="audit-field">
+            <span>Usuário</span>
+            <select id="auditUsuario"><option value="">Todos</option></select>
+        </label>
+        <label class="audit-field">
+            <span>Grupo</span>
+            <select id="auditGrupo"><option value="">Todos</option></select>
+        </label>
+        <label class="audit-field">
+            <span>Resultado</span>
+            <select id="auditResultado">
+                <option value="">Todos</option>
+                <option value="sucesso">Sucesso</option>
+                <option value="cliente">Erro 4xx</option>
+                <option value="servidor">Erro 5xx</option>
+                <option value="negado">Acesso negado</option>
+            </select>
+        </label>
+        <label class="audit-field">
+            <span>Severidade</span>
+            <select id="auditSeveridade">
+                <option value="">Todas</option>
+                <option value="BAIXA">Baixa</option>
+                <option value="MEDIA">Média</option>
+                <option value="ALTA">Alta</option>
+                <option value="CRITICA">Crítica</option>
+            </select>
+        </label>
+        <label class="audit-field audit-field-search">
+            <span>Busca global</span>
+            <div class="audit-input-icon">
+                <i class="ph-bold ph-magnifying-glass"></i>
+                <input id="auditTermo" maxlength="100" placeholder="Rota, login, IP, correlação..." type="search">
+            </div>
+        </label>
+        <button class="btn btn-primary audit-filter-action" id="auditBtnFiltrar" type="button">
+            <i class="ph-bold ph-funnel"></i> Aplicar
+        </button>
+    </div>
+
+    <div class="audit-loading" id="auditLoading" hidden>
+        <i class="ph-bold ph-spinner ph-spin"></i> Consolidando os dados de auditoria...
+    </div>
+    <div class="audit-alert" id="auditErro" hidden role="alert"></div>
+
+    <div class="audit-kpis" id="auditKpis">
+        <article class="audit-kpi" data-tone="blue"><i class="ph-bold ph-activity"></i><div><small>Requisições</small><strong data-kpi="requisicoes">—</strong><span>no período</span></div></article>
+        <article class="audit-kpi" data-tone="cyan"><i class="ph-bold ph-users-three"></i><div><small>Usuários ativos</small><strong data-kpi="usuarios">—</strong><span>identidades únicas</span></div></article>
+        <article class="audit-kpi" data-tone="red"><i class="ph-bold ph-warning-octagon"></i><div><small>Erros 5xx</small><strong data-kpi="erros_servidor">—</strong><span data-kpi-suffix="taxa_erro">—</span></div></article>
+        <article class="audit-kpi" data-tone="amber"><i class="ph-bold ph-shield-warning"></i><div><small>Acessos negados</small><strong data-kpi="acessos_negados">—</strong><span>por autorização</span></div></article>
+        <article class="audit-kpi" data-tone="violet"><i class="ph-bold ph-timer"></i><div><small>Tempo médio</small><strong data-kpi="duracao_media_ms">—</strong><span>milissegundos</span></div></article>
+        <article class="audit-kpi" data-tone="green"><i class="ph-bold ph-list-checks"></i><div><small>Eventos</small><strong data-kpi="detalhes">—</strong><span>ações e ocorrências</span></div></article>
+        <article class="audit-kpi" data-tone="violet"><i class="ph-bold ph-arrows-left-right"></i><div><small>Detalhes</small><strong data-kpi="alteracoes">—</strong><span>retratos antes e depois</span></div></article>
+        <article class="audit-kpi" data-tone="rose"><i class="ph-bold ph-siren"></i><div><small>Eventos críticos</small><strong data-kpi="detalhes_criticos">—</strong><span>alta ou crítica</span></div></article>
+    </div>
+
+    <div class="audit-analysis-grid">
+        <article class="audit-card audit-timeline-card">
+            <div class="audit-card-title"><div><h4>Volume e incidentes</h4><p>Requisições, erros 5xx e acessos negados por intervalo.</p></div><i class="ph-bold ph-chart-bar"></i></div>
+            <div class="audit-legend"><span><b class="total"></b> Requisições</span><span><b class="erro"></b> Erros</span><span><b class="negado"></b> Negados</span></div>
+            <div class="audit-timeline" id="auditTimeline"><div class="audit-empty">Sem dados no período.</div></div>
+        </article>
+        <article class="audit-card">
+            <div class="audit-card-title"><div><h4>Principais dimensões</h4><p>Onde está concentrada a atividade.</p></div><i class="ph-bold ph-ranking"></i></div>
+            <div class="audit-ranking-tabs" role="tablist">
+                <button class="active" data-ranking="rotas" type="button">Rotas</button>
+                <button data-ranking="usuarios" type="button">Usuários</button>
+                <button data-ranking="grupos" type="button">Grupos</button>
+                <button data-ranking="sistemas" type="button">Sistemas</button>
+            </div>
+            <div class="audit-ranking" id="auditRanking"><div class="audit-empty">Sem dados no período.</div></div>
+        </article>
+    </div>
+
+    <article class="audit-card audit-log-card">
+        <div class="audit-log-toolbar">
+            <div class="audit-log-tabs" role="tablist">
+                <button class="active" data-log-tab="acessos" type="button"><i class="ph-bold ph-globe"></i> Rotas HTTP</button>
+                <button data-log-tab="detalhes" type="button"><i class="ph-bold ph-list-magnifying-glass"></i> Eventos</button>
+                <button data-log-tab="alteracoes" type="button"><i class="ph-bold ph-arrows-left-right"></i> Detalhes da Alteração</button>
+                {% if pode_ver_dados_sensiveis_auditoria %}
+                <button data-log-tab="temporarios" type="button"><i class="ph-bold ph-lightning"></i> Raiz temporária</button>
+                <button data-log-tab="fisicos" type="button"><i class="ph-bold ph-file-text"></i> Arquivos físicos</button>
+                {% endif %}
+            </div>
+            <div class="audit-log-meta">
+                <label class="audit-file-select" id="auditArquivoContainer" hidden>
+                    <span>Arquivo</span>
+                    <select id="auditArquivo"></select>
+                </label>
+                <span class="audit-total" id="auditTotalLinhas">0 registros</span>
+            </div>
+        </div>
+        <div class="audit-table-wrap">
+            <table class="audit-table">
+                <thead id="auditTabelaCabecalho"></thead>
+                <tbody id="auditTabelaCorpo"></tbody>
+            </table>
+        </div>
+        <footer class="audit-pagination">
+            <button class="btn btn-outline btn-sm" id="auditPaginaAnterior" type="button"><i class="ph-bold ph-caret-left"></i> Anterior</button>
+            <span id="auditPaginaInfo">Página 1</span>
+            <button class="btn btn-outline btn-sm" id="auditProximaPagina" type="button">Próxima <i class="ph-bold ph-caret-right"></i></button>
+        </footer>
+    </article>
+</section>
+
+<div class="audit-drawer-backdrop" id="auditDrawerBackdrop" hidden></div>
+<aside class="audit-drawer" id="auditDrawer" aria-hidden="true" aria-labelledby="auditDrawerTitulo">
+    <header><div><span>Investigação</span><h4 id="auditDrawerTitulo">Detalhes do registro</h4></div><button id="auditDrawerFechar" type="button" aria-label="Fechar"><i class="ph-bold ph-x"></i></button></header>
+    <div class="audit-drawer-body" id="auditDrawerCorpo"></div>
+</aside>
+
+<script src="{{ url_for('luftbase.static', filename='js/auditoria.js') }}"></script>

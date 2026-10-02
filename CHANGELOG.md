@@ -1,0 +1,426 @@
+# Registro de Alterações (ChangeLog) - LuftBase
+
+Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
+
+## [0.1.0a49] - 2026-10-01
+
+### Corrigido
+
+- Notificacao de um comunicado ja arquivado continuava no sino: o wheel a48 foi gerado antes da
+  regra que recolhe a notificacao emitida por uma publicacao arquivada. O wheel a49 inclui a
+  regra (lista, contagem, leitura e eventos de notificacao).
+
+## [0.1.0a46] - 2026-10-01
+
+### Adicionado
+
+- Busca global na barra superior (antes era so decorativa). No navegador ela pesquisa os itens do
+  menu lateral que o usuario pode ver (sem acento e sem maiusculas, com destaque do trecho
+  encontrado) e abre com `Ctrl+K` ou `/`; setas navegam, Enter abre, Esc fecha.
+- Provedores de busca por aplicacao: `PlataformaLuft(..., buscas=[ProvedorBusca(...)])` e
+  `ResultadoBusca`. O endpoint `GET /_luftbase/busca?q=` consulta os provedores em paralelo, so os
+  que o usuario pode usar (`permissao`), com prazo de 4 s por requisicao, tolerando falha de um
+  provedor e descartando URLs que nao sejam do proprio sistema (`urls_externas=True` aceita
+  `http(s)` completo, para catalogos como o de sistemas do Hub).
+- `luft_url_busca` no contexto dos templates.
+
+## [0.1.0a45] - 2026-10-01
+
+### Corrigido
+
+- Auditoria & Analise respondia HTTP 400 em toda aplicacao que nao e o escopo global (sistema 0),
+  como o Luft-ConnectAir: o painel envia `sistema_id=todos` por padrao e so o sistema 0 entendia
+  esse valor. Agora, nas demais aplicacoes, "todos" significa o proprio sistema.
+- A lista de sistemas do filtro da Auditoria mostrava todos os sistemas ativos em qualquer
+  aplicacao (nomes de sistemas alheios). Agora so o escopo global (sistema 0) ve os demais; as
+  outras aplicacoes veem apenas a si mesmas. Detalhe, exportacao, rankings e as listas de
+  usuarios e grupos ja respeitavam o escopo.
+
+## [0.1.0a44] - 2026-10-01
+
+### Adicionado
+
+- Componente de e-mail `botao(url, texto, cor, centralizar=False)`: com `centralizar=True` o botao
+  fica no meio da mensagem (tabela com `align="center"`, compativel com Outlook e Gmail).
+
+## [0.1.0a43] - 2026-10-01
+
+### Corrigido
+
+- Login com o diretorio LDAP lento ou fora do ar (timeout no bind) estourava erro 500 com
+  traceback. Agora responde 503 com a mensagem "O serviço de autenticação está indisponível no
+  momento", registra um aviso no log e nao conta como credencial invalida.
+
+## [0.1.0a42] - 2026-10-01
+
+### Adicionado
+
+- `contexto_painel()`: sinalizadores `pode_ver_*` do Painel de Controle para o contexto dos
+  templates, em uma consulta em lote. Substitui o calculo que cada aplicacao repetia no seu
+  `context_processor`.
+- ADR-017: padrao de projeto das aplicacoes (estrutura de pastas, arquivos-base, ordem de
+  `App/__init__.py` e nomes fixos), adotado por Luft-Workspace e Luft-ConnectAir.
+
+## [0.1.0a41] - 2026-10-01
+
+### Adicionado
+
+- `luftbase.servidor.executar_desenvolvimento(alvo)`: servidor de desenvolvimento do Flask
+  (depurador e recarga automatica fora de producao) com o mesmo console e banner do Waitress.
+  O processo pai da recarga so supervisiona; a aplicacao e criada uma unica vez por ciclo.
+  Padrao de entrada das aplicacoes: `App/__init__.py` (fabrica), `App.py` (desenvolvimento) e
+  `Wsgi.py` (producao), na raiz do projeto.
+
+## [0.1.0a40] - 2026-10-01
+
+### Adicionado
+
+- `luftbase.servidor.executar(alvo)` e o comando `luftbase servir [modulo:atributo]`: todas as
+  aplicacoes sobem do mesmo jeito, com Waitress (agora dependencia do LuftBase), console no
+  formato `DATA | NIVEL | ORIGEM | MENSAGEM` configurado antes da inicializacao e banner padrao
+  (nome, versao, sistema, ambiente, versao do LuftBase e URL). Cada requisicao vai so para
+  `Logs/luftbase.log`; o console mostra subida, avisos e erros. Configuracao por
+  `LUFT_SERVIDOR_HOST|PORTA|PREFIXO|THREADS`, aceitando `HOST`, `PORT` e `ROUTE_PREFIX`.
+
+### Alterado
+
+- Sessoes no PostgreSQL sem Redis deixaram de ser aviso: viraram uma linha informativa curta.
+
+## [0.1.0a39] - 2026-10-01
+
+### Corrigido
+
+- Preferencia de tema "Sistema" com o navegador em modo escuro deixava a tela pela metade
+  (fundo escuro, sidebar e cabecalho claros): as cores escuras vinham da media query, mas
+  `data-theme` continuava `light`. O `base.html` agora resolve claro/escuro no cliente antes da
+  pintura, como o seletor do perfil ja fazia.
+
+## [0.1.0a38] - 2026-10-01
+
+### Corrigido
+
+- Login com o mesmo `login_usuario` e outro `codigo_usuario` (diretorio apontado para outro
+  servidor, por exemplo) violava `uq_core_usuario_login`: o usuario nao era gravado em
+  `core.tb_usuario` e toda auditoria falhava por chave estrangeira, em todas as requisicoes.
+  O cadastro antigo agora e aposentado (inativo, login marcado com `~codigo`, historico
+  preservado) e o novo e gravado, com aviso no log.
+
+## [0.1.0a37] - 2026-09-30
+
+### Alterado
+
+- O diretorio de usuarios (SQL Server) passa a ser lido de uma conexao nomeada:
+  `luft/{ambiente}/bancos/sqlserver/conexoes/{conexao}`. O nome vem de
+  `LUFT_VAULT_CONEXAO_DIRETORIO` (padrao `user.services`).
+- O caminho antigo `luft/{ambiente}/sqlserver` continua como reserva, com aviso no log, ate
+  ser removido de cada ambiente. Sem nenhum dos dois, a mensagem aponta o caminho novo.
+- `luftbase vault caminhos/verificar` mostram o caminho novo, o legado e o estado da conexao.
+
+## [0.1.0a36] - 2026-09-30
+
+### Corrigido
+
+- `CatalogoEstruturas.verificar` nao traduzia o schema logico dos models da aplicacao
+  (`luft_aplicacao`) para o schema real do segredo; toda tabela da aplicacao aparecia como
+  "Tabela ausente" no log mesmo existindo. O `Inspector` agora recebe o nome ja traduzido.
+
+## [0.1.0a35] - 2026-09-30
+
+### Adicionado
+
+- `ParametroAplicacao` e `PlataformaLuft(parametros=...)`: a aplicacao registra seus parametros
+  internos (titulo, descricao, icone, rota e permissao opcional) e a aba **Configuracoes Gerais**
+  do Painel de Controle desenha os cartoes sozinha, so para quem tem a permissao. Substitui as
+  telas de "Parametros" que cada sistema criava por conta propria.
+
+## [0.1.0a34] - 2026-09-30
+
+### Corrigido
+
+- Card do usuario no `base.html`: o cargo usava `text-primary font-semibold text-xs`, que vencia
+  `.luft-user-role` (peso 800, 10,5px) e deixava a fonte mais fina que a do Workspace. Agora so a
+  classe da sidebar define o estilo; as iniciais do avatar usam `.luft-avatar-initials`.
+
+## [0.1.0a33] - 2026-09-30
+
+### Alterado
+
+- Novo `css/sidebar.css`, carregado por `base.html`: card do usuario, grade de acoes rapidas
+  (Tema/Config./Sair), grupos colapsaveis e subitens em arvore. O estilo vivia no `Hub.css` do
+  Workspace, entao os demais sistemas apareciam com a sidebar sem acabamento.
+
+## [0.1.0a32] - 2026-09-30
+
+### Corrigido
+
+- Permissoes concedidas em um sistema (ex.: pelo Workspace) nao chegavam a outro sistema ja em
+  execucao. Sem Redis, o cache de autorizacao usa `ArmazenamentoSessoesMemoria`, que ignorava o
+  TTL: a revisao ficava presa na memoria do processo e decisoes antigas (inclusive "negado")
+  eram servidas ate reiniciar. O TTL agora e respeitado e a revisao volta a ser lida do banco a
+  cada `LUFT_AUTORIZACAO_REVISAO_TTL_SEGUNDOS` (5 s por padrao).
+
+## [0.1.0a31] - 2026-09-30
+
+### Adicionado
+
+- Cadastro de sistema pelo Workspace com provisionamento completo: com a opcao "Provisionar
+  banco e Vault agora", o modal pede token de operador do Vault e usuario/senha
+  administrativos do PostgreSQL (usados so na requisicao, nunca gravados) e cria schema, role
+  `luft_<schema>_app` com senha SCRAM, privilegios no core e o segredo
+  `bancos/postgresql/sistemas/{id}` (CAS 0). Ambiente, Vault, host e banco sao os do Workspace;
+  o alias da conexao e lido do segredo do proprio Workspace.
+- O segredo e a ultima etapa da transacao; se o core nao confirmar, ele e removido.
+- `GET /configuracoes/api/configuracoes/sistema/provisionamento` informa o destino ao modal.
+
+## [0.1.0a30] - 2026-09-30
+
+### Adicionado
+
+- `PlataformaLuft(catalogo=...)`: o catalogo da aplicacao e conferido no core a cada
+  inicializacao e completado somente quando ha pendencias (`pendencias_catalogo`).
+- `PermissaoAplicacao.modulo_codigo` para manter chaves no modulo `PLATAFORMA` do Workspace.
+- Sistema descontinuado: pagina `pages/descontinuado.html` e HTTP 410 para sistemas inativos,
+  sem bypass.
+- ADR-016.
+
+### Alterado
+
+- `CatalogoAplicacao.sistema` agora e opcional; o cadastro do sistema pertence ao Workspace.
+- `CONFIGURACOES.SISTEMAS.EXCLUIR` substituida por `CONFIGURACOES.SISTEMAS.DESATIVAR`,
+  exigida ao alterar `Ativo` na edicao de sistema. Sistemas nunca sao excluidos.
+
+## [0.1.0a29] - 2026-09-30
+
+### Adicionado
+
+- `luftbase vault postgresql remover-sistemas --ambiente <amb> [--sistema-id N]`: apaga, com
+  token de operador e confirmacao digitada, os segredos `bancos/postgresql/sistemas/{id}`.
+  Roles, schemas, core e conexoes compartilhadas nao sao tocados.
+- Cadastro de sistema no Painel com validacao por campo e transacao unica (sessao do Workspace).
+
+### Decisao
+
+- Criar e excluir sistema pela tela nao altera o Vault; segredos e roles continuam manuais e
+  exclusao nunca apaga dados.
+
+## [0.1.0a28] - 2026-09-30
+
+### Adicionado
+
+- Catalogo declarativo de aplicacoes (`CatalogoAplicacao`, `SistemaAplicacao`,
+  `PermissaoAplicacao`) e comando `luftbase catalogo sincronizar`, com `--usuario-banco` e
+  `--grupo-administrador`.
+- `exigir_ajax` e exportacao publica de `exigir_alguma_permissao` e `DefinicaoModulo`.
+- Mensagens de `flask.flash` exibidas como toasts pelo endpoint `/_luftbase/mensagens`.
+- ADR-015.
+
+### Corrigido
+
+- Aplicacoes publicadas sob prefixo (`SCRIPT_NAME`): login, `next`, logout, pagina 404,
+  manutencao, notificacoes, perfil, mensagens e gerenciador de seguranca usam a raiz da
+  aplicacao em vez de `/`.
+
+## [0.1.0a27] - 2026-09-30
+
+### Adicionado
+
+- Integração de e-mail `luftbase.integracoes.email`: conta SMTP lida do Vault em
+  `luft/{ambiente}/integracoes/email`, exposta como `obter_luftbase().email` e `enviar_email`.
+- Modo teste pelo segredo (`redirecionar_para`), com prefixo `[TESTE]` e destinatários reais
+  exibidos no corpo.
+- Envio em lote numa única sessão SMTP, `ResultadoEnvio` sem exceções de entrega e auditoria
+  `EMAIL_ENVIADO`/`EMAIL_FALHA` por mensagem.
+- Layout corporativo `luftbase/email/base.html`, macros `luftbase/email/componentes.html` e
+  logo embutido no pacote.
+- Geração automática da parte `text/plain` a partir do HTML.
+- Comando `luftbase email testar` e status do e-mail em `luftbase vault caminhos/verificar`.
+- ADR-014.
+
+### Corrigido
+
+- `luftbase.__version__` voltou a acompanhar a versão do `pyproject.toml`.
+
+## [0.1.0a21] - 2026-09-23
+
+### Alterado
+
+- Trilha estruturada refeita como `tb_logacesso -> tb_logdetalhe -> tb_logs`.
+- `tb_logacesso` concentra requisições e rotas; `tb_logdetalhe` concentra ações, erros e
+  ocorrências; `tb_logs` concentra estados anterior/novo sanitizados.
+- Associação automática dos detalhes HTTP pelo par sistema/correlação após a persistência da
+  resposta, corrigindo vínculos vazios durante a execução da rota.
+- FKs compostas impedem vínculos entre sistemas e cascatas preservam a integridade da cadeia.
+- Revisão Alembic destrutiva `20260923_0011`, destinada aos dados descartáveis do piloto.
+
+### Auditoria e diagnóstico
+
+- Painel ampliado com Acessos, Detalhes, Alterações, Raiz temporária e Arquivos físicos.
+- Raiz temporária por processo em `Logs/temp/*.temp.log` e buffer circular em memória.
+- Leitura segura dos arquivos rotativos, limitada por nome conhecido, linhas e bytes.
+- Fontes locais protegidas simultaneamente pelas permissões de auditoria e dados sensíveis.
+- Logging técnico do LuftBase encaminhado às fontes locais sem gravar mensagem bruta da
+  exceção ou segredos conhecidos.
+
+## [0.1.0a20] - 2026-09-23
+
+### Adicionado
+
+- Painel **Auditoria & Análise** como aba global de **Painel de Controle**, com KPIs, série
+  temporal, rankings, filtros, paginação, detalhe lateral e exportação CSV segura.
+- API analítica somente leitura para acessos HTTP, eventos de domínio, usuários, grupos e
+  sistemas, com limite de período e isolamento SQL por `LUFT_SISTEMA_ID`.
+- Permissões separadas para visualizar, exportar e acessar payloads sensíveis.
+- Retrato histórico de grupo em `tb_logacesso` e `tb_logdetalhe`, inclusive no buffer técnico.
+- Revisão Alembic `20260922_0010` e índices para consultas por grupo e severidade.
+- Decorator `exigir_alguma_permissao` para entradas administrativas com mais de uma
+  capacidade válida.
+
+### Segurança e operação
+
+- Payloads, traceback e estados anterior/novo permanecem ocultos por padrão e nunca entram no
+  CSV.
+- Aplicações satélites filtram o detalhe no próprio SQL; o sistema `0` consolida sem ignorar
+  autorização.
+- Migração ensaiada em cópia isolada do PostgreSQL local; o banco `luft_web` original não foi
+  alterado durante o ensaio.
+
+## [0.1.0a16] - 2026-09-22
+### Adicionado
+- **Catálogo de Módulos e Autorização Hierárquica**:
+  - Nova tabela `core.tb_modulo` organizando funcionalmente recursos e permissões por sistema.
+  - Modelagem hierárquica em `core.tb_permissao` com `id_modulo`, `id_permissao_pai`, `recurso`, `acao`, `sensivel` e `eh_acesso_sistema`.
+  - Resolução RBAC por CTE recursiva no PostgreSQL com 12 regras de precedência (fail-closed, negação por ancestral inativo, usuário prevalece sobre grupo, menor distância na árvore, herança mestre, escopo de sistema sobre global).
+  - Catálogo canônico de 9 módulos padrão e 48 permissões canônicas estruturadas estritamente em `MODULO.RECURSO.ACAO`.
+  - Enums `AcaoPermissao` (28 ações) e `PermissaoLuftBase` (chaves canônicas do ecossistema).
+  - Remoção definitiva de `id_permissao_base` e `categoria_permissao`.
+  - Interface de Segurança e Permissões (`gerenciador.html`) com controles inequívocos para **Permitir**, **Bloquear** e **Restaurar Herança**, com distinção clara entre decisões diretas e herdadas.
+- **CLI e Sincronização de Catálogo**:
+  - Modo `luftbase bootstrap --atualizar` com confirmação segura `ATUALIZAR-{AMBIENTE}-{BANCO}`, validação de `current_database()` e aplicação aditiva sem tocar em credenciais ou cofre.
+  - Função `sincronizar_catalogo_workspace()` para upsert idempotente do sistema 0, dos 9 módulos e 48 permissões com concessão mestre opcional.
+- **Decisão Arquitetural sobre Sessões e Redis (ADR-011)**:
+  - PostgreSQL como backend persistente definitivo de sessões e autorização; Redis opcional no piloto/desenvolvimento e recomendado para ambientes multi-instância em produção com namespace único por ambiente.
+- **Migração Alembic**:
+  - Versão `20260922_0009_catalogo_hierarquico.py` com upgrade e downgrade idempotentes e preservação de dados legados.
+
+## [0.1.0a14] - 2026-09-21
+### Alterado
+- CLI `bootstrap`: Ajustado o valor padrão de `admin_user` para `postgres` com prompt indicando DBA/Superuser.
+- CLI `bootstrap`: Adicionada verificação e criação automática do banco de dados alvo conectando primeiro à base de manutenção `postgres` com fallback seguro.
+
+## 0.1.0a13 — 2026-09-21
+
+- **Assistente Interativo de Provisionamento (`bootstrap`)**:
+  - Novo comando interativo disponível via `luftbase bootstrap`, `luftbase banco bootstrap`, `flask banco bootstrap` e `luftbase vault postgresql bootstrap`.
+  - Operação estritamente aditiva (CAS 0) com garantias de não-destruição: isolamento do ambiente alvo sem tocar em desenvolvimento ou chaves legadas.
+  - Criação automatizada de schemas (`core`, `workspace`, etc.) e roles com senhas fortes SCRAM-SHA-256 no PostgreSQL.
+  - Gravação de segredos no Vault sob `bancos/postgresql/conexoes/{alias}` e `bancos/postgresql/sistemas/{id}`.
+  - Execução transacional das migrações do Alembic para criar todas as 17 tabelas do Core e registro do sistema 0 (Workspace).
+  - Exportação automática do manifesto não sensível em `docs/manifesto-postgresql-{ambiente}.json`.
+
+## 0.1.0a12 — 2026-09-21
+
+- **Rodapé com Versão e Ambiente (Paridade LuftCore)**:
+  - Adicionada classe CSS `.luft-footer-version-link` e `.luft-footer-version-meta` posicionando o ambiente e versão no canto inferior direito do rodapé (`luft-main-footer`).
+  - Função `formatar_versao_rodape` formatando tipo de versão/ambiente (e.g. `DESENVOLVIMENTO`, `HOMOLOGACAO`, `PRODUCAO`) e versão (`vX.Y.Z`).
+  - Injeção das variáveis `luft_tipo_versao_app`, `luft_app_version_type`, `luft_versao_app`, `luft_app_version`, `luft_versao_rodape`, `luft_app_version_text` e `luft_url_changelog` no processador de contexto Jinja.
+  - Link de ChangeLog atualizado na navegação secundária e no link discreto de versão do rodapé.
+
+## 0.1.0a11 — 2026-09-21
+
+- **Estabilização de Escopo e Hub Master**:
+  - Política central de escopo (`luftbase.web.escopo`): resolução canônica de `id_sistema` com validação de satélites e proteção estrita do sistema 0 contra manutenção.
+  - Auditoria habilitada para `id_sistema >= 0`, garantindo persistência de auditoria HTTP e de domínio para o Workspace (sistema 0).
+  - Remoção de privilégios hardcoded em Segurança & Permissões e separação granular de permissões (`ADMIN.SEGURANCA.VISUALIZAR`, `ADMIN.SEGURANCA.EDITAR`, `ADMIN.PERMISSOES.CRIAR`).
+  - Invalidação de cache RBAC distribuído pós-commit no PostgreSQL.
+- **Segurança e CSRF**:
+  - `validar_csrf_requisicao` unificado para cabeçalho `X-CSRF-Token`, formulário `csrf_token` e JSON payload.
+  - Validação CSRF e permissões em todas as rotas mutantes de segurança, configurações, publicações e sessões.
+  - Endpoints de observabilidade protegidos: `/_luftbase/auditoria/logs-temp` (`ADMIN.AUDITORIA.VISUALIZAR`), `/_luftbase/sessoes/online` (`ADMIN.SESSOES.VISUALIZAR`) e `/_luftbase/sessoes/revogar` (`ADMIN.SESSOES.REVOGAR`).
+- **Middleware de Manutenção e Respostas Padronizadas**:
+  - Middleware de manutenção (`before_request`) com cache local de curto TTL, isenções operacionais (saúde, login, estáticos) e bypass para operadores (`ADMIN.MANUTENCAO.BYPASS`, `ADMIN.MANUTENCAO.GERENCIAR`).
+  - Módulo `luftbase.web.respostas` padronizando contratos de resposta JSON, popups e toasts corporativos.
+  - Handlers de erro 403, 404 e 500 com detecção automática de resposta JSON vs HTML.
+- **Conteúdo e Publicações**:
+  - Novos métodos em `RepositorioNotificacoes` e `ServicoNotificacoes`: `contar_nao_lidas` e `limpar_expiradas`.
+  - Novos métodos em `RepositorioPublicacoes` e `ServicoPublicacoes`: `atualizar_rascunho`, `arquivar`, `listar_administracao`, `obter_administracao`, `importar_comunicado_externo` e `sincronizar_provedor`.
+  - Inversão de captura de exceções em `publicacoes.py` (`ConteudoNaoEncontrado` -> 404 antes de `ErroConteudo` -> 400).
+  - Inclusão dos arquivos `interface/static/video/*.json` no `package-data` do wheel.
+
+- `LUFT_SISTEMA_ID` e a unica identidade de bootstrap; nao existe ID paralelo por aplicacao.
+- O Vault usa `bancos/postgresql/conexoes/{alias}` para o servidor compartilhado e
+  `bancos/postgresql/sistemas/{id}` para schema, role e metadados do sistema.
+- Migration `20260917_0007` remove `identificador_aplicacao` de `core.tb_sistema`.
+- CLI `migrar-layout-sistemas` copia segredos legados com CAS 0 e nao remove origens.
+- Models particulares podem declarar politicas `EXTERNA_SOMENTE_LEITURA`, `VALIDAR` ou
+  `GERENCIAR`; a verificacao e a criacao permanecem comandos explicitos.
+
+## 0.1.0a3 — 2026-09-17
+
+- `LUFT_SISTEMA_ID` tornou-se o unico bootstrap de identidade; o runtime valida o segredo canonico `bancos/postgresql/sistemas/{id}`.
+- Suporte a `sslmode` PostgreSQL na credencial composta e na URL SQLAlchemy.
+- CLI de operador tolera policies enxutas que podem usar KV v2 sem listar todos os mounts.
+- Permissoes do sistema `0` passam a ser herdadas globalmente; escopo especifico prevalece e ausencia continua negada.
+- Identidade visual oficial Luft incorporada ao LuftBase com shell lateral, paleta, componentes, logos e login institucional.
+- Painel-base de administracao restabelece os dominios Segurança & Permissões, Publicacoes e Aplicacoes & Ambiente.
+
+## 0.1.0a2 — 2026-09-16
+
+- Resolucao de credenciais PostgreSQL compostas no Vault: conexoes compartilhadas (`bancos/postgresql/conexoes/{alias}`) e credenciais por aplicacao (`bancos/postgresql/aplicacoes/{id}`).
+- Carregamento de identidade e metadados estaveis (`nome`, `descricao`, `ativo`, `em_manutencao`, `icone`, `link`) diretamente de `core.tb_sistema`.
+- Eliminacao da redundancia de `LUFT_APLICACAO_NOME` no `.env` e `.env.example`, reduzindo configuracao repetida.
+- Incorporacao do utilitario oficial de provisionamento e auditoria na CLI: subcomandos `luftbase vault postgresql auditar`, `provisionar`, `associar-sistemas` e `aplicar-senhas-do-vault`.
+- Parser declarativo de manifestos de provisionamento YAML/JSON (`ManifestoProvisionamento`).
+- Adaptador `ArmazenamentoSessoesMemoria` para testes e fallback gracioso em desenvolvimento/homologacao quando segredos Redis nao estiverem provisionados no Vault.
+- Script idempotente de concessao de privilegios PostgreSQL no schema `core` com menor privilegio funcional (`luft_core_*`) e concessao ao runtime da aplicacao (`luft_workspace_app`).
+- Validacao completa do piloto M10 com startup limpo de `Wsgi.py` no Luft-Workspace na porta 9010.
+
+## 0.1.0a1 — 2026-09-16
+
+- Fundacao documental do LuftBase.
+- Configuracao tipada de aplicacao e Vault.
+- Normalizacao de ambientes e caminhos de segredos.
+- Extensao Flask minima para sustentar os proximos marcos.
+- Cliente Vault KV v2 testavel e carregamento tardio de segredos.
+- Compatibilidade com tokens Fernet existentes sem chave embutida no pacote.
+- Credenciais imutaveis com senha mascarada e bloqueio de contas administrativas.
+- Pools SQLAlchemy para SQL Server e PostgreSQL com `pool_pre_ping`.
+- Fronteiras separadas para diretorio, schema `core` e schema da aplicacao.
+- Unidade de trabalho com commit/rollback e teardown automatico no Flask.
+- Health check sanitizado por dependencia.
+- Base ORM unica com os 13 modelos migrados no schema `core`.
+- Preferencia de usuario preparada para familias de tema e modos claro/escuro/sistema.
+- Revisao persistente para invalidacao de caches distribuidos.
+- Baseline Alembic reproduzivel e revisao separada para as duas tabelas novas.
+- CLI segura para versao, validacao, adocao de baseline e atualizacao confirmada.
+- Modelos SQL Server fixos de usuario e grupo, isolados das migrations do core.
+- `UsuarioAutenticado` canonico e independente do ORM.
+- LDAP somente com LDAPS ou STARTTLS, timeout e falha sanitizada.
+- Interface de sessao server-side em JSON assinado, com TTL, rotacao e revogacao.
+- Redis e chave de assinatura carregados do Vault, com TLS, timeouts e health check.
+- Flask-Login por aplicacao e sessao compartilhada entre projetos sem consulta SQL recorrente.
+- Autorizacao sob demanda por usuario e grupo, com negacao direta prevalecendo.
+- Cache de permissao por requisicao e Redis, com invalidacao automatica por revisao.
+- Decorator, consultas programaticas e helpers Jinja de autorizacao em portugues.
+- Auditoria HTTP e de dominio separada do logging tecnico.
+- Sanitizacao recursiva, ID de correlacao e metricas de baixa cardinalidade.
+- Endpoints de prontidao e metricas, sem dados sensiveis.
+- Migrations 0003 e 0004 para revisao de autorizacao e observabilidade.
+- Servicos fixos de notificacoes e publicacoes, sem models fornecidos pelas aplicacoes.
+- Audiencia por usuario/grupo, vigencia, recibos idempotentes e publicacao transacional.
+- Feeds incrementais e SSE retomavel por cursor, com PostgreSQL como fonte definitiva.
+- Sinal de ultimo cursor no Redis em melhor esforco e migration 0005 para indices de busca.
+- Perfil web obrigatorio com template base, assets locais e macros acessiveis.
+- Tokens semanticos e tema corporativo nos modos claro, escuro e sistema.
+- Registro extensivel de manifestos, fallback controlado e preferencia persistida no core.
+- Atualizacao de preferencia autenticada e protegida por CSRF, com retrato na sessao Redis.
+- CLI corporativa `luftbase` via `[project.scripts]` e integracao unificada com a CLI do Flask (`app.cli`).
+- `luftbase projeto criar`: scaffolding deterministico com pacote, factory, blueprint, templates e testes.
+- `luftbase projeto deploy`: geracao de artefatos revisaveis de proxy reverso Nginx e servico NSSM.
+- `luftbase banco historico` e `luftbase banco pendencias`: inspecao segura de revisoes Alembic.
+- `luftbase diagnostico configuracao` e `luftbase diagnostico saude`: relatorios sanitizados de ambiente e saude.
+- `luftbase vault caminhos` e `luftbase vault verificar`: validacao estrutural e teste seguro de segredos.
+- `luftbase tema listar` e `luftbase tema validar`: listagem de temas e validacao estrita de tokens CSS.
+- `FabricaInfraestruturaMemoria`: adaptador deterministico em memoria para viabilizar testes unitarios imediatos.
+- Piloto M10 do Luft-Workspace sem models, conexoes ou injecoes sistemicas locais.
+- Suporte ao sistema global de autorizacao com `LUFT_SISTEMA_ID=0`, mantendo negacao por padrao.
+- Protecao CSRF compartilhada nas mutacoes de leitura de notificacoes e publicacoes.

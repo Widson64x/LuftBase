@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR"
+      data-theme="{{ 'dark' if luft_modo_tema == 'escuro' else (luft_theme | default('light')) }}"
+      data-luft-theme="{{ luft_tema | default('luft') }}"
+      data-luft-mode="{{ luft_modo_tema | default('claro') }}"
+      data-luft-modo-preferido="{{ luft_modo_preferido | default(luft_modo_tema | default('claro')) }}"
+      data-luft-modos="{{ luft_modos_suportados | default('claro,escuro') }}"
+      data-luft-modo-bloqueado="{{ 'true' if luft_modo_bloqueado else 'false' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <script>
+        /* Preferência "Sistema": resolve claro/escuro pelo navegador antes da pintura, mantendo
+           data-theme e data-luft-mode coerentes (senão só parte da tela fica escura). */
+        (function () {
+            var html = document.documentElement;
+            if (html.getAttribute('data-luft-mode') !== 'sistema' || !window.matchMedia) return;
+            var escuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var tema = escuro ? 'dark' : 'light';
+            var modo = escuro ? 'escuro' : 'claro';
+            function aplicar(alvo) {
+                alvo.setAttribute('data-theme', tema);
+                alvo.setAttribute('data-luft-mode', modo);
+            }
+            aplicar(html);
+            document.addEventListener('DOMContentLoaded', function () { aplicar(document.body); });
+        })();
+    </script>
+    <meta name="theme-color" content="#031b37">
+    <meta name="luft-csrf-token" content="{{ luft_csrf_token }}">
+    <title>{% block titulo %}{% block title %}{{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default('Luft System') }} - {{ luft_company_name | default('Luft Logistics') }}{% endblock %}{% endblock %}</title>
+
+    <script src="{{ url_for('luftbase_interface.static', filename='js/phosphor-icons.js') }}"></script>
+
+    {% if luft_favicon %}
+        <link rel="icon" href="{{ luft_favicon }}" type="image/x-icon">
+        <link rel="shortcut icon" href="{{ luft_favicon }}" type="image/x-icon">
+    {% else %}
+        <link rel="icon" href="{{ url_for('luftbase_interface.static', filename='icons/luft-logo-150x150-Dark.png') }}" type="image/png">
+    {% endif %}
+
+    <link rel="stylesheet" href="{{ url_for('luftbase_interface.static', filename='css/themes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase_interface.static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase_interface.static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase_interface.static', filename='css/animations.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase_interface.static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase_interface.static', filename='css/notificacoes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase_interface.static', filename='css/perfil.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase_interface.static', filename='css/busca.css') }}">
+    {# Todos os temas registrados sao carregados: cada arquivo e escopado por data-luft-theme,
+       entao trocar de tema e so mudar o atributo, sem recarregar a pagina. #}
+    {% if luft_temas_disponiveis %}
+        {% for tema_css in luft_temas_disponiveis %}
+    <link rel="stylesheet" href="{{ tema_css.url_css }}" data-luft-tema-css="{{ tema_css.identificador }}">
+        {% endfor %}
+    {% else %}
+    <link rel="stylesheet" href="{{ luft_tema_manifesto.url_css if luft_tema_manifesto else url_for('luftbase_interface.static', filename='css/temas/luft.css') }}">
+    {% endif %}
+    <script type="application/json" id="luft-temas-config">{{ (luft_temas_catalogo | default([])) | tojson }}</script>
+    <link rel="stylesheet" href="{{ url_for('luftbase_interface.static', filename='css/sidebar.css') }}">
+
+    <style>
+        /* ========== AJUSTES DE ESTRUTURA INABALÁVEL ========== */
+        .luft-topbar {
+            height: 70px;
+            flex-shrink: 0;
+            width: 100%;
+            background: var(--luft-glass-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--luft-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 32px;
+            position: sticky;
+            top: 0;
+            z-index: 90;
+        }
+
+        .luft-main {
+            flex: 1;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .luft-content {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 32px;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .is-placeholder {
+            opacity: 0.5;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .luft-breadcrumb { display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--luft-text-muted); }
+        .luft-breadcrumb i { font-size: 0.8rem; }
+        .luft-breadcrumb-item.active { color: var(--luft-primary-600); font-weight: 700; }
+
+        .luft-search-box {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--luft-bg-app); border: 1px solid var(--luft-border);
+            padding: 8px 16px; border-radius: 20px; transition: 0.3s;
+        }
+        .luft-search-box:focus-within { border-color: var(--luft-primary-500); box-shadow: 0 0 0 3px rgba(var(--luft-focus-rgb, 59, 130, 246), 0.1); }
+        .luft-search-input { border: none; background: transparent; color: var(--luft-text-main); font-size: 0.9rem; outline: none; width: 200px; }
+
+        .luft-topbar-btn {
+            background: transparent; border: 1px solid var(--luft-border);
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--luft-text-main); cursor: pointer; transition: 0.2s;
+            position: relative;
+        }
+        .luft-topbar-btn:hover { background: var(--luft-primary-50); color: var(--luft-primary-600); border-color: var(--luft-primary-300); }
+
+        .luft-badge-notif {
+            position: absolute; top: -2px; right: -2px;
+            background: var(--luft-danger-text); color: white;
+            font-size: 0.65rem; font-weight: bold; height: 18px; min-width: 18px;
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            border: 2px solid var(--luft-bg-panel);
+        }
+
+        .luft-main-footer {
+            flex-shrink: 0;
+            margin-top: auto; padding: 24px 32px;
+            border-top: 1px solid var(--luft-border);
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 16px; flex-wrap: wrap;
+            font-size: 0.8rem; color: var(--luft-text-muted);
+            background: var(--luft-bg-panel);
+            position: relative;
+        }
+
+        .luft-footer-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .luft-footer-side {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .luft-footer-links {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .luft-footer-version-link {
+            position: absolute;
+            right: 12px;
+            bottom: 4px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .luft-footer-version-link:hover .luft-footer-version-meta {
+            opacity: 1;
+            color: var(--luft-primary-600);
+            text-decoration: underline;
+        }
+        .luft-footer-version-meta {
+            font-size: 0.58rem;
+            line-height: 1;
+            text-align: right;
+            color: var(--luft-text-muted);
+            opacity: 0.65;
+            letter-spacing: 0.3px;
+            transition: all 0.2s ease;
+        }
+    </style>
+
+    {% block estilos %}{% block extra_head %}{% endblock %}{% endblock %}
+</head>
+
+<body data-theme="{{ 'dark' if luft_modo_tema == 'escuro' else (luft_theme | default('light')) }}"
+      data-luft-preferencia-url="{{ url_for('luftbase_interface.alterar_preferencia') }}">
+
+    <a class="luft-pular-conteudo" href="#conteudo-principal">Pular para o conteúdo</a>
+
+    <div class="luft-layout">
+
+        <aside class="luft-sidebar" id="luft-sidebar" aria-label="Navegação principal">
+            <button onclick="LuftBase.toggleSidebar()" class="luft-sidebar-toggle hover-lift" type="button" data-luft-alternar-sidebar aria-controls="luft-sidebar" aria-expanded="true" title="Recolher menu">
+                <i class="ph-bold ph-caret-left"></i>
+            </button>
+
+            <div class="luft-sidebar-header">
+                {% block sidebar_brand %}
+                {% block marca %}
+                <div class="luft-logo">
+                    <div class="luft-logo-icon-wrapper">
+                        <img src="{{ url_for('luftbase_interface.static', filename='icons/luft-logo-150x150-Dark.png') }}"
+                            data-light="{{ url_for('luftbase_interface.static', filename='icons/luft-logo-150x150-Dark.png') }}"
+                            data-dark="{{ url_for('luftbase_interface.static', filename='icons/luft-logo-150x150-Light.png') }}"
+                            alt="Logo" class="luft-logo-img" style="width: 38px; transition: src 0.3s ease;">
+                    </div>
+                    <div class="luft-logo-text d-flex flex-col justify-content-center">
+                        <span class="luft-logo-full font-black text-main" style="letter-spacing: -0.5px; line-height: 1;">{{ luft_company_name | default('Luft Logistics') }}</span>
+                        <span class="luft-logo-full text-xs text-primary" style="letter-spacing: 1px; text-transform: uppercase;">{{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default('Workspace') }}</span>
+                        <span class="luft-logo-mini font-black">L<span class="text-main">W</span></span>
+                    </div>
+                </div>
+                {% endblock %}
+                {% endblock %}
+            </div>
+
+            <nav class="luft-nav">
+                {% block sidebar_menu %}
+                <a class="luft-nav-link" href="{{ request.script_root }}/">
+                    <i class="ph-bold ph-house" aria-hidden="true"></i><span>Início</span>
+                </a>
+                {% endblock %}
+            </nav>
+
+            <div class="luft-sidebar-footer">
+                {% block sidebar_user %}
+                <div class="luft-user hover-lift" id="btn-perfil-usuario" role="button" tabindex="0" title="Configurações de Perfil">
+                    <div class="luft-avatar shadow-sm">
+                        {% set foto_exibicao = (current_user.foto_perfil if (current_user.is_authenticated and current_user.foto_perfil) else (luft_usuario_foto | default(none))) %}
+                        {% if foto_exibicao %}
+                            <img src="{{ foto_exibicao }}" alt="Foto" class="luft-avatar-img">
+                        {% elif current_user.is_authenticated %}
+                            {% set nomes = (current_user.nome_completo or current_user.login or 'U').split() %}
+                            <span class="luft-avatar-initials">{{ (nomes[0][0] ~ (nomes[-1][0] if nomes|length > 1 else '')) | upper }}</span>
+                        {% else %}
+                            <i class="ph-bold ph-user"></i>
+                        {% endif %}
+                        {% if current_user.is_authenticated and current_user.status_online %}
+                            <span class="luft-status-dot online" title="Status: Online"></span>
+                        {% endif %}
+                    </div>
+                    <div class="luft-user-info">
+                        {% if current_user.is_authenticated %}
+                            <span class="luft-user-name" title="{{ current_user.email or current_user.login }}">{{ current_user.nome_completo or current_user.login }}</span>
+                            <span class="luft-user-role">{{ current_user.nome_grupo or 'Usuário' }}</span>
+                        {% else %}
+                            <span class="luft-user-name">{% block nome_usuario %}Visitante{% endblock %}</span>
+                        {% endif %}
+                    </div>
+                    <i class="ph-bold ph-gear luft-user-chevron"></i>
+                </div>
+                {% endblock %}
+
+                <div class="luft-actions">
+                    {% block sidebar_actions %}
+                        <button onclick="LuftBase.alternarModo()" class="luft-btn-action hover-lift{{ ' luft-btn-action--bloqueado' if luft_modo_bloqueado else '' }}" type="button" data-luft-alternar-modo{{ ' aria-disabled="true"' | safe if luft_modo_bloqueado else '' }} title="{{ ('Modo fixo: o tema ' ~ (luft_tema_manifesto.nome if luft_tema_manifesto else '') ~ ' oferece apenas um modo') if luft_modo_bloqueado else 'Alternar entre modo claro e escuro' }}">
+                            <i class="ph-bold {{ 'ph-sun' if luft_modo_tema == 'escuro' else 'ph-moon' }}"></i>
+                            <span>Modo</span>
+                        </button>
+                        {% if pode_ver_painel is defined and pode_ver_painel %}
+                        <a href="{{ url_painel | default('/configuracoes') }}" class="luft-btn-action hover-lift" title="Painel de Controle / Configurações">
+                            <i class="ph-bold ph-gear"></i>
+                            <span>Config.</span>
+                        </a>
+                        {% endif %}
+                        {% if current_user.is_authenticated %}
+                        <form method="post" action="{{ url_logout | default(request.script_root ~ '/logout') }}" style="display:contents;">
+                            <input type="hidden" name="csrf_token" value="{{ luft_csrf_token }}">
+                            <button class="luft-btn-action hover-lift text-danger" type="submit" title="Sair do sistema">
+                                <i class="ph-bold ph-power"></i>
+                                <span>Sair</span>
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% endblock %}
+                </div>
+            </div>
+        </aside>
+
+        <main class="luft-main">
+            {% block cabecalho %}
+            <header class="luft-topbar animate-fade-in">
+                <div class="d-flex align-items-center">
+                    <div class="luft-breadcrumb">
+                        {% block breadcrumb %}
+                            <span class="luft-breadcrumb-item active d-flex align-items-center gap-1">
+                                <i class="ph-fill ph-house"></i> {% block titulo_pagina %}{{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default('Luft-WorkSpace') }}{% endblock %}
+                            </span>
+                        {% endblock %}
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
+                    {% block topbar_actions %}
+                        <div class="luft-search-box shadow-sm">
+                            <i class="ph-bold ph-magnifying-glass text-muted"></i>
+                            <input type="search" placeholder="Buscar..." class="luft-search-input" data-busca-url="{{ luft_url_busca | default('') }}">
+                        </div>
+                        <button class="luft-topbar-btn hover-lift shadow-sm" onclick="LuftNotificacoes.abrirDrawer()" title="Notificações" type="button" aria-label="Notificações">
+                            <i class="ph-bold ph-bell"></i>
+                            <span class="luft-notif-badge-topbar luft-badge-notif" style="display: none;" id="luft-notif-badge">0</span>
+                        </button>
+                    {% endblock %}
+                </div>
+            </header>
+            {% endblock %}
+
+            <main class="luft-content" id="conteudo-principal" tabindex="-1">
+                {% block content %}
+                {% block conteudo %}
+                <div class="is-placeholder animate-slide-up">
+                    <i class="ph-thin ph-code text-primary" style="font-size: 5rem;"></i>
+                    <h2 class="mt-4 font-black text-2xl text-main">Bem-vindo à Plataforma Luft</h2>
+                    <p class="text-muted mt-2">Conteúdo principal da página.</p>
+                </div>
+                {% endblock %}
+                {% endblock %}
+            </main>
+
+            <footer class="luft-main-footer">
+                <div class="luft-footer-meta">
+                    <p class="m-0">&copy; 2026 <strong>{{ luft_company_name | default('Luft Logistics') }}</strong>. {{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default('Workspace') }}</p>
+                </div>
+                <div class="luft-footer-side">
+                    <div class="luft-footer-links">
+                        <a href="{{ url_suporte | default('//luftlogistics.desk.ms') }}" target="_blank" rel="noopener noreferrer">Suporte</a>
+                        <a href="{{ url_rh | default('//luftmaissaude.com.br/') }}" target="_blank" rel="noopener noreferrer">RH</a>
+                        <a href="{{ url_empresa | default('//luft.com.br/') }}" target="_blank" rel="noopener noreferrer">Nossa Empresa</a>
+                        {% if luft_url_changelog or 'LuftPublicacoes.listar_atualizacoes' in (current_app.view_functions if current_app is defined else {}) %}
+                        <a href="{{ luft_url_changelog | default(url_for('LuftPublicacoes.listar_atualizacoes')) }}" title="Histórico de versões e melhorias">ChangeLog</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if luft_versao_rodape or luft_app_version_text or luft_app_version_type or luft_app_version or config.LUFT_APLICACAO_VERSAO or config.APP_VERSION %}
+                <a href="{{ luft_url_changelog | default(url_for('LuftPublicacoes.listar_atualizacoes') if 'LuftPublicacoes.listar_atualizacoes' in (current_app.view_functions if current_app is defined else {}) else '#') }}" class="luft-footer-version-link text-decoration-none" title="Ver histórico de atualizações (ChangeLog)">
+                    <small class="luft-footer-version-meta">{{ luft_versao_rodape | default(luft_app_version_text) | default(((luft_app_version_type ~ ' - ' ~ luft_app_version) if (luft_app_version_type and luft_app_version) else (luft_app_version_type or luft_app_version))) }}</small>
+                </a>
+                {% endif %}
+            </footer>
+
+        </main>
+    </div>
+
+    {% include "luftbase/notificacoes/drawer.html" %}
+    {% include "luftbase/perfil/drawer.html" %}
+
+    {% block extra_modals %}{% endblock %}
+
+    <div class="luft-alerts-container" aria-live="polite"></div>
+    <div class="luft-status-popups-container" aria-live="polite"></div>
+
+    <script id="luftbase-config" type="application/json">
+        {{ {
+            'habilitar_mensagens': luft_habilitar_mensagens | default(true, true),
+            'catalogo_mensagens_status': luft_catalogo_mensagens_status | default({}, true),
+            'categoria_popup_status': luft_status_popup_category | default('luft-status-popup', true),
+            'duracao_popup_status': luft_status_popup_duration_default | default(8000, true),
+            'raiz': request.script_root,
+            'endpoint_mensagens': luft_endpoint_mensagens | default(request.script_root ~ '/_luftbase/mensagens', true),
+            'intervalo_polling_mensagens_ms': luft_intervalo_polling_mensagens_ms | default(1000, true),
+            'cabecalho_operacao_mensagens': luft_cabecalho_operacao_mensagens | default('X-LuftBase-Operacao-Id', true),
+        } | tojson }}
+    </script>
+    <script>
+        (() => {
+            const node = document.getElementById('luftbase-config');
+            const config = node ? JSON.parse(node.textContent || '{}') : {};
+            window.LUFT_HABILITAR_MENSAGENS = Boolean(config.habilitar_mensagens ?? true);
+            window.LUFT_CATALOGO_MENSAGENS_STATUS = config.catalogo_mensagens_status || {};
+            window.LUFT_STATUS_MESSAGES = window.LUFT_CATALOGO_MENSAGENS_STATUS;
+            window.LUFT_STATUS_POPUP_CATEGORY = config.categoria_popup_status || 'luft-status-popup';
+            window.LUFT_STATUS_POPUP_DURATION = config.duracao_popup_status ?? 8000;
+            window.LUFT_RAIZ = config.raiz || '';
+            window.LUFT_ENDPOINT_MENSAGENS = config.endpoint_mensagens || window.LUFT_RAIZ + '/_luftbase/mensagens';
+            window.LUFT_MESSAGE_BACKEND_ENDPOINT = window.LUFT_ENDPOINT_MENSAGENS;
+            window.LUFT_INTERVALO_POLLING_MENSAGENS_MS = config.intervalo_polling_mensagens_ms ?? 1000;
+            window.LUFT_MESSAGE_BACKEND_POLL_INTERVAL_MS = window.LUFT_INTERVALO_POLLING_MENSAGENS_MS;
+            window.LUFT_CABECALHO_OPERACAO_MENSAGENS = config.cabecalho_operacao_mensagens || 'X-LuftBase-Operacao-Id';
+            window.LUFT_MESSAGE_BACKEND_OPERATION_HEADER = window.LUFT_CABECALHO_OPERACAO_MENSAGENS;
+        })();
+    </script>
+
+    <script src="{{ url_for('luftbase_interface.static', filename='js/base.js') }}"></script>
+    <script src="{{ url_for('luftbase_interface.static', filename='js/notificacoes.js') }}"></script>
+    <script src="{{ url_for('luftbase_interface.static', filename='js/perfil.js') }}"></script>
+    <script src="{{ url_for('luftbase_interface.static', filename='js/busca.js') }}"></script>
+
+    {% block scripts %}{% block extra_scripts %}{% endblock %}{% endblock %}
+</body>
+</html>

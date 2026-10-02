@@ -1,0 +1,779 @@
+{# ==========================================================================
+   LUFTBASE - UI COMPONENTS MASSIVE LIBRARY
+   Como usar: Importar no topo do arquivo: {% import 'luftbase/components.html' as ui %}
+   ========================================================================== #}
+
+{# --- 1. MODAIS E JANELAS --- #}
+{# O 'caller()' permite colocar qualquer código HTML dentro do body do modal #}
+{% macro modal(id, titulo, tamanho='md', icone='') %}
+<div class="luft-modal-backdrop" id="{{ id }}-backdrop" onclick="LuftBase.fecharModal('{{ id }}')"></div>
+<div class="luft-modal luft-modal-{{ tamanho }}" id="{{ id }}">
+    <div class="luft-modal-header">
+        <h3 class="luft-modal-title d-flex align-items-center gap-2">
+            {% if icone %}<i class="{{ icone }} text-primary"></i>{% endif %}
+            {{ titulo }}
+        </h3>
+        <button class="luft-modal-close" onclick="LuftBase.fecharModal('{{ id }}')" title="Fechar"><i class="ph-bold ph-x"></i></button>
+    </div>
+    <div class="luft-modal-body">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+
+{# --- 2. CARDS E PAINÉIS --- #}
+{% macro card(titulo='', icone='') %}
+<div class="luft-card hover-lift">
+    {% if titulo %}
+    <div class="luft-card-header">
+        <h3 class="luft-card-title">
+            {% if icone %}<i class="{{ icone }} text-primary"></i>{% endif %} 
+            {{ titulo }}
+        </h3>
+    </div>
+    {% endif %}
+    <div class="luft-card-content">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro stat_card(titulo, valor, icone, cor='primary') %}
+<div class="luft-card hover-lift d-flex align-items-center justify-content-between p-6">
+    <div>
+        <p class="text-muted text-sm font-semibold mb-1" style="text-transform: uppercase; letter-spacing: 0.5px;">{{ titulo }}</p>
+        <h3 class="text-3xl font-black text-main m-0">{{ valor }}</h3>
+    </div>
+    <div class="d-flex align-items-center justify-content-center rounded-xl bg-{{ cor }}-light text-{{ cor }}" style="width: 56px; height: 56px; font-size: 1.8rem;">
+        <i class="{{ icone }}"></i>
+    </div>
+</div>
+{% endmacro %}
+
+
+{# --- 3. BOTÕES DE AÇÃO --- #}
+{% macro btn(texto, tipo='primary', icone='', href='', onclick='', extra_class='') %}
+    {% if href %}
+    <a href="{{ href }}" class="btn btn-{{ tipo }} {{ extra_class }}">
+        {% if icone %}<i class="{{ icone }}"></i>{% endif %} {{ texto }}
+    </a>
+    {% else %}
+    <button onclick="{{ onclick }}" class="btn btn-{{ tipo }} {{ extra_class }}">
+        {% if icone %}<i class="{{ icone }}"></i>{% endif %} {{ texto }}
+    </button>
+    {% endif %}
+{% endmacro %}
+
+
+{# --- 4. BADGES E STATUS --- #}
+{% macro badge(texto, cor='primary', icone='') %}
+<span class="luft-badge luft-badge-{{ cor }}">
+    {% if icone %}<i class="{{ icone }}"></i>{% endif %} {{ texto }}
+</span>
+{% endmacro %}
+
+
+{# --- 5. FORMULÁRIOS E INPUTS --- #}
+{% macro input(nome, label, tipo='text', placeholder='', valor='', icone='') %}
+<div class="form-group mb-4 relative">
+    <label class="form-label" for="{{ nome }}">{{ label }}</label>
+    <div class="relative">
+        {% if icone %}
+            <i class="{{ icone }} absolute" style="left: 14px; top: 50%; transform: translateY(-50%); color: var(--luft-text-muted);"></i>
+            <input type="{{ tipo }}" id="{{ nome }}" name="{{ nome }}" class="form-control pl-10" placeholder="{{ placeholder }}" value="{{ valor }}" style="padding-left: 40px;">
+        {% else %}
+            <input type="{{ tipo }}" id="{{ nome }}" name="{{ nome }}" class="form-control" placeholder="{{ placeholder }}" value="{{ valor }}">
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro textarea(nome, label, linhas=3, placeholder='') %}
+<div class="form-group mb-4">
+    <label class="form-label" for="{{ nome }}">{{ label }}</label>
+    <textarea id="{{ nome }}" name="{{ nome }}" class="form-control" rows="{{ linhas }}" placeholder="{{ placeholder }}"></textarea>
+</div>
+{% endmacro %}
+
+{# --- 6. MENU SIDEBAR (TREE E RAIZ) --- #}
+{# Marca da sidebar: logo + "Luft Healthcare" + subtitulo do sistema. Usa tokens do tema,
+   entao acompanha tema (luft, luft-esg...) e modo (claro/escuro) sem CSS por aplicacao. #}
+{% macro sidebar_brand(subtitulo, sigla='L') %}
+<div class="luft-logo">
+    <div class="luft-logo-icon-wrapper">
+        <img src="{{ url_for('luftbase_interface.static', filename='icons/luft-logo-150x150-Dark.png') }}"
+            data-light="{{ url_for('luftbase_interface.static', filename='icons/luft-logo-150x150-Dark.png') }}"
+            data-dark="{{ url_for('luftbase_interface.static', filename='icons/luft-logo-150x150-Light.png') }}"
+            alt="Logo Luft Healthcare" class="luft-logo-img">
+    </div>
+    <div class="luft-logo-text">
+        <span class="luft-logo-full luft-logo-titulo">Luft Healthcare</span>
+        <span class="luft-logo-full luft-logo-subtitulo">{{ subtitulo }}</span>
+        <span class="luft-logo-mini font-black">L<span class="text-main">{{ sigla }}</span></span>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro nav_item(texto, icone='', href='', ativo=false, badge='', classe='', data_tab='', data_sub='', extra_attrs='') %}
+    {% if href %}
+        {# Se tiver link (href), é um item final (raiz ou folha da árvore) #}
+        <a href="{{ href }}" class="luft-nav-link {% if ativo %}ativo{% endif %} {{ classe }}" {% if data_tab %}data-tab="{{ data_tab }}"{% endif %} {% if data_sub %}data-sub="{{ data_sub }}"{% endif %} {{ extra_attrs }}>
+            <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                {% if icone %}<i class="{{ icone }}"></i>{% endif %}
+                <span class="luft-nav-text" style="white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">{{ texto }}</span>
+            </div>
+            {% if badge %}
+                <span class="luft-nav-badge">{{ badge }}</span>
+            {% endif %}
+        </a>
+    {% else %}
+        {# Se NÃO tiver link, é um agrupador (abre uma sub-árvore) #}
+        <div class="luft-nav-wrapper">
+            <button type="button" class="luft-nav-link {% if ativo %}ativo{% endif %} {{ classe }}" {% if data_tab %}data-tab="{{ data_tab }}"{% endif %} {% if data_sub %}data-sub="{{ data_sub }}"{% endif %} {{ extra_attrs }} onclick="LuftBase.toggleMenu(this)">
+                <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                    {% if icone %}<i class="{{ icone }}"></i>{% endif %}
+                    <span class="luft-nav-text" style="white-space: nowrap;">{{ texto }}</span>
+                </div>
+                <i class="ph-bold ph-caret-down luft-caret transition-transform"></i>
+            </button>
+            <div class="luft-nav-submenu {% if ativo %}aberto{% endif %}">
+                {{ caller() }}
+            </div>
+        </div>
+    {% endif %}
+{% endmacro %}
+
+{# --- 7. ALERTAS INLINE --- #}
+{% macro alert(mensagem, tipo='info', icone='', titulo='') %}
+<div class="luft-alert luft-alert-{{ tipo }}">
+    {% if not icone %}
+        {% set icone = 'ph-info' if tipo == 'info' else ('ph-check-circle' if tipo == 'success' else ('ph-warning' if tipo == 'warning' else 'ph-warning-circle')) %}
+    {% endif %}
+    <i class="ph-fill {{ icone }} luft-alert-icon"></i>
+    <div class="luft-alert-content">
+        {% if titulo %}<h4 class="luft-alert-title">{{ titulo }}</h4>{% endif %}
+        <p class="luft-alert-text">{{ mensagem }}</p>
+    </div>
+</div>
+{% endmacro %}
+
+{# --- 8. TOGGLE SWITCH (Interruptor) --- #}
+{% macro switch(nome, label, checked=false, disabled=false) %}
+<label class="luft-switch-wrapper">
+    <span class="luft-switch-label">{{ label }}</span>
+    <div class="luft-switch">
+        <input type="checkbox" id="{{ nome }}" name="{{ nome }}" {% if checked %}checked{% endif %} {% if disabled %}disabled{% endif %}>
+        <span class="luft-slider"></span>
+    </div>
+</label>
+{% endmacro %}
+
+{# --- 9. BARRAS DE PROGRESSO (Ótimo para rotas e fretes) --- #}
+{% macro progress(valor, max=100, cor='primary', label='', show_value=true, tamanho='md') %}
+<div class="luft-progress-wrapper">
+    {% if label or show_value %}
+    <div class="luft-progress-info">
+        {% if label %}<span class="luft-progress-label">{{ label }}</span>{% endif %}
+        {% if show_value %}<span class="luft-progress-value">{{ valor }}%</span>{% endif %}
+    </div>
+    {% endif %}
+    <div class="luft-progress-track luft-progress-{{ tamanho }}">
+        <div class="luft-progress-bar bg-{{ cor }}" style="width: {{ (valor / max) * 100 }}%;"></div>
+    </div>
+</div>
+{% endmacro %}
+
+{# --- 10. AVATARES GLOBAIS --- #}
+{% macro avatar(nome, img='', tamanho='md', cor='primary') %}
+<div class="luft-avatar-box luft-avatar-{{ tamanho }} bg-{{ cor }}-light text-{{ cor }}" title="{{ nome }}">
+    {% if img %}
+        <img src="{{ img }}" alt="{{ nome }}" class="luft-avatar-img">
+    {% else %}
+        <span class="luft-avatar-initials font-bold">{{ nome[:2]|upper }}</span>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# --- 11. SPINNERS / LOADERS --- #}
+{% macro spinner(tamanho='md', cor='primary', texto='') %}
+<div class="luft-spinner-container">
+    <svg class="luft-spinner luft-spinner-{{ tamanho }} text-{{ cor }}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+    {% if texto %}<span class="luft-spinner-text text-{{ cor }}">{{ texto }}</span>{% endif %}
+</div>
+{% endmacro %}
+
+{# --- 12. EMPTY STATE (Nenhum registro encontrado) --- #}
+{% macro empty_state(titulo="Nenhum dado encontrado", subtitulo="Tente ajustar seus filtros ou crie um novo registro.", icone="ph-folder-open") %}
+<div class="luft-empty-state">
+    <div class="luft-empty-icon bg-slate-100 text-slate-400">
+        <i class="ph-thin {{ icone }}"></i>
+    </div>
+    <h3 class="luft-empty-title">{{ titulo }}</h3>
+    <p class="luft-empty-text">{{ subtitulo }}</p>
+    {{ caller() if caller else '' }}
+</div>
+{% endmacro %}
+
+
+{# ==========================================================================
+   NOVOS COMPONENTES — GRUPO 1: NAVEGAÇÃO E DISCLOSURE
+   ========================================================================== #}
+
+{# --- 15. TABS — Container de abas
+   Uso:
+     {% call ui.tabs('meu-tab') %}
+       {{ ui.tab_btn('painel-1', 'Aba 1', 'ph-bold ph-house', true) }}
+       {{ ui.tab_btn('painel-2', 'Aba 2', 'ph-bold ph-gear') }}
+     {% endcall %}
+     {% call ui.tab_panel('painel-1', true) %} Conteúdo da aba 1 {% endcall %}
+     {% call ui.tab_panel('painel-2') %}       Conteúdo da aba 2 {% endcall %}
+#}
+{% macro tabs(id, extra_class='') %}
+<div class="luft-tabs {{ extra_class }}" id="{{ id }}">
+    <nav class="luft-tabs-nav">
+        {{ caller() }}
+    </nav>
+    <div class="luft-tab-content"></div>
+</div>
+{% endmacro %}
+
+{# --- 16. TAB_BTN — Botão de aba individual #}
+{% macro tab_btn(painel, texto, icone='', ativo=false) %}
+<button
+    class="luft-tab-btn {% if ativo %}ativo{% endif %}"
+    onclick="LuftBase.abrirTab(this, '{{ painel }}')"
+    type="button"
+>
+    {% if icone %}<i class="{{ icone }}"></i>{% endif %}
+    {{ texto }}
+</button>
+{% endmacro %}
+
+{# --- 17. TAB_PANEL — Painel de conteúdo de aba #}
+{% macro tab_panel(id, ativo=false) %}
+<div class="luft-tab-panel {% if ativo %}ativo{% endif %}" id="{{ id }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# --- 18. ACCORDION — Acordeão colapsável
+   Uso:
+     {% call ui.accordion('acc-1') %}
+       {% call ui.accordion_item('Pergunta 1', 'ph-bold ph-question', true) %}
+         Resposta aqui.
+       {% endcall %}
+     {% endcall %}
+#}
+{% macro accordion(id='') %}
+<div class="luft-accordion" {% if id %}id="{{ id }}"{% endif %}>
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# --- 19. ACCORDION_ITEM — Item colapsável do acordeão #}
+{% macro accordion_item(titulo, icone='', aberto=false) %}
+<div class="luft-accordion-item">
+    <button
+        class="luft-accordion-header {% if aberto %}aberto{% endif %}"
+        onclick="LuftBase.toggleAccordion(this)"
+        type="button"
+    >
+        <span class="d-flex align-items-center gap-2">
+            {% if icone %}<i class="{{ icone }} text-primary"></i>{% endif %}
+            {{ titulo }}
+        </span>
+        <i class="ph-bold ph-caret-down luft-accordion-icon"></i>
+    </button>
+    <div class="luft-accordion-body {% if aberto %}aberto{% endif %}">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# --- 20. DROPDOWN — Menu suspenso
+   Uso:
+     {% call ui.dropdown('meu-menu', 'Ações', 'ph-bold ph-dots-three') %}
+       {{ ui.dropdown_item('Editar',  '#', 'ph-bold ph-pencil') }}
+       {{ ui.dropdown_divider() }}
+       {{ ui.dropdown_item('Excluir', '#', 'ph-bold ph-trash', true) }}
+     {% endcall %}
+#}
+{% macro dropdown(id, label, icone='ph-bold ph-caret-down', tipo='outline') %}
+<div class="luft-dropdown">
+    <button
+        class="btn btn-{{ tipo }} d-flex align-items-center gap-2"
+        onclick="LuftBase.toggleDropdown('{{ id }}')"
+        type="button"
+        aria-expanded="false"
+        aria-haspopup="true"
+    >
+        {{ label }}
+        <i class="{{ icone }}" style="font-size:0.85em;"></i>
+    </button>
+    <div class="luft-dropdown-menu" id="{{ id }}-menu" role="menu">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# --- 21. DROPDOWN_ITEM — Item do dropdown #}
+{% macro dropdown_item(texto, href='#', icone='', perigoso=false) %}
+<a
+    href="{{ href }}"
+    class="luft-dropdown-item {% if perigoso %}perigoso{% endif %}"
+    role="menuitem"
+>
+    {% if icone %}<i class="{{ icone }}"></i>{% endif %}
+    {{ texto }}
+</a>
+{% endmacro %}
+
+{# --- 22. DROPDOWN_DIVIDER — Separador no dropdown #}
+{% macro dropdown_divider() %}
+<div class="luft-dropdown-divider"></div>
+{% endmacro %}
+
+
+{# ==========================================================================
+   GRUPO 2: LAYOUT E ESTRUTURA
+   ========================================================================== #}
+
+{# --- 23. SECTION_HEADER — Cabeçalho de seção de página #}
+{% macro section_header(titulo, subtitulo='', icone='') %}
+<div class="luft-section-header">
+    <div class="luft-section-header-top">
+        {% if icone %}
+        <div class="luft-section-icon">
+            <i class="{{ icone }}"></i>
+        </div>
+        {% endif %}
+        <h1 class="luft-section-title">{{ titulo }}</h1>
+    </div>
+    {% if subtitulo %}
+    <p class="luft-section-subtitle {% if icone %}ms-4 ps-2{% endif %}">{{ subtitulo }}</p>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# --- 24. DIVIDER — Separador horizontal com texto opcional #}
+{% macro divider(texto='', alinhamento='center') %}
+<div class="luft-divider {% if alinhamento == 'left' %}align-left{% elif alinhamento == 'right' %}align-right{% endif %}">
+    {% if texto %}<span>{{ texto }}</span>{% endif %}
+</div>
+{% endmacro %}
+
+{# --- 25. TABLE_CARD — Card com tabela responsiva embutida
+   Uso:
+     {% call ui.table_card('Pedidos', 'ph-bold ph-receipt') %}
+       <table class="luft-table">
+         <thead>...</thead>
+         <tbody>...</tbody>
+       </table>
+     {% endcall %}
+#}
+{% macro table_card(titulo='', icone='', extra_class='') %}
+<div class="luft-card {{ extra_class }}">
+    {% if titulo %}
+    <div class="luft-card-header">
+        <h3 class="luft-card-title">
+            {% if icone %}<i class="{{ icone }} text-primary"></i>{% endif %}
+            {{ titulo }}
+        </h3>
+    </div>
+    {% endif %}
+    <div class="luft-table-wrapper">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# --- 26. DRAWER — Painel deslizante lateral
+   Uso:
+     {{ ui.btn('Abrir', onclick="LuftBase.abrirDrawer('drawer-1')") }}
+     {% call ui.drawer('drawer-1', 'Detalhes', 'right', 'md') %}
+       Conteúdo do drawer aqui.
+     {% endcall %}
+#}
+{% macro drawer(id, titulo, posicao='right', tamanho='md') %}
+<div class="luft-drawer-backdrop" id="{{ id }}-backdrop" onclick="LuftBase.fecharDrawer('{{ id }}')"></div>
+<div
+    class="luft-drawer luft-drawer-{{ posicao }} luft-drawer-{{ tamanho }}"
+    id="{{ id }}"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="{{ id }}-title"
+>
+    <div class="luft-drawer-header">
+        <span class="luft-drawer-title" id="{{ id }}-title">{{ titulo }}</span>
+        <button class="luft-drawer-close" onclick="LuftBase.fecharDrawer('{{ id }}')" title="Fechar" type="button">
+            <i class="ph-bold ph-x"></i>
+        </button>
+    </div>
+    <div class="luft-drawer-body">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+
+{# ==========================================================================
+   GRUPO 3: FEEDBACK E EXIBIÇÃO
+   ========================================================================== #}
+
+{# --- 27. TOOLTIP — Envoltório com dica CSS-only #}
+{% macro tooltip(dica, posicao='top') %}
+<span
+    data-tooltip="{{ dica }}"
+    {% if posicao != 'top' %}data-tooltip-pos="{{ posicao }}"{% endif %}
+    style="display:inline-flex;"
+>{{ caller() }}</span>
+{% endmacro %}
+
+{# --- 28. SKELETON — Placeholder animado de carregamento #}
+{% macro skeleton(tipo='block', largura='100%', altura='16px') %}
+{% if tipo == 'block' %}
+    <div class="luft-skeleton luft-skeleton-block" style="width:{{ largura }};height:{{ altura }};"></div>
+{% elif tipo == 'circle' %}
+    <div class="luft-skeleton luft-skeleton-circle" style="width:{{ altura }};height:{{ altura }};"></div>
+{% elif tipo == 'avatar' %}
+    <div class="luft-skeleton luft-skeleton-avatar"></div>
+{% elif tipo == 'btn' %}
+    <div class="luft-skeleton luft-skeleton-btn" style="width:{{ largura }};"></div>
+{% else %}
+    <div class="luft-skeleton luft-skeleton-text" style="width:{{ largura }};height:{{ altura }};"></div>
+{% endif %}
+{% endmacro %}
+
+{# --- 29. SKELETON_TEXT — Bloco de linhas de texto skeleton #}
+{% macro skeleton_text(linhas=3) %}
+<div class="d-flex flex-column gap-2">
+    {% for i in range(linhas) %}
+    <div
+        class="luft-skeleton luft-skeleton-text {% if loop.last %}luft-skeleton-w75{% endif %}"
+        style="height:0.875rem;"
+    ></div>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{# --- 30. CONFIRM_MODAL — Diálogo de confirmação com callback JS
+   Uso:
+     {{ ui.confirm_modal('del-confirm', 'Excluir item', 'Tem certeza que deseja excluir?') }}
+     {{ ui.btn('Excluir', 'danger', onclick="LuftBase.confirmar('del-confirm', () => console.log('ok'))") }}
+#}
+{% macro confirm_modal(id, titulo, mensagem, btn_confirmar='Confirmar', btn_tipo='danger', icone='ph-warning-circle') %}
+<div class="luft-modal-backdrop" id="{{ id }}-backdrop" onclick="LuftBase.fecharModal('{{ id }}')"></div>
+<div
+    class="luft-modal luft-modal-sm"
+    id="{{ id }}"
+    role="alertdialog"
+    aria-modal="true"
+    aria-labelledby="{{ id }}-title"
+    aria-describedby="{{ id }}-desc"
+>
+    <div class="luft-modal-header">
+        <h3 class="luft-modal-title d-flex align-items-center gap-2" id="{{ id }}-title">
+            <i class="ph-fill {{ icone }} text-{{ btn_tipo }}" style="font-size:1.2rem;"></i>
+            {{ titulo }}
+        </h3>
+        <button class="luft-modal-close" onclick="LuftBase.fecharModal('{{ id }}')" title="Fechar" type="button">
+            <i class="ph-bold ph-x"></i>
+        </button>
+    </div>
+    <div class="luft-modal-body" id="{{ id }}-desc">
+        <p style="color:var(--luft-text-muted);font-size:0.9rem;line-height:1.65;margin:0;">{{ mensagem }}</p>
+    </div>
+    <div class="luft-modal-footer">
+        <button class="btn btn-outline" onclick="LuftBase.fecharModal('{{ id }}')" type="button">Cancelar</button>
+        <button class="btn btn-{{ btn_tipo }}" id="{{ id }}-confirm-btn" type="button">{{ btn_confirmar }}</button>
+    </div>
+</div>
+{% endmacro %}
+
+{# --- 31. STAT_MINI — Card de métrica compacto com tendência #}
+{% macro stat_mini(label, valor, tendencia='', tendencia_valor='', icone='', cor='primary') %}
+<div class="luft-stat-mini">
+    <div class="luft-stat-mini-left">
+        <span class="luft-stat-mini-label">{{ label }}</span>
+        <span class="luft-stat-mini-value">{{ valor }}</span>
+        {% if tendencia and tendencia_valor %}
+        <span class="luft-stat-mini-trend {{ tendencia }}">
+            <i class="ph-bold {% if tendencia == 'up' %}ph-trend-up{% elif tendencia == 'down' %}ph-trend-down{% else %}ph-minus{% endif %}"></i>
+            {{ tendencia_valor }}
+        </span>
+        {% endif %}
+    </div>
+    {% if icone %}
+    <div class="luft-stat-mini-icon {{ cor }}">
+        <i class="{{ icone }}"></i>
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# --- 32. IMAGE_CARD — Card com imagem de capa #}
+{% macro image_card(src, alt='', titulo='', subtitulo='', href='') %}
+{% if href %}<a href="{{ href }}" class="luft-image-card">{% else %}<div class="luft-image-card">{% endif %}
+    <img src="{{ src }}" alt="{{ alt }}" class="luft-image-card-img" loading="lazy">
+    {% if titulo or subtitulo %}
+    <div class="luft-image-card-body">
+        {% if titulo %}<p class="luft-image-card-title">{{ titulo }}</p>{% endif %}
+        {% if subtitulo %}<p class="luft-image-card-subtitle">{{ subtitulo }}</p>{% endif %}
+    </div>
+    {% endif %}
+{% if href %}</a>{% else %}</div>{% endif %}
+{% endmacro %}
+
+{# --- 33. TIMELINE — Linha do tempo
+   Uso:
+     {% call ui.timeline() %}
+       {{ ui.timeline_item('Pedido criado', '10:30', 'Recebemos seu pedido.', 'ph-fill ph-package', 'success') }}
+     {% endcall %}
+#}
+{% macro timeline(extra_class='') %}
+<div class="luft-timeline {{ extra_class }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# --- 34. TIMELINE_ITEM — Item da linha do tempo #}
+{% macro timeline_item(titulo, tempo='', descricao='', icone='ph-fill ph-circle', cor='primary') %}
+<div class="luft-timeline-item">
+    <div class="luft-timeline-left">
+        <div class="luft-timeline-dot {{ cor }}">
+            <i class="{{ icone }}"></i>
+        </div>
+        <div class="luft-timeline-line"></div>
+    </div>
+    <div class="luft-timeline-content">
+        <p class="luft-timeline-title">{{ titulo }}</p>
+        {% if tempo %}<p class="luft-timeline-time">{{ tempo }}</p>{% endif %}
+        {% if descricao %}<p class="luft-timeline-desc">{{ descricao }}</p>{% endif %}
+        {{ caller() if caller else '' }}
+    </div>
+</div>
+{% endmacro %}
+
+{# --- 35. KBD — Tecla de teclado #}
+{% macro kbd(tecla) %}
+<kbd class="luft-kbd">{{ tecla }}</kbd>
+{% endmacro %}
+
+{# --- 36. COLOR_BADGE — Badge com ponto colorido #}
+{% macro color_badge(texto, hex='', cor='') %}
+<span class="luft-color-badge">
+    <span class="luft-color-dot" style="background: {% if hex %}{{ hex }}{% else %}var(--luft-{{ cor }}-500, var(--luft-primary-500)){% endif %};"></span>
+    {{ texto }}
+</span>
+{% endmacro %}
+
+
+{# ==========================================================================
+   GRUPO 4: INPUTS ESPECIAIS
+   ========================================================================== #}
+
+{# --- 37. SELECT — Campo select estilizado #}
+{% macro select(nome, label, opcoes=[], placeholder='Selecione...', valor='') %}
+<div class="form-group mb-4">
+    {% if label %}<label class="form-label" for="{{ nome }}">{{ label }}</label>{% endif %}
+    <select id="{{ nome }}" name="{{ nome }}" class="form-select">
+        {% if placeholder %}<option value="" {% if not valor %}selected{% endif %} disabled>{{ placeholder }}</option>{% endif %}
+        {% for op in opcoes %}
+            {% if op is mapping %}
+                <option value="{{ op.value }}" {% if op.value|string == valor|string %}selected{% endif %}>{{ op.label }}</option>
+            {% else %}
+                <option value="{{ op }}" {% if op|string == valor|string %}selected{% endif %}>{{ op }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+</div>
+{% endmacro %}
+
+{# --- 38. FILE_UPLOAD — Dropzone de upload de arquivo #}
+{% macro file_upload(nome, label, aceitar='*', multiplo=false) %}
+<div class="form-group mb-4">
+    {% if label %}<label class="form-label">{{ label }}</label>{% endif %}
+    <div
+        class="luft-file-upload"
+        onclick="document.getElementById('{{ nome }}-input').click()"
+    >
+        <input
+            type="file"
+            id="{{ nome }}-input"
+            name="{{ nome }}"
+            {% if aceitar != '*' %}accept="{{ aceitar }}"{% endif %}
+            {% if multiplo %}multiple{% endif %}
+            onchange="LuftBase.initFileUpload('{{ nome }}-input')"
+        >
+        <i class="ph-bold ph-upload-simple luft-file-upload-icon"></i>
+        <p class="luft-file-upload-text">Clique ou arraste o arquivo aqui</p>
+        <p class="luft-file-upload-hint">
+            {% if aceitar != '*' %}{{ aceitar }}{% else %}Qualquer formato{% endif %}
+            {% if multiplo %} · Múltiplos arquivos{% endif %}
+        </p>
+        <span class="luft-file-name" id="{{ nome }}-name"></span>
+    </div>
+</div>
+<script>document.addEventListener('DOMContentLoaded',()=>LuftBase.initFileUpload('{{ nome }}-input'));</script>
+{% endmacro %}
+
+{# --- 39. COPY_FIELD — Campo com botão de copiar #}
+{% macro copy_field(valor, label='', nome='') %}
+<div class="form-group mb-4">
+    {% if label %}<label class="form-label">{{ label }}</label>{% endif %}
+    <div class="luft-copy-field">
+        <input
+            type="text"
+            value="{{ valor }}"
+            readonly
+            {% if nome %}name="{{ nome }}"{% endif %}
+            id="copy-{{ nome or loop.index0 }}"
+        >
+        <button
+            class="luft-copy-btn"
+            type="button"
+            onclick="LuftBase.copiarTexto('{{ valor }}', this)"
+            title="Copiar"
+        >
+            <i class="ph-bold ph-copy"></i> Copiar
+        </button>
+    </div>
+</div>
+{% endmacro %}
+
+{# --- 40. RATING — Avaliação por estrelas
+   Uso: {{ ui.rating('avaliacao', 3, 5) }}
+   Retorna campo oculto 'avaliacao' com valor inteiro 1–5
+#}
+{% macro rating(nome, valor=0, max=5, somente_leitura=false) %}
+<div class="luft-rating {% if somente_leitura %}readonly{% endif %}" title="Avaliação: {{ valor }} de {{ max }}">
+    {% for i in range(max, 0, -1) %}
+    <input
+        type="radio"
+        id="{{ nome }}-{{ i }}"
+        name="{{ nome }}"
+        value="{{ i }}"
+        {% if valor == i %}checked{% endif %}
+        {% if somente_leitura %}disabled{% endif %}
+    >
+    <label for="{{ nome }}-{{ i }}" title="{{ i }} estrela{{ 's' if i > 1 else '' }}">★</label>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{# --- 41. STEPS — Indicador de progresso em etapas
+   Uso: {{ ui.steps(['Dados', 'Endereço', 'Pagamento', 'Revisão'], 2) }}
+#}
+{% macro steps(passos, atual=1) %}
+<div class="luft-steps">
+    {% for passo in passos %}
+    <div class="luft-step-item {% if loop.index < atual %}concluido{% elif loop.index == atual %}ativo{% endif %}">
+        <div class="luft-step-circle">
+            {% if loop.index < atual %}
+                <i class="ph-bold ph-check" style="font-size:1rem;"></i>
+            {% else %}
+                {{ loop.index }}
+            {% endif %}
+        </div>
+        <span class="luft-step-label">{{ passo }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+
+{# ==========================================================================
+   GRUPO 5: LISTAS E CHIPS
+   ========================================================================== #}
+
+{# --- 42. LIST_GROUP — Grupo de lista de itens
+   Uso:
+     {% call ui.list_group() %}
+       {{ ui.list_item('Usuário 1', 'Administrador', 'ph-bold ph-user') }}
+     {% endcall %}
+#}
+{% macro list_group(extra_class='') %}
+<div class="luft-list-group {{ extra_class }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# --- 43. LIST_ITEM — Linha de item de lista #}
+{% macro list_item(titulo, subtitulo='', icone='', href='', badge_texto='', badge_cor='primary') %}
+{% if href %}<a href="{{ href }}" class="luft-list-item">{% else %}<div class="luft-list-item">{% endif %}
+    {% if icone %}
+    <span class="luft-list-item-icon"><i class="{{ icone }}"></i></span>
+    {% endif %}
+    <div class="luft-list-item-content">
+        <p class="luft-list-item-title">{{ titulo }}</p>
+        {% if subtitulo %}<p class="luft-list-item-sub">{{ subtitulo }}</p>{% endif %}
+    </div>
+    {% if badge_texto %}
+    <span class="luft-badge luft-badge-{{ badge_cor }}">{{ badge_texto }}</span>
+    {% endif %}
+{% if href %}</a>{% else %}</div>{% endif %}
+{% endmacro %}
+
+{# --- 44. CHIP — Pill tag com remoção opcional #}
+{% macro chip(texto, cor='primary', removivel=false, id='') %}
+<span class="luft-chip luft-chip-{{ cor }}" {% if id %}id="{{ id }}"{% endif %}>
+    {{ texto }}
+    {% if removivel %}
+    <button
+        class="luft-chip-remove"
+        onclick="LuftBase.removerChip(this)"
+        type="button"
+        aria-label="Remover {{ texto }}"
+        title="Remover"
+    ><i class="ph-bold ph-x" style="font-size:0.75rem;"></i></button>
+    {% endif %}
+</span>
+{% endmacro %}
+
+{# --- 45. TAG — Pill com link opcional #}
+{% macro tag(texto, href='', cor='primary') %}
+{% if href %}<a href="{{ href }}" class="luft-tag luft-tag-{{ cor }}">{% else %}<span class="luft-tag luft-tag-{{ cor }}">{% endif %}
+    {{ texto }}
+{% if href %}</a>{% else %}</span>{% endif %}
+{% endmacro %}
+
+
+{# --- 46. CAMPO_ICONE — Input com Seletor Reutilizável de Ícones Phosphor --- #}
+{% macro campo_icone(id, nome, valor='', label='Ícone', placeholder='ph-bold ph-app-window', ajuda='', required=false, cor_id='') %}
+<div class="luft-form-group">
+    {% if label %}
+    <label class="luft-form-label" for="{{ id }}">{{ label }}{% if required %} <span class="text-danger">*</span>{% endif %}</label>
+    {% endif %}
+    <div class="d-flex align-items-center gap-2">
+        <div class="luft-icon-preview-box" id="{{ id }}-preview-box" style="width: 44px; height: 44px; border-radius: var(--luft-radius-md); background: var(--luft-bg-app); border: 1px solid var(--luft-border-light); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: var(--luft-primary-600); flex-shrink: 0;">
+            <i id="{{ id }}-preview" class="{{ valor or placeholder }}"></i>
+        </div>
+        <input 
+            type="text" 
+            id="{{ id }}" 
+            name="{{ nome }}" 
+            class="luft-form-control font-mono text-xs" 
+            value="{{ valor or '' }}" 
+            placeholder="{{ placeholder }}"
+            oninput="const p = document.getElementById('{{ id }}-preview'); if(p) p.className = this.value || '{{ placeholder }}';"
+            {% if required %}required{% endif %}
+        >
+        <button 
+            type="button" 
+            class="btn btn-outline d-flex align-items-center gap-1 text-nowrap"
+            onclick="LuftBase.abrirSeletorIcones({ targetInput: '{{ id }}', targetPreview: '{{ id }}-preview', iconeAtual: document.getElementById('{{ id }}')?.value, cor: ('{{ cor_id }}' ? document.getElementById('{{ cor_id }}')?.value : null) })"
+            title="Abrir catálogo com mais de 240 ícones Phosphor"
+        >
+            <i class="ph-bold ph-squares-four"></i>
+            <span>Escolher...</span>
+        </button>
+    </div>
+    {% if ajuda %}
+    <small class="luft-form-hint text-xs text-muted mt-1 d-block">{{ ajuda }}</small>
+    {% endif %}
+</div>
+{% endmacro %}

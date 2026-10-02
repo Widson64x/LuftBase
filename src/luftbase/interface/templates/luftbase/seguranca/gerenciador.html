@@ -1,0 +1,2134 @@
+{% extends layout_base | default(luft_base_template) | default('luftbase/base.html') %}
+{% import 'luftbase/components.html' as ui %}
+
+{% block titulo %}Controle de Acesso & Permissões{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_raiz_aplicacao | default('/') }}" class="luft-breadcrumb-item d-flex align-items-center gap-1 text-muted text-decoration-none" style="text-decoration: none;">
+    <i class="ph-fill ph-house"></i> {{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default(luft_app_name) | default('Luft-WorkSpace') }}
+</a>
+<i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
+<a href="{{ url_for('Configuracoes.visualizar_painel') }}" class="luft-breadcrumb-item text-muted text-decoration-none" style="text-decoration: none;">Painel de Controle</a>
+<i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
+<span class="luft-breadcrumb-item active font-semibold">Segurança & Permissões</span>
+{% endblock %}
+
+{% block content %}
+<style>
+    /* ==========================================================================
+       DESIGN SYSTEM: CONTROLE DE ACESSO E PERMISSÕES (CLEAN, RESPIRO & DARK MODE)
+       ========================================================================== */
+    .luft-perm-container {
+        display: flex; 
+        flex-direction: column; 
+        gap: var(--luft-space-3); 
+        height: 100%; 
+        overflow: hidden;
+    }
+
+    /* Abas de Navegação (Grupo x Usuário) */
+    .luft-tabs-header {
+        display: flex; 
+        gap: var(--luft-space-3); 
+        border-bottom: 1px solid var(--luft-border); 
+        padding-bottom: 0; 
+        flex-shrink: 0;
+    }
+    .luft-tab-btn {
+        padding: 8px 14px; 
+        background: transparent; 
+        border: none; 
+        border-bottom: 2px solid transparent; 
+        font-weight: 600; 
+        font-size: 0.85rem; 
+        color: var(--luft-text-muted); 
+        cursor: pointer; 
+        transition: all 0.15s ease; 
+        display: flex; 
+        align-items: center; 
+        gap: 6px;
+    }
+    .luft-tab-btn:hover:not(.ativo) { color: var(--luft-text-main); }
+    .luft-tab-btn.ativo { 
+        color: var(--luft-primary-500); 
+        border-bottom-color: var(--luft-primary-500); 
+    }
+
+    /* Layout Split-View */
+    .luft-split-view {
+        display: flex; 
+        gap: var(--luft-space-4); 
+        width: 100%;
+        flex: 1;
+        min-height: 480px;
+        overflow: hidden;
+    }
+    
+    /* Sidebar Esquerda */
+    .luft-sidebar-list {
+        width: 300px; 
+        background: var(--luft-bg-panel); 
+        border-radius: var(--luft-radius-lg);
+        border: 1px solid var(--luft-border); 
+        display: flex; 
+        flex-direction: column; 
+        flex-shrink: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+    .luft-sidebar-search { 
+        padding: 10px 14px; 
+        border-bottom: 1px solid var(--luft-border-light); 
+    }
+    .luft-list-content { 
+        flex: 1; 
+        overflow-y: auto; 
+        padding: 8px; 
+    } 
+    
+    .luft-list-item {
+        padding: 10px 12px; 
+        margin-bottom: 3px; 
+        border-radius: var(--luft-radius-md); 
+        cursor: pointer; 
+        transition: all 0.15s ease; 
+        border-left: 3px solid transparent; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center;
+    }
+    .luft-list-item:hover { background: var(--luft-bg-panel-hover); }
+    .luft-list-item.ativo { 
+        background: rgba(var(--luft-brand-rgb, 37, 99, 235), 0.1); 
+        border-left-color: var(--luft-primary-600); 
+    }
+    [data-theme="dark"] .luft-list-item.ativo,
+    [data-luft-mode="escuro"] .luft-list-item.ativo {
+        background: rgba(var(--luft-focus-rgb, 59, 130, 246), 0.18); 
+        border-left-color: var(--luft-primary-400, #60a5fa); 
+    }
+
+    /* Painel Principal */
+    .luft-main-panel {
+        flex: 1; 
+        background: var(--luft-bg-panel); 
+        border-radius: var(--luft-radius-lg);
+        border: 1px solid var(--luft-border); 
+        display: flex; 
+        flex-direction: column; 
+        position: relative;
+        height: 100%;
+        overflow: hidden;
+    }
+    .luft-panel-header {
+        padding: 14px 20px; 
+        border-bottom: 1px solid var(--luft-border); 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        flex-shrink: 0;
+        background: var(--luft-bg-panel);
+    }
+    .luft-panel-toolbar {
+        padding: 10px 20px;
+        background: var(--luft-bg-app);
+        border-bottom: 1px solid var(--luft-border-light); 
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+    }
+    .luft-panel-scroll { 
+        flex: 1; 
+        overflow-y: auto; 
+        padding: 18px 20px; 
+        background: var(--luft-bg-app); 
+    }
+
+    /* Estado Vazio */
+    .empty-state {
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        height: 100%; 
+        width: 100%; 
+        color: var(--luft-text-muted); 
+        text-align: center;
+        padding: 40px;
+    }
+    .empty-state i { font-size: 3rem; opacity: 0.3; margin-bottom: 8px; }
+    .empty-state h3 { font-size: 1.1rem; font-weight: 600; margin: 0 0 4px 0; color: var(--luft-text-main); }
+    .empty-state p { font-size: 0.85rem; margin: 0; max-width: 380px; }
+
+    /* Módulos e Árvore */
+    .luft-modulo-block {
+        background: var(--luft-bg-panel); 
+        border-radius: var(--luft-radius-lg);
+        border: 1px solid var(--luft-border); 
+        margin-bottom: 16px; 
+        overflow: hidden; 
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+    .luft-modulo-header {
+        padding: 11px 18px; 
+        background: var(--luft-bg-panel);
+        border-bottom: 1px solid var(--luft-border-light); 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s ease;
+    }
+    .luft-modulo-header:hover {
+        background: var(--luft-bg-panel-hover);
+    }
+    .luft-modulo-body {
+        display: block;
+    }
+    .luft-modulo-body.recolhido {
+        display: none;
+    }
+
+    /* Linhas de Permissão com Espaçamento Adequado */
+    .luft-perm-row {
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        padding: 13px 20px; 
+        border-bottom: 1px solid var(--luft-border-light); 
+        transition: background 0.1s ease;
+        position: relative;
+    }
+    .luft-perm-row:last-child { border-bottom: none; }
+    .luft-perm-row:hover { background: var(--luft-bg-panel-hover); }
+
+    /* Destaque Nó Raiz / Gestor do Módulo */
+    .luft-perm-row.eh-gestora {
+        background: rgba(var(--luft-brand-rgb, 37, 99, 235), 0.03);
+        border-left: 3px solid var(--luft-primary-600);
+    }
+    [data-theme="dark"] .luft-perm-row.eh-gestora,
+    [data-luft-mode="escuro"] .luft-perm-row.eh-gestora {
+        background: rgba(var(--luft-focus-rgb, 59, 130, 246), 0.06);
+        border-left: 3px solid var(--luft-primary-500, #3b82f6);
+    }
+
+    /* Conectores Visuais de Árvore */
+    .tree-branch-guide {
+        display: inline-flex;
+        align-items: center;
+        color: #94a3b8;
+        font-size: 0.95rem;
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+    [data-theme="dark"] .tree-branch-guide,
+    [data-luft-mode="escuro"] .tree-branch-guide {
+        color: #64748b;
+    }
+
+    /* Código da Chave */
+    .perm-key-clean { 
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; 
+        font-size: 0.73rem; 
+        background: #f1f5f9; 
+        border: 1px solid #e2e8f0;
+        padding: 2px 7px; 
+        border-radius: 4px; 
+        color: #334155; 
+        letter-spacing: 0.2px;
+    }
+    [data-theme="dark"] .perm-key-clean,
+    [data-luft-mode="escuro"] .perm-key-clean {
+        background: #0d1527; 
+        border: 1px solid #283548;
+        color: #cbd5e1;
+    }
+
+    /* Tag de Herança (Explicação Clara de Quem Herda de Quem) */
+    .badge-heranca-origem {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 5px;
+        background: var(--luft-brand-soft-2, #eff6ff);
+        color: #1e40af;
+        border: 1px solid var(--luft-brand-border, #bfdbfe);
+        white-space: nowrap;
+    }
+    [data-theme="dark"] .badge-heranca-origem,
+    [data-luft-mode="escuro"] .badge-heranca-origem {
+        background: rgba(var(--luft-focus-rgb, 59, 130, 246), 0.15);
+        color: #93c5fd;
+        border: 1px solid rgba(var(--luft-focus-rgb, 59, 130, 246), 0.3);
+    }
+
+    /* Tag de Gestor / Mestre do Módulo */
+    .badge-mestre {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: #f0fdf4;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+    }
+    [data-theme="dark"] .badge-mestre,
+    [data-luft-mode="escuro"] .badge-mestre {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    /* Tag de Permissão Sensível com Cor Viva */
+    .badge-sensivel {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: #fef3c7;
+        color: #b45309;
+        border: 1px solid #fcd34d;
+    }
+    .badge-sensivel i {
+        color: #d97706;
+        font-size: 0.85rem;
+    }
+    [data-theme="dark"] .badge-sensivel,
+    [data-luft-mode="escuro"] .badge-sensivel {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+    [data-theme="dark"] .badge-sensivel i,
+    [data-luft-mode="escuro"] .badge-sensivel i {
+        color: #fbbf24;
+    }
+
+    /* ==========================================================================
+       CONTROLES DE AÇÃO (SEGMENTED SWITCH ELEGANTE & DARK MODE READY)
+       ========================================================================== */
+    .perm-action-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    /* Switch Segmentado Conceder / Bloquear */
+    .perm-switch {
+        display: inline-flex;
+        align-items: center;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 2px;
+        gap: 2px;
+    }
+    [data-theme="dark"] .perm-switch,
+    [data-luft-mode="escuro"] .perm-switch {
+        background: #0b1220;
+        border: 1px solid #263346;
+    }
+
+    .btn-perm-opt {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+        line-height: 1.2;
+    }
+    [data-theme="dark"] .btn-perm-opt,
+    [data-luft-mode="escuro"] .btn-perm-opt {
+        color: #94a3b8;
+    }
+
+    .btn-perm-opt:hover:not(:disabled):not(.ativo-permitir):not(.ativo-bloquear) {
+        color: #0f172a;
+        background: rgba(255, 255, 255, 0.7);
+    }
+    [data-theme="dark"] .btn-perm-opt:hover:not(:disabled):not(.ativo-permitir):not(.ativo-bloquear),
+    [data-luft-mode="escuro"] .btn-perm-opt:hover:not(:disabled):not(.ativo-permitir):not(.ativo-bloquear) {
+        color: #f8fafc;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-perm-opt.ativo-permitir {
+        background: #10b981 !important;
+        color: #ffffff !important;
+        box-shadow: 0 1px 2px rgba(16, 185, 129, 0.25);
+    }
+    .btn-perm-opt.ativo-bloquear {
+        background: #f43f5e !important;
+        color: #ffffff !important;
+        box-shadow: 0 1px 2px rgba(244, 63, 94, 0.25);
+    }
+
+    /* Botão Desfazer / Restaurar Herança (Ícone Compacto) */
+    .btn-perm-undo {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 5px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        font-size: 0.85rem;
+    }
+    .btn-perm-undo:hover {
+        color: var(--luft-brand, #2563eb);
+        border-color: #93c5fd;
+        background: var(--luft-brand-soft-2, #eff6ff);
+    }
+    [data-theme="dark"] .btn-perm-undo,
+    [data-luft-mode="escuro"] .btn-perm-undo {
+        background: #151f31;
+        border-color: #3a4961;
+        color: #94a3b8;
+    }
+    [data-theme="dark"] .btn-perm-undo:hover,
+    [data-luft-mode="escuro"] .btn-perm-undo:hover {
+        color: var(--luft-primary-400, #60a5fa);
+        border-color: var(--luft-primary-500, #3b82f6);
+        background: rgba(var(--luft-focus-rgb, 59, 130, 246), 0.15);
+    }
+
+    /* ==========================================================================
+       BADGES DE STATUS (CORES SUAVES & COMPATÍVEIS COM DARK MODE)
+       ========================================================================== */
+    .badge-status { 
+        display: inline-flex; 
+        align-items: center;
+        gap: 5px;
+        font-size: 0.72rem; 
+        padding: 3px 8px; 
+        font-weight: 600; 
+        border-radius: 5px; 
+        white-space: nowrap;
+        line-height: 1.3;
+    }
+    .badge-status-allow {
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+    }
+    [data-theme="dark"] .badge-status-allow,
+    [data-luft-mode="escuro"] .badge-status-allow {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-status-deny {
+        background: #fff1f2;
+        color: #be123c;
+        border: 1px solid #fecdd3;
+    }
+    [data-theme="dark"] .badge-status-deny,
+    [data-luft-mode="escuro"] .badge-status-deny {
+        background: rgba(244, 63, 94, 0.15);
+        color: #fb7185;
+        border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .badge-status-inherited {
+        background: #f0f9ff;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
+    }
+    [data-theme="dark"] .badge-status-inherited,
+    [data-luft-mode="escuro"] .badge-status-inherited {
+        background: rgba(var(--luft-focus-rgb, 59, 130, 246), 0.15);
+        color: var(--luft-primary-400, #60a5fa);
+        border: 1px solid rgba(var(--luft-focus-rgb, 59, 130, 246), 0.3);
+    }
+
+    .badge-status-inherited-deny {
+        background: #fffbeb;
+        color: #b45309;
+        border: 1px solid #fde68a;
+    }
+    [data-theme="dark"] .badge-status-inherited-deny,
+    [data-luft-mode="escuro"] .badge-status-inherited-deny {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-status-default {
+        background: #f8fafc;
+        color: #94a3b8;
+        border: 1px solid #e2e8f0;
+    }
+    [data-theme="dark"] .badge-status-default,
+    [data-luft-mode="escuro"] .badge-status-default {
+        background: #0f172a;
+        color: #94a3b8;
+        border: 1px solid #334155;
+    }
+
+    /* Filtros da Barra de Ferramentas */
+    .chip-filtro-status {
+        padding: 4px 10px;
+        font-size: 0.72rem;
+        border-radius: 5px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #475569;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.15s ease;
+    }
+    [data-theme="dark"] .chip-filtro-status,
+    [data-luft-mode="escuro"] .chip-filtro-status {
+        background: #151f31;
+        border: 1px solid #3a4961;
+        color: #b5c0d1;
+    }
+
+    .chip-filtro-status:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+    [data-theme="dark"] .chip-filtro-status:hover,
+    [data-luft-mode="escuro"] .chip-filtro-status:hover {
+        background: #202d43;
+        color: #ffffff;
+    }
+
+    .chip-filtro-status.ativo {
+        background: #0f172a;
+        color: #ffffff;
+        border-color: #0f172a;
+    }
+    [data-theme="dark"] .chip-filtro-status.ativo,
+    [data-luft-mode="escuro"] .chip-filtro-status.ativo {
+        background: var(--luft-brand, #2563eb);
+        color: #ffffff;
+        border-color: var(--luft-brand, #2563eb);
+    }
+
+    /* Botões Expandir / Recolher */
+    .btn-toolbar-toggle {
+        padding: 4px 9px;
+        font-size: 0.72rem;
+        border-radius: 5px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #475569;
+        cursor: pointer;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.15s ease;
+    }
+    [data-theme="dark"] .btn-toolbar-toggle,
+    [data-luft-mode="escuro"] .btn-toolbar-toggle {
+        background: #151f31;
+        border: 1px solid #3a4961;
+        color: #b5c0d1;
+    }
+    .btn-toolbar-toggle:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+    [data-theme="dark"] .btn-toolbar-toggle:hover,
+    [data-luft-mode="escuro"] .btn-toolbar-toggle:hover {
+        background: #202d43;
+        color: #ffffff;
+    }
+
+    /* Modal de Espelhamento e Gestão em Lote */
+    .card-espelho-alvo {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: var(--luft-radius-md);
+        padding: 12px 14px;
+        transition: background 0.15s ease;
+    }
+    [data-theme="dark"] .card-espelho-alvo,
+    [data-luft-mode="escuro"] .card-espelho-alvo {
+        background: #151f31;
+        border: 1px solid #2a374d;
+    }
+    .card-resumo-origem {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: var(--luft-radius-md);
+        padding: 10px 12px;
+    }
+    [data-theme="dark"] .card-resumo-origem,
+    [data-luft-mode="escuro"] .card-resumo-origem {
+        background: #0b1220;
+        border: 1px solid #263346;
+    }
+    .modo-espelho-opcao {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: var(--luft-radius-md);
+        border: 1px solid #e2e8f0;
+        background: var(--luft-bg-panel);
+        cursor: pointer;
+        transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .modo-espelho-opcao:hover {
+        border-color: var(--luft-primary-400);
+    }
+    [data-theme="dark"] .modo-espelho-opcao,
+    [data-luft-mode="escuro"] .modo-espelho-opcao {
+        border-color: #2a374d;
+        background: #111a2b;
+    }
+    [data-theme="dark"] .modo-espelho-opcao:hover,
+    [data-luft-mode="escuro"] .modo-espelho-opcao:hover {
+        border-color: var(--luft-primary-500, #3b82f6);
+    }
+</style>
+
+<div class="luft-perm-container">
+    
+    <!-- Topo: Título & Ações Globais -->
+    <div class="d-flex justify-content-between align-items-center flex-shrink-0 flex-wrap gap-2">
+        <div>
+            <h1 class="text-xl font-bold text-main m-0 d-flex align-items-center gap-2">
+                <i class="ph-bold ph-shield-check text-primary"></i> Controle de Acesso & Permissões
+            </h1>
+            <p class="text-xs text-muted m-0">Gerencie a árvore de autorizações corporativas por grupos ou defina exceções por usuário.</p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if IsMaster %}
+            <form method="GET" action="{{ url_for('Seguranca.visualizar_gerenciador') }}" class="d-flex align-items-center gap-1">
+                <span class="text-xs text-muted font-bold">SISTEMA:</span>
+                <select id="sistema_id" name="sistema_id" class="form-control form-control-sm" style="min-width: 200px;" onchange="this.form.submit()">
+                    {% for sistema in SistemasDisponiveis %}
+                    <option value="{{ sistema.Id_Sistema }}" {% if sistema.Id_Sistema == SistemaIdSelecionado %}selected{% endif %}>
+                        {{ sistema.Nome_Sistema }} (ID {{ sistema.Id_Sistema }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+            {% endif %}
+
+            {% if PodeEditar %}
+            <button class="btn btn-sm btn-outline d-flex align-items-center gap-1.5" onclick="AbrirModalEspelharGlobal()" title="Espelhar regras entre grupos ou usuários">
+                <i class="ph-bold ph-copy"></i> Espelhar Permissões
+            </button>
+            {% endif %}
+
+            {% if PodeCriar %}
+            <button class="btn btn-sm btn-outline" onclick="AbrirGerenciadorModulos()">
+                <i class="ph-bold ph-squares-four"></i> Gerenciar Módulos
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="AbrirModalNovaPermissao()">
+                <i class="ph-bold ph-plus"></i> Nova Permissão
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Abas: Por Grupos vs Por Usuários -->
+    <div class="luft-tabs-header">
+        <button class="luft-tab-btn ativo" id="btnAbaGrupo" onclick="MudarAba('grupo')">
+            <i class="ph-bold ph-users-three"></i> Por Grupos Corporativos
+        </button>
+        <button class="luft-tab-btn" id="btnAbaUsuario" onclick="MudarAba('usuario')">
+            <i class="ph-bold ph-user"></i> Por Usuários (Exceções)
+        </button>
+    </div>
+
+    <!-- Área Principal (Master-Detail Split View) -->
+    <div class="luft-split-view">
+        
+        <!-- Sidebar Esquerda -->
+        <aside class="luft-sidebar-list">
+            <div class="luft-sidebar-search">
+                <div class="relative w-full">
+                    <i class="ph-bold ph-magnifying-glass absolute text-muted" style="left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.85rem;"></i>
+                    <input type="text" id="filtroLateral" class="form-control form-control-sm" placeholder="Buscar..." style="padding-left: 30px;" onkeyup="FiltrarLateral(this.value)">
+                </div>
+            </div>
+            
+            <div class="luft-list-content" id="listaGrupos">
+                {% for grupo in Grupos %}
+                <div class="luft-list-item" data-nome="{{ grupo.Nome_UsuarioGrupo }} {{ grupo.Sigla_UsuarioGrupo }}" onclick="CarregarGrupo(this, '{{ grupo.codigo_usuariogrupo }}', '{{ grupo.Sigla_UsuarioGrupo }}')">
+                    <div class="d-flex flex-col">
+                        <span class="font-semibold text-xs text-main">{{ grupo.Sigla_UsuarioGrupo }}</span>
+                        {% if grupo.Nome_UsuarioGrupo and grupo.Nome_UsuarioGrupo != grupo.Sigla_UsuarioGrupo %}
+                        <span class="text-muted truncate" style="font-size: 0.7rem;">{{ grupo.Nome_UsuarioGrupo }}</span>
+                        {% endif %}
+                    </div>
+                    <i class="ph-bold ph-caret-right text-muted" style="font-size: 0.7rem;"></i>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="luft-list-content d-none" id="listaUsuarios">
+                {% for user in Usuarios %}
+                <div class="luft-list-item" data-nome="{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }} {{ (user|attr('Login_Usuario')) | default(user|attr('login'), true) }}" onclick="CarregarUsuario(this, '{{ (user|attr('Codigo_Usuario')) | default(user|attr('id'), true) }}', '{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }}')">
+                    <div class="d-flex flex-col truncate" style="flex: 1;">
+                        <span class="font-semibold text-xs text-main truncate">{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }}</span>
+                        <span class="text-muted truncate" style="font-size: 0.7rem;">
+                            {{ (user|attr('Login_Usuario')) | default(user|attr('login'), true) }} • {{ (user|attr('cargo')) | default(user|attr('Nome_UsuarioGrupo') | default('Sem Grupo', true), true) }}
+                        </span>
+                    </div>
+                    <i class="ph-bold ph-caret-right text-muted" style="font-size: 0.7rem;"></i>
+                </div>
+                {% endfor %}
+            </div>
+        </aside>
+
+        <!-- Painel Central -->
+        <main class="luft-main-panel">
+            
+            <!-- Estado Vazio -->
+            <div id="estadoVazio" class="empty-state">
+                <i class="ph-duotone ph-hand-pointing"></i>
+                <h3 id="msgVazio">Selecione um grupo ao lado</h3>
+                <p class="text-muted">Escolha um grupo corporativo ou usuário para visualizar e editar as permissões hierárquicas.</p>
+            </div>
+
+            <!-- Painel Ativo de Permissões -->
+            <div id="painelPermissoes" class="d-none h-full flex-col">
+                
+                <!-- Cabeçalho do Item Selecionado -->
+                <div class="luft-panel-header">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h2 id="tituloSelecionado" class="text-base font-bold text-main m-0">...</h2>
+                            <span id="badgeTipoAlvo" class="badge-status badge-status-default">Grupo</span>
+                            <span id="contadorRegras" class="text-xs text-muted font-medium">0 regras diretas</span>
+                        </div>
+                        <p id="subtituloSelecionado" class="text-xs text-muted m-0 mt-0.5">...</p>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        {% if PodeEditar %}
+                        <button type="button" class="btn btn-sm btn-outline d-flex align-items-center gap-1.5" onclick="AbrirModalEspelhar()" id="btnEspelharAlvo" title="Espelhar regras de outro grupo ou usuário para este">
+                            <i class="ph-bold ph-copy"></i> Espelhar
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline d-flex align-items-center gap-1.5 text-danger" onclick="LimparTodasRegrasAlvo()" id="btnLimparRegras" title="Remover todas as regras diretas e restaurar herança automática">
+                            <i class="ph-bold ph-arrow-counter-clockwise"></i> Limpar Regras
+                        </button>
+                        {% endif %}
+
+                        <div class="relative" style="width: 220px;">
+                            <i class="ph-bold ph-funnel absolute text-muted" style="left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem;"></i>
+                            <input type="text" id="filtroPermissoesInput" class="form-control form-control-sm" placeholder="Filtrar permissões..." style="padding-left: 28px;" onkeyup="FiltrarPermissoes(this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de Ferramentas / Filtros Rápidos -->
+                <div class="luft-panel-toolbar">
+                    <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                        <button class="chip-filtro-status ativo" data-filtro="todos" onclick="FiltrarPorStatus('todos', this)">
+                            Todos (<span id="cntFiltroTodos">{{ TotalPermissoes }}</span>)
+                        </button>
+                        <button class="chip-filtro-status" data-filtro="concedidos" onclick="FiltrarPorStatus('concedidos', this)">
+                            Concedidos (<span id="cntFiltroConcedidos">0</span>)
+                        </button>
+                        <button class="chip-filtro-status" data-filtro="bloqueados" onclick="FiltrarPorStatus('bloqueados', this)">
+                            Bloqueados (<span id="cntFiltroBloqueados">0</span>)
+                        </button>
+                        <button class="chip-filtro-status" data-filtro="herdados" onclick="FiltrarPorStatus('herdados', this)">
+                            Herdados (<span id="cntFiltroHerdados">0</span>)
+                        </button>
+                        <button class="chip-filtro-status" data-filtro="sem_regra" onclick="FiltrarPorStatus('sem_regra', this)">
+                            Sem Regra (<span id="cntFiltroSemRegra">0</span>)
+                        </button>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn-toolbar-toggle" onclick="AlternarTodosModulos(true)" title="Expandir todos">
+                            <i class="ph-bold ph-arrows-out"></i> Expandir
+                        </button>
+                        <button class="btn-toolbar-toggle" onclick="AlternarTodosModulos(false)" title="Recolher todos">
+                            <i class="ph-bold ph-arrows-in"></i> Recolher
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista de Permissões por Módulo -->
+                <div class="luft-panel-scroll" id="scrollPermissoes">
+                    {% for Categoria, ListaPerms in PermissoesPorCategoria.items() %}
+                        <div class="luft-modulo-block" id="bloco-modulo-{{ loop.index }}" data-modulo="{{ Categoria }}">
+                            <!-- Cabeçalho do Módulo -->
+                            <div class="luft-modulo-header" onclick="AlternarModulo('{{ loop.index }}')">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="ph-bold ph-folder text-primary" style="font-size: 1rem;"></i>
+                                    <span class="text-xs font-bold text-main" style="letter-spacing: 0.2px;">{{ Categoria }}</span>
+                                    <span class="text-muted" style="font-size: 0.72rem;">({{ ListaPerms|length }})</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 text-muted" style="font-size: 0.75rem;">
+                                    <i class="ph-bold ph-caret-down toggle-modulo-icone" id="icone-modulo-{{ loop.index }}"></i>
+                                </div>
+                            </div>
+
+                            <!-- Corpo do Módulo -->
+                            <div class="luft-modulo-body" id="corpo-modulo-{{ loop.index }}">
+                                {% for perm in ListaPerms %}
+                                <div class="luft-perm-row {% if perm.eh_gestora or perm.nivel == 0 %}eh-gestora{% endif %}" 
+                                     id="linha-perm-{{ perm.Id_Permissao }}"
+                                     data-id="{{ perm.Id_Permissao }}"
+                                     data-chave="{{ perm.Chave_Permissao }}"
+                                     data-nivel="{{ perm.nivel }}"
+                                     data-pai="{{ perm.chave_pai or '' }}"
+                                     data-modulo="{{ perm.codigo_modulo }}"
+                                     data-recurso="{{ perm.recurso }}"
+                                     data-acao="{{ perm.acao }}"
+                                     style="{% if perm.nivel > 0 %}padding-left: {{ 20 + perm.nivel * 24 }}px;{% endif %} {% if not perm.ativo %}opacity: .45;{% endif %}">
+                                    
+                                    <!-- Lado Esquerdo: Identificação & Conector de Árvore -->
+                                    <div class="d-flex align-items-center flex-grow-1" style="min-width: 0; padding-right: 16px;">
+                                        
+                                        <!-- Conector Visual da Árvore -->
+                                        {% if perm.nivel > 0 %}
+                                        <div class="tree-branch-guide">
+                                            <i class="ph-bold ph-arrow-elbow-down-right"></i>
+                                        </div>
+                                        {% endif %}
+
+                                        <div class="d-flex flex-col" style="min-width: 0; flex: 1;">
+                                            <!-- Linha 1: Título e Badges Informativos -->
+                                            <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                                {% if perm.eh_gestora or perm.nivel == 0 %}
+                                                <span class="badge-mestre">
+                                                    <i class="ph-fill ph-crown"></i> Gestor
+                                                </span>
+                                                {% endif %}
+
+                                                <span class="text-xs font-semibold text-main">{{ perm.Descricao_Permissao }}</span>
+
+                                                {% if perm.sensivel %}
+                                                <span class="badge-sensivel" title="Permissão Sensível / Auditoria Reforçada">
+                                                    <i class="ph-fill ph-shield-warning"></i> Sensível
+                                                </span>
+                                                {% endif %}
+
+                                                {% if not perm.ativo %}
+                                                <span class="badge-status badge-status-deny" style="font-size: 0.65rem;">Inativa</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <!-- Linha 2: Chave Própria + Tag de Herança Perfeitamente Destacada -->
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <code class="perm-key-clean">{{ perm.Chave_Permissao }}</code>
+                                                {% if perm.chave_pai %}
+                                                <span class="badge-heranca-origem" title="Herança hierárquica automática">
+                                                    <i class="ph-bold ph-arrow-bend-down-right"></i> Herda de: <strong>{{ perm.chave_pai }}</strong>
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Lado Direito: Status & Switch de Ação Perfeitamente Alinhados -->
+                                    <div class="perm-action-cell">
+                                        <!-- Badge de Status Dinâmico -->
+                                        <div id="badge-container-{{ perm.Id_Permissao }}">
+                                            <span class="badge-status badge-status-default" id="badge-status-{{ perm.Id_Permissao }}">
+                                                <i class="ph-bold ph-circle"></i> Padrão
+                                            </span>
+                                        </div>
+
+                                        <!-- Switch de Ação (Permitir | Bloquear) -->
+                                        <div class="perm-switch" role="group">
+                                            <button type="button" 
+                                                class="btn-perm-opt" 
+                                                id="btn-permitir-{{ perm.Id_Permissao }}"
+                                                data-id="{{ perm.Id_Permissao }}"
+                                                {% if not PodeEditar or not perm.ativo %} disabled {% endif %}
+                                                onclick="DefinirRegra('{{ perm.Id_Permissao }}', 'Permitir')"
+                                                title="Conceder acesso explicitamente">
+                                                <i class="ph-bold ph-check"></i> Permitir
+                                            </button>
+                                            <button type="button" 
+                                                class="btn-perm-opt" 
+                                                id="btn-bloquear-{{ perm.Id_Permissao }}"
+                                                data-id="{{ perm.Id_Permissao }}"
+                                                {% if not PodeEditar or not perm.ativo %} disabled {% endif %}
+                                                onclick="DefinirRegra('{{ perm.Id_Permissao }}', 'Bloquear')"
+                                                title="Bloquear acesso explicitamente">
+                                                <i class="ph-bold ph-prohibit"></i> Bloquear
+                                            </button>
+                                        </div>
+
+                                        <!-- Botão Restaurar Herança (Ícone Compacto ao lado) -->
+                                        <button type="button" 
+                                            class="btn-perm-undo" 
+                                            id="btn-reset-{{ perm.Id_Permissao }}"
+                                            data-id="{{ perm.Id_Permissao }}"
+                                            {% if not PodeEditar %} disabled {% endif %}
+                                            onclick="ResetarPermissao('{{ perm.Id_Permissao }}')"
+                                            title="Remover regra manual e restaurar herança automática">
+                                            <i class="ph-bold ph-arrow-counter-clockwise"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL: NOVA PERMISSÃO (INTELIGENTE E GUIADA)
+     ========================================================================== -->
+{% call ui.modal('modalPermissao', 'Cadastrar Nova Permissão', 'md', 'ph-key') %}
+    <p class="text-xs text-muted mb-4">
+        Cadastre novas permissões no formato padrão <code>MÓDULO.RECURSO.AÇÃO</code>.
+    </p>
+    
+    <form id="formNovaPermissao" onsubmit="SubmeterNovaPermissao(event)">
+        <input type="hidden" name="sistema_id" value="{{ SistemaIdSelecionado }}">
+        <input type="hidden" name="csrf_token" value="{{ luft_csrf_token }}">
+        
+        <!-- 1. Módulo -->
+        <div class="form-group mb-3">
+            <label class="form-label font-bold text-xs">Módulo do Sistema <span class="text-danger">*</span></label>
+            <select name="id_modulo" id="permissaoModulo" class="form-control form-control-sm" required onchange="AoMudarModuloPermissao()">
+                {% for modulo in Modulos %}
+                    <option value="{{ modulo.id_modulo }}" data-codigo="{{ modulo.codigo_modulo }}">{{ modulo.nome_modulo }} ({{ modulo.codigo_modulo }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- 2. Recurso -->
+        <div class="form-group mb-3">
+            <label class="form-label font-bold text-xs">Recurso Protegido <span class="text-danger">*</span></label>
+            
+            <select id="permissaoRecursoSelect" class="form-control form-control-sm mb-2" onchange="AoMudarRecursoSelect()">
+                <option value="__NOVO__">➕ Cadastrar Novo Recurso...</option>
+            </select>
+
+            <div id="containerRecursoNovo" class="relative">
+                <input type="text" name="recurso" id="permissaoRecursoInput" class="form-control form-control-sm font-mono" placeholder="Ex: RELATORIOS, FATURAS, USUARIOS" required oninput="AtualizarPreviewPermissao()">
+                <small class="text-muted text-xs block mt-1" style="font-size: 0.7rem;">Apenas letras, números e underline. Caixa alta automática.</small>
+            </div>
+        </div>
+
+        <!-- 3. Ação -->
+        <div class="form-group mb-3">
+            <label class="form-label font-bold text-xs">Ação Padronizada <span class="text-danger">*</span></label>
+            <select name="acao" id="permissaoAcao" class="form-control form-control-sm" required onchange="AtualizarPreviewPermissao()">
+                <optgroup label="Visualização e Consulta">
+                    <option value="VISUALIZAR" selected>VISUALIZAR - Consultar detalhes e formulários</option>
+                    <option value="LISTAR">LISTAR - Acessar tabelas e listagens</option>
+                </optgroup>
+                <optgroup label="Operações Básicas (CRUD)">
+                    <option value="CRIAR">CRIAR - Cadastrar novos registros</option>
+                    <option value="EDITAR">EDITAR - Alterar dados existentes</option>
+                    <option value="EXCLUIR">EXCLUIR - Remover registros</option>
+                </optgroup>
+                <optgroup label="Gestão e Governança">
+                    <option value="GERENCIAR">GERENCIAR - Gestão completa do recurso ou módulo</option>
+                    <option value="CONFIGURAR">CONFIGURAR - Configurações do recurso</option>
+                    <option value="ADMINISTRAR">ADMINISTRAR - Acesso administrativo irrestrito</option>
+                </optgroup>
+                <optgroup label="Acesso e Execução">
+                    <option value="ACESSAR">ACESSAR - Entrada na tela ou módulo</option>
+                    <option value="EXECUTAR">EXECUTAR - Executar rotinas e processos</option>
+                </optgroup>
+                <optgroup label="Especializadas">
+                    <option value="EXPORTAR">EXPORTAR - Exportar relatórios</option>
+                    <option value="IMPORTAR">IMPORTAR - Importar arquivos</option>
+                    <option value="APROVAR">APROVAR - Aprovar fluxos</option>
+                </optgroup>
+            </select>
+        </div>
+
+        <!-- 4. Permissão Pai -->
+        <div class="form-group mb-3">
+            <label class="form-label font-bold text-xs">Permissão Mestre (Herança Automática)</label>
+            <select name="id_permissao_pai" id="permissaoPai" class="form-control form-control-sm" onchange="AtualizarPreviewPermissao()">
+                <option value="">○ Nenhuma (Permissão Independente / Raiz)</option>
+            </select>
+            <small class="text-muted text-xs block mt-1" style="font-size: 0.7rem;">Quem receber a permissão mestre herdará esta permissão.</small>
+        </div>
+
+        <!-- 5. Descrição -->
+        <div class="form-group mb-3">
+            <label class="form-label font-bold text-xs">Descrição da Permissão</label>
+            <input type="text" name="descricao" id="permissaoDescricao" class="form-control form-control-sm" placeholder="Ex: Permite visualizar relatórios gerenciais" oninput="AtualizarPreviewPermissao()">
+        </div>
+
+        <!-- 6. Sensível -->
+        <div class="form-group mb-3">
+            <label class="d-flex align-items-center gap-2 cursor-pointer">
+                <input type="checkbox" name="sensivel" id="permissaoSensivel" value="1" onchange="AtualizarPreviewPermissao()">
+                <span class="text-xs font-semibold text-main">Marcar como Permissão Sensível / Crítica</span>
+            </label>
+        </div>
+        
+        <!-- Live Preview -->
+        <div class="p-3 mb-4 rounded border bg-slate-50">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted font-bold" style="font-size: 0.68rem; text-transform: uppercase;">Preview da Chave</span>
+                <span class="badge-status badge-status-inherited" id="previewBadgeAcao">VISUALIZAR</span>
+            </div>
+            <div class="text-xs font-bold text-main" id="previewDescricao">Permite visualizar registros</div>
+            <div class="d-flex align-items-center gap-2 mt-1 text-muted" style="font-size: 0.72rem;">
+                <code class="perm-key-clean font-bold text-primary" id="previewChave">MODULO.RECURSO.VISUALIZAR</code>
+                <span>•</span>
+                <span id="previewHeranca">Herda de: Raiz</span>
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <button type="submit" id="btnSalvarPermissao" class="btn btn-sm btn-primary w-full">
+                <i class="ph-bold ph-plus"></i> Criar Permissão
+            </button>
+            <button type="button" class="btn btn-sm btn-outline w-full" onclick="LuftBase.fecharModal('modalPermissao')">Cancelar</button>
+        </div>
+    </form>
+{% endcall %}
+
+<!-- ==========================================================================
+     MODAL: GERENCIADOR DE MÓDULOS
+     ========================================================================== -->
+{% call ui.modal('modalGerenciadorModulos', 'Gerenciador de Módulos', 'lg', 'ph-squares-four') %}
+    <div id="visaoListaModulos">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <p class="text-xs text-muted m-0">Módulos delimitam contextos funcionais e estruturam a herança de permissões.</p>
+            <button class="btn btn-xs btn-primary" onclick="ExibirFormNovoModulo()">
+                <i class="ph-bold ph-plus"></i> Novo Módulo
+            </button>
+        </div>
+
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--luft-border); border-radius: var(--luft-radius-md);">
+            <table class="luft-table w-full text-left" id="tabelaModulos">
+                <thead>
+                    <tr class="bg-slate-50 text-xs text-muted font-bold" style="border-bottom: 1px solid var(--luft-border);">
+                        <th class="p-2.5">Código</th>
+                        <th class="p-2.5">Nome</th>
+                        <th class="p-2.5">Descrição</th>
+                        <th class="p-2.5 text-center">Ordem</th>
+                        <th class="p-2.5 text-center">Permissões</th>
+                        <th class="p-2.5 text-center">Status</th>
+                        <th class="p-2.5 text-right">Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="linhasModulos">
+                    <tr>
+                        <td colspan="7" class="p-4 text-center text-muted">Carregando módulos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Formulário Inline de Módulo -->
+    <div id="visaoFormModulo" class="d-none">
+        <h4 class="text-sm font-bold text-main mb-3 d-flex align-items-center gap-2" id="tituloFormModulo">
+            <i class="ph-bold ph-folder-plus text-primary"></i> Cadastrar Novo Módulo
+        </h4>
+
+        <form id="formModuloInline" onsubmit="SubmeterFormModulo(event)">
+            <input type="hidden" name="id_modulo" id="moduloFormId" value="0">
+            <input type="hidden" name="sistema_id" value="{{ SistemaIdSelecionado }}">
+
+            <div class="row" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <label class="form-label font-bold text-xs">Código <span class="text-danger">*</span></label>
+                    <input type="text" name="codigo" id="moduloFormCodigo" class="form-control form-control-sm font-mono" placeholder="Ex: RELATORIOS" required>
+                </div>
+                <div style="flex: 1.5;">
+                    <label class="form-label font-bold text-xs">Nome <span class="text-danger">*</span></label>
+                    <input type="text" name="nome" id="moduloFormNome" class="form-control form-control-sm" placeholder="Ex: Relatórios" required>
+                </div>
+            </div>
+
+            <div class="form-group mb-2">
+                <label class="form-label font-bold text-xs">Descrição</label>
+                <textarea name="descricao" id="moduloFormDescricao" class="form-control form-control-sm" rows="2" placeholder="Responsabilidade do módulo..."></textarea>
+            </div>
+
+            <div class="row" style="display: flex; gap: 10px; margin-bottom: 14px;">
+                <div style="flex: 1;">
+                    <label class="form-label font-bold text-xs">Ícone Phosphor</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="text" name="icone" id="moduloFormIcone" class="form-control form-control-sm font-mono" placeholder="ph-folder" value="ph-folder" oninput="AtualizarPreviewIconeModulo()">
+                        <div class="border rounded text-primary d-flex align-items-center justify-content-center" style="min-width: 32px; height: 32px;">
+                            <i id="previewIconeModulo" class="ph-bold ph-folder"></i>
+                        </div>
+                    </div>
+                </div>
+                <div style="flex: 0.6;">
+                    <label class="form-label font-bold text-xs">Ordem</label>
+                    <input type="number" name="ordem_exibicao" id="moduloFormOrdem" class="form-control form-control-sm" value="10" min="0" max="9999">
+                </div>
+                <div style="flex: 0.8;" class="d-flex align-items-center pt-3">
+                    <label class="d-flex align-items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="ativo" id="moduloFormAtivo" value="1" checked>
+                        <span class="text-xs font-bold text-main">Ativo</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" id="btnSalvarModulo" class="btn btn-sm btn-primary w-full">
+                    <i class="ph-bold ph-check"></i> Salvar Módulo
+                </button>
+                <button type="button" class="btn btn-sm btn-outline w-full" onclick="CancelarFormModulo()">Voltar</button>
+            </div>
+        </form>
+    </div>
+{% endcall %}
+
+<!-- ==========================================================================
+     MODAL: ESPELHAR PERMISSÕES
+     ========================================================================== -->
+{% call ui.modal('modalEspelharPermissoes', 'Espelhar Permissões', 'md', 'ph-copy') %}
+    <p class="text-xs text-muted mb-3">
+        Copie em lote todas as regras diretas (concessões e bloqueios) de uma entidade de origem para uma de destino, eliminando a configuração manual permissão por permissão.
+    </p>
+
+    <form id="formEspelharPermissoes" onsubmit="SubmeterEspelhamento(event)">
+        <input type="hidden" name="sistema_id" value="{{ SistemaIdSelecionado }}">
+
+        <!-- 1. DESTINO (Quem recebe as permissões) -->
+        <div class="card-espelho-alvo mb-3" id="cardDestinoEspelho">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-xs font-bold text-main d-flex align-items-center gap-1.5">
+                    <i class="ph-bold ph-arrow-down-right text-primary"></i> Destino (Quem receberá as permissões)
+                </span>
+                <span class="badge-status badge-status-allow" id="badgeDestinoTipo">Grupo</span>
+            </div>
+            
+            <div id="boxDestinoFixo" class="d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="text-xs font-bold text-main" id="nomeDestinoFixo">Nenhum selecionado</div>
+                    <div class="text-muted" style="font-size: 0.72rem;" id="subtituloDestinoFixo">Selecione um alvo</div>
+                </div>
+                <button type="button" class="btn btn-xs btn-outline" onclick="AlternarSelecaoDestino(true)" id="btnTrocarDestino">
+                    Alterar Destino
+                </button>
+            </div>
+
+            <div id="boxDestinoSeletor" class="d-none mt-2">
+                <div class="d-flex gap-2 mb-2">
+                    <button type="button" class="btn btn-xs btn-outline flex-1" id="btnDestinoTipoGrupo" onclick="SelecionarTipoDestino('Grupo')">
+                        <i class="ph-bold ph-users-three"></i> Grupo Corporativo
+                    </button>
+                    <button type="button" class="btn btn-xs btn-outline flex-1" id="btnDestinoTipoUsuario" onclick="SelecionarTipoDestino('Usuario')">
+                        <i class="ph-bold ph-user"></i> Usuário
+                    </button>
+                </div>
+                <select id="selectDestinoAlvo" class="form-control form-control-sm" onchange="AtualizarDestinoSelecionado()">
+                    <!-- Populado dinamicamente -->
+                </select>
+            </div>
+        </div>
+
+        <!-- 2. ORIGEM (De onde copiar as permissões) -->
+        <div class="p-3 mb-3 rounded border" style="background: var(--luft-bg-panel);">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-xs font-bold text-main d-flex align-items-center gap-1.5">
+                    <i class="ph-bold ph-git-fork text-primary"></i> Origem (De quem copiar as permissões)
+                </span>
+            </div>
+
+            <!-- Abas compactas para tipo de origem -->
+            <div class="d-flex gap-2 mb-2">
+                <button type="button" class="btn btn-xs btn-primary flex-1" id="btnOrigemTipoGrupo" onclick="SelecionarTipoOrigem('Grupo')">
+                    <i class="ph-bold ph-users-three"></i> Grupo Corporativo
+                </button>
+                <button type="button" class="btn btn-xs btn-outline flex-1" id="btnOrigemTipoUsuario" onclick="SelecionarTipoOrigem('Usuario')">
+                    <i class="ph-bold ph-user"></i> Usuário
+                </button>
+            </div>
+
+            <!-- Seletor de Origem -->
+            <div class="form-group mb-2">
+                <select id="selectOrigemAlvo" class="form-control form-control-sm" onchange="CarregarResumoOrigem()" required>
+                    <option value="">Selecione a origem...</option>
+                </select>
+            </div>
+
+            <!-- Card de Prévia Dinâmica da Origem -->
+            <div id="resumoOrigemContainer" class="card-resumo-origem" style="display: none;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="text-xs font-semibold text-main d-flex align-items-center gap-1">
+                        <i class="ph-bold ph-info text-primary"></i> Regras encontradas na origem:
+                    </span>
+                    <span class="text-xs font-bold text-main" id="cntOrigemTotal">0 regras</span>
+                </div>
+                <div class="d-flex align-items-center gap-2 mt-1.5" style="font-size: 0.72rem;">
+                    <span class="badge-status badge-status-allow" id="cntOrigemPermitidas"><i class="ph-bold ph-check"></i> 0 concedidas</span>
+                    <span class="badge-status badge-status-deny" id="cntOrigemBloqueadas"><i class="ph-bold ph-prohibit"></i> 0 bloqueadas</span>
+                </div>
+            </div>
+            <div id="avisoOrigemVazia" class="p-2.5 rounded border d-none mt-2" style="background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3);">
+                <span class="text-xs text-amber-700 font-semibold d-flex align-items-center gap-1">
+                    <i class="ph-bold ph-warning"></i> Esta origem não possui regras diretas cadastradas neste sistema.
+                </span>
+            </div>
+        </div>
+
+        <!-- 3. MODO DE ESPELHAMENTO -->
+        <div class="form-group mb-3">
+            <label class="form-label font-bold text-xs mb-1.5">Estratégia de Cópia</label>
+            <div class="d-flex flex-col gap-2">
+                <label class="modo-espelho-opcao">
+                    <input type="radio" name="modo_espelho" value="substituir" checked class="mt-0.5">
+                    <div>
+                        <div class="text-xs font-bold text-main">Substituir todas as regras existentes (Recomendado)</div>
+                        <div class="text-muted" style="font-size: 0.72rem;">Remove as regras diretas que o destino já possui e aplica com precisão as da origem.</div>
+                    </div>
+                </label>
+                <label class="modo-espelho-opcao">
+                    <input type="radio" name="modo_espelho" value="mesclar" class="mt-0.5">
+                    <div>
+                        <div class="text-xs font-bold text-main">Mesclar com as regras existentes</div>
+                        <div class="text-muted" style="font-size: 0.72rem;">Mantém as regras atuais do destino e acrescenta/sobrescreve apenas as da origem.</div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" id="btnConfirmarEspelhar" class="btn btn-sm btn-primary w-full d-flex align-items-center justify-content-center gap-1.5">
+                <i class="ph-bold ph-copy"></i> Confirmar Espelhamento
+            </button>
+            <button type="button" class="btn btn-sm btn-outline w-full" onclick="LuftBase.fecharModal('modalEspelharPermissoes')">Cancelar</button>
+        </div>
+    </form>
+{% endcall %}
+
+<!-- ==========================================================================
+     LÓGICA JAVASCRIPT OTIMIZADA & CLEAN
+     ========================================================================== -->
+<script>
+    const PODE_EDITAR = {{ 'true' if PodeEditar else 'false' }};
+    const SISTEMA_ID_SELECIONADO = {{ SistemaIdSelecionado }};
+    const CSRF_TOKEN = "{{ luft_csrf_token }}";
+
+    const LISTA_GRUPOS = [
+        {% for grupo in Grupos %}
+        { id: {{ grupo.codigo_usuariogrupo }}, nome: "{{ (grupo.Nome_UsuarioGrupo or grupo.Sigla_UsuarioGrupo)|e }}", sigla: "{{ grupo.Sigla_UsuarioGrupo|e }}" },
+        {% endfor %}
+    ];
+
+    const LISTA_USUARIOS = [
+        {% for user in Usuarios %}
+        { id: {{ (user|attr('Codigo_Usuario')) | default(user|attr('id'), true) }}, nome: "{{ ((user|attr('Nome_Usuario')) | default(user|attr('nome'), true))|e }}", login: "{{ ((user|attr('Login_Usuario')) | default(user|attr('login'), true))|e }}" },
+        {% endfor %}
+    ];
+
+    let ID_DESTINO_ESPELHO = null;
+    let TIPO_DESTINO_ESPELHO = 'Grupo';
+    let NOME_DESTINO_ESPELHO = '';
+    let TIPO_ORIGEM_ESPELHO = 'Grupo';
+
+    let MODO = 'Grupo'; 
+    let ID_ATUAL = null;
+    let NOME_ATUAL = '';
+    let RECARREGAR_ATUAL = null;
+    let ESTADOS_CACHE = {};
+    let FILTRO_STATUS_ATUAL = 'todos';
+
+    // Alternar entre Grupos e Usuários
+    function MudarAba(novaAba) {
+        document.querySelectorAll('.luft-tab-btn').forEach(b => b.classList.remove('ativo'));
+        const btnAtivo = novaAba === 'grupo' ? document.getElementById('btnAbaGrupo') : document.getElementById('btnAbaUsuario');
+        if (btnAtivo) btnAtivo.classList.add('ativo');
+
+        document.getElementById('listaGrupos').classList.toggle('d-none', novaAba !== 'grupo');
+        document.getElementById('listaGrupos').classList.toggle('d-block', novaAba === 'grupo');
+        document.getElementById('listaUsuarios').classList.toggle('d-none', novaAba !== 'usuario');
+        document.getElementById('listaUsuarios').classList.toggle('d-block', novaAba === 'usuario');
+        
+        document.getElementById('painelPermissoes').classList.remove('d-flex');
+        document.getElementById('painelPermissoes').classList.add('d-none');
+        document.getElementById('estadoVazio').classList.remove('d-none');
+        
+        document.getElementById('msgVazio').innerText = (novaAba === 'grupo') 
+            ? 'Selecione um grupo ao lado' 
+            : 'Selecione um usuário ao lado para exceções';
+        
+        MODO = (novaAba === 'grupo') ? 'Grupo' : 'Usuario';
+        ID_ATUAL = null;
+        NOME_ATUAL = '';
+        document.querySelectorAll('.luft-list-item').forEach(i => i.classList.remove('ativo'));
+        document.getElementById('filtroLateral').value = '';
+        FiltrarLateral('');
+    }
+
+    // Carregar Grupo
+    async function CarregarGrupo(el, id, nome) {
+        if (MODO !== 'Grupo') return;
+        ID_ATUAL = id;
+        NOME_ATUAL = nome;
+        RECARREGAR_ATUAL = () => CarregarGrupo(el, id, nome);
+        AtivarItemLista(el);
+        PrepararPainel(nome, 'Grupo Corporativo', 'Permissões gerais aplicadas a todos os membros do grupo');
+
+        try {
+            const resp = await fetch(`{{ url_for('Seguranca.buscar_acessos_grupo') }}?idGrupo=${id}&sistema_id=${SISTEMA_ID_SELECIONADO}`);
+            const dados = await resp.json();
+            if (!resp.ok || dados.status !== 'success') throw new Error(dados.message || 'Falha');
+            ESTADOS_CACHE = dados.data.estados || {};
+            AplicarEstados(ESTADOS_CACHE);
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao carregar grupo.');
+        }
+    }
+
+    // Carregar Usuário
+    async function CarregarUsuario(el, id, nome) {
+        if (MODO !== 'Usuario') return;
+        ID_ATUAL = id;
+        NOME_ATUAL = nome;
+        RECARREGAR_ATUAL = () => CarregarUsuario(el, id, nome);
+        AtivarItemLista(el);
+        PrepararPainel(nome, 'Exceções do Usuário', 'Regras manuais sobrepõem as permissões herdadas do grupo');
+
+        try {
+            const resp = await fetch(`{{ url_for('Seguranca.buscar_acessos_usuario') }}?idUsuario=${id}&sistema_id=${SISTEMA_ID_SELECIONADO}`);
+            const dados = await resp.json();
+            if (!resp.ok || dados.status !== 'success') throw new Error(dados.message || 'Falha');
+            ESTADOS_CACHE = dados.data.estados || {};
+            AplicarEstados(ESTADOS_CACHE);
+        } catch (e) {
+            console.error(e);
+            alert('Erro ao carregar usuário.');
+        }
+    }
+
+    // Aplicar Estados e Contadores
+    function AplicarEstados(estados) {
+        let countConcedidos = 0;
+        let countBloqueados = 0;
+        let countHerdados = 0;
+        let countSemRegra = 0;
+        let countRegrasDiretas = 0;
+
+        document.querySelectorAll('.luft-perm-row').forEach(item => {
+            const idPerm = parseInt(item.dataset.id);
+            const estado = estados[String(idPerm)] || {
+                permitido: false, origem: 'PADRAO', herdada: false, regra_id: null, regra_chave: '', ativo: true
+            };
+
+            const ehDireta = (MODO === 'Grupo' && estado.origem === 'GRUPO' && Number(estado.regra_id) === Number(idPerm)) ||
+                            (MODO === 'Usuario' && estado.origem === 'USUARIO' && Number(estado.regra_id) === Number(idPerm));
+
+            if (ehDireta) countRegrasDiretas++;
+
+            if (estado.permitido) {
+                countConcedidos++;
+            } else if (ehDireta || estado.herdada) {
+                countBloqueados++;
+            } else {
+                countSemRegra++;
+            }
+
+            if (estado.herdada) {
+                countHerdados++;
+            }
+
+            ConfigurarVisualPermissao(idPerm, estado, ehDireta);
+        });
+
+        document.getElementById('cntFiltroConcedidos').innerText = countConcedidos;
+        document.getElementById('cntFiltroBloqueados').innerText = countBloqueados;
+        document.getElementById('cntFiltroHerdados').innerText = countHerdados;
+        document.getElementById('cntFiltroSemRegra').innerText = countSemRegra;
+        document.getElementById('contadorRegras').innerText = `${countRegrasDiretas} regras diretas`;
+
+        FiltrarPorStatus(FILTRO_STATUS_ATUAL);
+    }
+
+    // Configuração Visual dos Badges e do Switch de Cada Linha
+    function ConfigurarVisualPermissao(idPerm, estado, ehDireta) {
+        const badgeContainer = document.getElementById(`badge-container-${idPerm}`);
+        const btnPermitir = document.getElementById(`btn-permitir-${idPerm}`);
+        const btnBloquear = document.getElementById(`btn-bloquear-${idPerm}`);
+        const btnReset = document.getElementById(`btn-reset-${idPerm}`);
+
+        if (!badgeContainer) return;
+
+        if (btnPermitir) btnPermitir.classList.remove('ativo-permitir');
+        if (btnBloquear) btnBloquear.classList.remove('ativo-bloquear');
+        if (btnReset) btnReset.style.display = 'none';
+
+        if (!estado.ativo) {
+            badgeContainer.innerHTML = `<span class="badge-status badge-status-deny"><i class="ph-bold ph-x-circle"></i> Inativa</span>`;
+            return;
+        }
+
+        if (ehDireta) {
+            if (btnReset) btnReset.style.display = 'inline-flex';
+            if (estado.permitido) {
+                if (btnPermitir) btnPermitir.classList.add('ativo-permitir');
+                badgeContainer.innerHTML = `<span class="badge-status badge-status-allow" title="Regra direta"><i class="ph-bold ph-check-circle"></i> Concedido</span>`;
+            } else {
+                if (btnBloquear) btnBloquear.classList.add('ativo-bloquear');
+                badgeContainer.innerHTML = `<span class="badge-status badge-status-deny" title="Bloqueio direto"><i class="ph-bold ph-prohibit"></i> Bloqueado</span>`;
+            }
+        } else if (MODO === 'Grupo') {
+            if (estado.herdada && estado.permitido) {
+                const pai = estado.regra_chave || 'Mestre';
+                badgeContainer.innerHTML = `<span class="badge-status badge-status-inherited" title="Herdado de ${pai}"><i class="ph-bold ph-arrow-elbow-down-right"></i> ↳ Herdado</span>`;
+            } else if (estado.herdada && !estado.permitido) {
+                const pai = estado.regra_chave || 'Mestre';
+                badgeContainer.innerHTML = `<span class="badge-status badge-status-inherited-deny" title="Bloqueado por herança de ${pai}"><i class="ph-bold ph-warning-circle"></i> ↳ Bloqueado</span>`;
+            } else {
+                badgeContainer.innerHTML = `<span class="badge-status badge-status-default"><i class="ph-bold ph-circle"></i> Padrão</span>`;
+            }
+        } else {
+            // Modo Usuário
+            if (estado.origem === 'GRUPO' && estado.permitido) {
+                badgeContainer.innerHTML = `<span class="badge-status badge-status-inherited" title="Herdado do grupo corporativo"><i class="ph-bold ph-users-three"></i> 👥 Grupo</span>`;
+            } else if (estado.origem === 'GRUPO' && !estado.permitido) {
+                badgeContainer.innerHTML = `<span class="badge-status badge-status-inherited-deny" title="Bloqueado pelo grupo"><i class="ph-bold ph-users-three"></i> 👥 Bloqueado</span>`;
+            } else if (estado.herdada && estado.permitido) {
+                badgeContainer.innerHTML = `<span class="badge-status badge-status-inherited"><i class="ph-bold ph-arrow-elbow-down-right"></i> ↳ Herdado</span>`;
+            } else {
+                badgeContainer.innerHTML = `<span class="badge-status badge-status-default"><i class="ph-bold ph-circle"></i> Padrão</span>`;
+            }
+        }
+    }
+
+    // Ações de Permitir / Bloquear / Resetar
+    async function DefinirRegra(idPerm, acao) {
+        if (!PODE_EDITAR) {
+            alert('Sem permissão para alterar acessos.');
+            return;
+        }
+        if (!ID_ATUAL) return;
+        await EnviarRegraAPI(MODO, ID_ATUAL, idPerm, acao);
+    }
+
+    async function ResetarPermissao(idPerm) {
+        const msg = (MODO === 'Grupo')
+            ? 'Remover a regra manual e voltar a herdar automaticamente da árvore?'
+            : 'Remover a exceção manual deste usuário e voltar a herdar do seu grupo?';
+        if (!confirm(msg)) return;
+        await EnviarRegraAPI(MODO, ID_ATUAL, idPerm, 'Resetar');
+    }
+
+    async function EnviarRegraAPI(tipo, alvo, perm, acao) {
+        try {
+            const resp = await fetch("{{ url_for('Seguranca.salvar_vinculo') }}", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
+                body: JSON.stringify({ Tipo: tipo, IdAlvo: alvo, IdPermissao: perm, Acao: acao, SistemaId: SISTEMA_ID_SELECIONADO })
+            });
+            const d = await resp.json();
+            if (!resp.ok || d.status !== 'success') throw new Error(d.message || d.erro || 'Falha');
+            if (RECARREGAR_ATUAL) await RECARREGAR_ATUAL();
+        } catch(e) { 
+            console.error(e); 
+            alert('Erro ao salvar regra: ' + (e.message || 'Falha na comunicação')); 
+        }
+    }
+
+    // =========================================================================
+    // ESPELHAMENTO DE PERMISSÕES & GESTÃO EM LOTE
+    // =========================================================================
+
+    function AbrirModalEspelhar() {
+        if (!PODE_EDITAR) {
+            alert('Sem permissão para alterar acessos.');
+            return;
+        }
+        if (!ID_ATUAL) {
+            AbrirModalEspelharGlobal();
+            return;
+        }
+        DefinirDestinoEspelho(MODO, ID_ATUAL, NOME_ATUAL);
+        AlternarSelecaoDestino(false);
+        SelecionarTipoOrigem('Grupo');
+        LuftBase.abrirModal('modalEspelharPermissoes');
+    }
+
+    function AbrirModalEspelharGlobal() {
+        if (!PODE_EDITAR) {
+            alert('Sem permissão para alterar acessos.');
+            return;
+        }
+        if (ID_ATUAL) {
+            AbrirModalEspelhar();
+            return;
+        }
+        AlternarSelecaoDestino(true);
+        SelecionarTipoDestino('Grupo');
+        SelecionarTipoOrigem('Grupo');
+        LuftBase.abrirModal('modalEspelharPermissoes');
+    }
+
+    function DefinirDestinoEspelho(tipo, id, nome) {
+        ID_DESTINO_ESPELHO = id;
+        TIPO_DESTINO_ESPELHO = tipo;
+        NOME_DESTINO_ESPELHO = nome;
+
+        const badge = document.getElementById('badgeDestinoTipo');
+        const nomeEl = document.getElementById('nomeDestinoFixo');
+        const subEl = document.getElementById('subtituloDestinoFixo');
+        
+        if (badge) {
+            badge.innerText = tipo === 'Grupo' ? 'Grupo Corporativo' : 'Usuário';
+            badge.className = tipo === 'Grupo' ? 'badge-status badge-status-allow' : 'badge-status badge-status-inherited';
+        }
+        if (nomeEl) nomeEl.innerText = nome || `ID ${id}`;
+        if (subEl) subEl.innerText = tipo === 'Grupo' ? `Código Grupo: ${id}` : `Código Usuário: ${id}`;
+    }
+
+    function AlternarSelecaoDestino(abrirSeletor) {
+        const boxFixo = document.getElementById('boxDestinoFixo');
+        const boxSeletor = document.getElementById('boxDestinoSeletor');
+        if (boxFixo && boxSeletor) {
+            if (abrirSeletor) {
+                boxFixo.classList.add('d-none');
+                boxSeletor.classList.remove('d-none');
+                SelecionarTipoDestino(TIPO_DESTINO_ESPELHO || 'Grupo');
+            } else {
+                boxFixo.classList.remove('d-none');
+                boxSeletor.classList.add('d-none');
+            }
+        }
+    }
+
+    function SelecionarTipoDestino(tipo) {
+        TIPO_DESTINO_ESPELHO = tipo;
+        const btnG = document.getElementById('btnDestinoTipoGrupo');
+        const btnU = document.getElementById('btnDestinoTipoUsuario');
+        if (btnG && btnU) {
+            btnG.className = tipo === 'Grupo' ? 'btn btn-xs btn-primary flex-1' : 'btn btn-xs btn-outline flex-1';
+            btnU.className = tipo === 'Usuario' ? 'btn btn-xs btn-primary flex-1' : 'btn btn-xs btn-outline flex-1';
+        }
+
+        const sel = document.getElementById('selectDestinoAlvo');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Selecione o destino...</option>';
+
+        const lista = tipo === 'Grupo' ? LISTA_GRUPOS : LISTA_USUARIOS;
+        lista.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = tipo === 'Grupo' ? `${item.sigla} - ${item.nome}` : `${item.nome} (${item.login})`;
+            if (String(item.id) === String(ID_DESTINO_ESPELHO)) {
+                opt.selected = true;
+            }
+            sel.appendChild(opt);
+        });
+
+        AtualizarDestinoSelecionado();
+    }
+
+    function AtualizarDestinoSelecionado() {
+        const sel = document.getElementById('selectDestinoAlvo');
+        if (!sel || !sel.value) return;
+        const id = sel.value;
+        const opt = sel.options[sel.selectedIndex];
+        const nome = opt ? opt.textContent : `ID ${id}`;
+        DefinirDestinoEspelho(TIPO_DESTINO_ESPELHO, id, nome);
+        PopularSelectOrigem();
+    }
+
+    function SelecionarTipoOrigem(tipo) {
+        TIPO_ORIGEM_ESPELHO = tipo;
+        const btnG = document.getElementById('btnOrigemTipoGrupo');
+        const btnU = document.getElementById('btnOrigemTipoUsuario');
+        if (btnG && btnU) {
+            btnG.className = tipo === 'Grupo' ? 'btn btn-xs btn-primary flex-1' : 'btn btn-xs btn-outline flex-1';
+            btnU.className = tipo === 'Usuario' ? 'btn btn-xs btn-primary flex-1' : 'btn btn-xs btn-outline flex-1';
+        }
+        PopularSelectOrigem();
+    }
+
+    function PopularSelectOrigem() {
+        const sel = document.getElementById('selectOrigemAlvo');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Selecione a origem...</option>';
+
+        const lista = TIPO_ORIGEM_ESPELHO === 'Grupo' ? LISTA_GRUPOS : LISTA_USUARIOS;
+        lista.forEach(item => {
+            if (TIPO_ORIGEM_ESPELHO === TIPO_DESTINO_ESPELHO && String(item.id) === String(ID_DESTINO_ESPELHO)) {
+                return;
+            }
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = TIPO_ORIGEM_ESPELHO === 'Grupo' ? `${item.sigla} - ${item.nome}` : `${item.nome} (${item.login})`;
+            sel.appendChild(opt);
+        });
+
+        CarregarResumoOrigem();
+    }
+
+    async function CarregarResumoOrigem() {
+        const sel = document.getElementById('selectOrigemAlvo');
+        const resBox = document.getElementById('resumoOrigemContainer');
+        const avisoVazio = document.getElementById('avisoOrigemVazia');
+        if (!sel || !sel.value) {
+            if (resBox) resBox.style.display = 'none';
+            if (avisoVazio) avisoVazio.classList.add('d-none');
+            return;
+        }
+
+        const idOrigem = sel.value;
+        try {
+            const resp = await fetch(`{{ url_for('Seguranca.resumo_regras_origem') }}?tipo=${TIPO_ORIGEM_ESPELHO}&id=${idOrigem}&sistema_id=${SISTEMA_ID_SELECIONADO}`);
+            const d = await resp.json();
+            if (!resp.ok || d.status !== 'success') throw new Error(d.message || 'Falha ao buscar resumo');
+
+            const total = d.data.total;
+            const permitidas = d.data.permitidas;
+            const bloqueadas = d.data.bloqueadas;
+
+            if (total === 0) {
+                if (resBox) resBox.style.display = 'none';
+                if (avisoVazio) avisoVazio.classList.remove('d-none');
+            } else {
+                if (avisoVazio) avisoVazio.classList.add('d-none');
+                if (resBox) resBox.style.display = 'block';
+                document.getElementById('cntOrigemTotal').innerText = `${total} regra${total > 1 ? 's' : ''}`;
+                document.getElementById('cntOrigemPermitidas').innerHTML = `<i class="ph-bold ph-check"></i> ${permitidas} concedida${permitidas > 1 ? 's' : ''}`;
+                document.getElementById('cntOrigemBloqueadas').innerHTML = `<i class="ph-bold ph-prohibit"></i> ${bloqueadas} bloqueada${bloqueadas > 1 ? 's' : ''}`;
+            }
+        } catch(e) {
+            console.error("Erro ao carregar resumo da origem:", e);
+            if (resBox) resBox.style.display = 'none';
+        }
+    }
+
+    async function SubmeterEspelhamento(e) {
+        e.preventDefault();
+        if (!PODE_EDITAR) {
+            alert('Sem permissão para alterar regras.');
+            return;
+        }
+
+        const selOrigem = document.getElementById('selectOrigemAlvo');
+        const idOrigem = selOrigem ? selOrigem.value : null;
+        if (!idOrigem) {
+            alert('Por favor, selecione a entidade de origem para copiar as permissões.');
+            return;
+        }
+
+        if (!ID_DESTINO_ESPELHO) {
+            alert('Por favor, selecione a entidade de destino.');
+            return;
+        }
+
+        if (TIPO_ORIGEM_ESPELHO === TIPO_DESTINO_ESPELHO && String(idOrigem) === String(ID_DESTINO_ESPELHO)) {
+            alert('Origem e destino não podem ser a mesma entidade.');
+            return;
+        }
+
+        const modo = document.querySelector('input[name="modo_espelho"]:checked')?.value || 'substituir';
+        const nomeOrigem = selOrigem.options[selOrigem.selectedIndex]?.textContent || `ID ${idOrigem}`;
+        const nomeDestino = NOME_DESTINO_ESPELHO || `ID ${ID_DESTINO_ESPELHO}`;
+
+        const msgConfirm = modo === 'substituir'
+            ? `Confirma o espelhamento de permissões?\n\nTodas as regras diretas de "${nomeDestino}" serão SUBSTITUÍDAS pelas regras de "${nomeOrigem}".`
+            : `Confirma o espelhamento de permissões?\n\nAs regras de "${nomeOrigem}" serão MESCLADAS com as regras existentes de "${nomeDestino}".`;
+
+        if (!confirm(msgConfirm)) return;
+
+        const btn = document.getElementById('btnConfirmarEspelhar');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Espelhando regras...';
+        }
+
+        try {
+            const resp = await fetch("{{ url_for('Seguranca.espelhar_permissoes') }}", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
+                body: JSON.stringify({
+                    tipo_origem: TIPO_ORIGEM_ESPELHO,
+                    id_origem: parseInt(idOrigem),
+                    tipo_destino: TIPO_DESTINO_ESPELHO,
+                    id_destino: parseInt(ID_DESTINO_ESPELHO),
+                    modo: modo,
+                    sistema_id: SISTEMA_ID_SELECIONADO
+                })
+            });
+
+            const d = await resp.json();
+            if (!resp.ok || d.status !== 'success') {
+                throw new Error(d.message || 'Falha ao espelhar permissões.');
+            }
+
+            LuftBase.fecharModal('modalEspelharPermissoes');
+            alert(d.message || 'Permissões espelhadas com sucesso!');
+
+            // Se o destino espelhado for o alvo atualmente aberto na tela, recarrega a árvore imediatamente
+            if (String(ID_ATUAL) === String(ID_DESTINO_ESPELHO) && MODO === TIPO_DESTINO_ESPELHO) {
+                if (RECARREGAR_ATUAL) await RECARREGAR_ATUAL();
+            }
+        } catch(e) {
+            console.error(e);
+            alert('Erro ao espelhar permissões: ' + (e.message || 'Falha na comunicação'));
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph-bold ph-copy"></i> Confirmar Espelhamento';
+            }
+        }
+    }
+
+    async function LimparTodasRegrasAlvo() {
+        if (!PODE_EDITAR) {
+            alert('Sem permissão para alterar acessos.');
+            return;
+        }
+        if (!ID_ATUAL) return;
+
+        const msg = `Atenção: Deseja realmente remover TODAS as regras diretas de "${NOME_ATUAL}"?\n\nTodas as permissões voltarão a herdar automaticamente da árvore padrão.`;
+        if (!confirm(msg)) return;
+
+        try {
+            const resp = await fetch("{{ url_for('Seguranca.limpar_todas_regras') }}", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
+                body: JSON.stringify({
+                    tipo: MODO,
+                    id_alvo: parseInt(ID_ATUAL),
+                    sistema_id: SISTEMA_ID_SELECIONADO
+                })
+            });
+
+            const d = await resp.json();
+            if (!resp.ok || d.status !== 'success') {
+                throw new Error(d.message || 'Falha ao limpar regras.');
+            }
+
+            alert(d.message || 'Regras removidas com sucesso!');
+            if (RECARREGAR_ATUAL) await RECARREGAR_ATUAL();
+        } catch(e) {
+            console.error(e);
+            alert('Erro ao limpar regras: ' + (e.message || 'Falha na comunicação'));
+        }
+    }
+
+    // Helpers de Interface
+    function AtivarItemLista(el) {
+        document.querySelectorAll('.luft-list-item').forEach(i => i.classList.remove('ativo'));
+        el.classList.add('ativo');
+    }
+    
+    function PrepararPainel(titulo, tipoAlvo, subtitulo) {
+        document.getElementById('estadoVazio').classList.add('d-none');
+        document.getElementById('painelPermissoes').classList.remove('d-none');
+        document.getElementById('painelPermissoes').classList.add('d-flex');
+        
+        document.getElementById('tituloSelecionado').innerText = titulo;
+        document.getElementById('badgeTipoAlvo').innerText = tipoAlvo;
+        document.getElementById('subtituloSelecionado').innerText = subtitulo;
+        document.getElementById('scrollPermissoes').scrollTop = 0;
+    }
+
+    function AlternarModulo(index) {
+        const corpo = document.getElementById(`corpo-modulo-${index}`);
+        const icone = document.getElementById(`icone-modulo-${index}`);
+        if (!corpo) return;
+        const recolhido = corpo.classList.toggle('recolhido');
+        if (icone) {
+            icone.className = recolhido ? 'ph-bold ph-caret-right toggle-modulo-icone' : 'ph-bold ph-caret-down toggle-modulo-icone';
+        }
+    }
+
+    function AlternarTodosModulos(expandir) {
+        document.querySelectorAll('.luft-modulo-body').forEach(corpo => {
+            corpo.classList.toggle('recolhido', !expandir);
+        });
+        document.querySelectorAll('.toggle-modulo-icone').forEach(icone => {
+            icone.className = expandir ? 'ph-bold ph-caret-down toggle-modulo-icone' : 'ph-bold ph-caret-right toggle-modulo-icone';
+        });
+    }
+
+    // Filtros
+    function FiltrarLateral(val) {
+        val = val.toLowerCase().trim();
+        const listaId = MODO === 'Grupo' ? 'listaGrupos' : 'listaUsuarios';
+        document.querySelectorAll(`#${listaId} .luft-list-item`).forEach(el => {
+            const texto = (el.dataset.nome || el.innerText).toLowerCase();
+            el.style.display = texto.includes(val) ? 'flex' : 'none';
+        });
+    }
+
+    function FiltrarPermissoes(val) {
+        val = (val || '').toLowerCase().trim();
+        const filtroStatus = FILTRO_STATUS_ATUAL;
+
+        document.querySelectorAll('.luft-perm-row').forEach(el => {
+            const idPerm = el.dataset.id;
+            const estado = ESTADOS_CACHE[String(idPerm)] || { permitido: false, origem: 'PADRAO', herdada: false };
+            const ehDireta = (MODO === 'Grupo' && estado.origem === 'GRUPO' && Number(estado.regra_id) === Number(idPerm)) ||
+                            (MODO === 'Usuario' && estado.origem === 'USUARIO' && Number(estado.regra_id) === Number(idPerm));
+
+            let atendeStatus = true;
+            if (filtroStatus === 'concedidos') atendeStatus = estado.permitido;
+            else if (filtroStatus === 'bloqueados') atendeStatus = !estado.permitido && (ehDireta || estado.herdada);
+            else if (filtroStatus === 'herdados') atendeStatus = estado.herdada;
+            else if (filtroStatus === 'sem_regra') atendeStatus = !estado.permitido && !ehDireta && !estado.herdada;
+
+            const textoItem = (el.innerText + ' ' + (el.dataset.chave || '') + ' ' + (el.dataset.modulo || '')).toLowerCase();
+            const atendeTexto = !val || textoItem.includes(val);
+
+            el.style.display = (atendeStatus && atendeTexto) ? 'flex' : 'none';
+        });
+
+        document.querySelectorAll('.luft-modulo-block').forEach(bloco => {
+            const itensVisiveis = bloco.querySelectorAll('.luft-perm-row[style*="display: flex"]').length;
+            bloco.style.display = itensVisiveis > 0 ? 'block' : 'none';
+        });
+    }
+
+    function FiltrarPorStatus(status, btn) {
+        FILTRO_STATUS_ATUAL = status;
+        if (btn) {
+            document.querySelectorAll('.chip-filtro-status').forEach(b => b.classList.remove('ativo'));
+            btn.classList.add('ativo');
+        }
+        FiltrarPermissoes(document.getElementById('filtroPermissoesInput')?.value || '');
+    }
+
+    // Modal Nova Permissão
+    function AbrirModalNovaPermissao() {
+        LuftBase.abrirModal('modalPermissao');
+        AoMudarModuloPermissao();
+    }
+
+    async function AoMudarModuloPermissao() {
+        const selectModulo = document.getElementById('permissaoModulo');
+        const idModulo = selectModulo?.value;
+        if (!idModulo) return;
+
+        const selectRecurso = document.getElementById('permissaoRecursoSelect');
+        const selectPai = document.getElementById('permissaoPai');
+
+        selectRecurso.innerHTML = '<option value="">Carregando...</option>';
+        selectPai.innerHTML = '<option value="">Carregando...</option>';
+
+        try {
+            const resp = await fetch(`{{ request.script_root }}/seguranca/api/modulos/${idModulo}/estrutura`);
+            const dados = await resp.json();
+            if (!resp.ok || dados.status !== 'success') throw new Error(dados.message || 'Falha');
+
+            const recursos = dados.data.recursos || [];
+            const permissoesPai = dados.data.permissoes_pai || [];
+
+            selectRecurso.innerHTML = '';
+            if (recursos.length > 0) {
+                recursos.forEach(rec => {
+                    const opt = document.createElement('option');
+                    opt.value = rec;
+                    opt.textContent = `📁 ${rec}`;
+                    selectRecurso.appendChild(opt);
+                });
+            }
+            const optNovo = document.createElement('option');
+            optNovo.value = '__NOVO__';
+            optNovo.textContent = '➕ Cadastrar Novo Recurso...';
+            selectRecurso.appendChild(optNovo);
+
+            if (recursos.length > 0) {
+                selectRecurso.value = recursos[0];
+                document.getElementById('permissaoRecursoInput').value = recursos[0];
+                document.getElementById('containerRecursoNovo').classList.add('d-none');
+            } else {
+                selectRecurso.value = '__NOVO__';
+                document.getElementById('permissaoRecursoInput').value = '';
+                document.getElementById('containerRecursoNovo').classList.remove('d-none');
+            }
+
+            selectPai.innerHTML = '<option value="">○ Nenhuma (Permissão Independente / Raiz)</option>';
+            let paiRecomendadoId = null;
+
+            permissoesPai.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id_permissao;
+                const recMark = p.recomendado ? '⭐ [Recomendado: Gestor] ' : '';
+                opt.textContent = `${recMark}${p.chave_permissao}`;
+                selectPai.appendChild(opt);
+                if (p.recomendado && !paiRecomendadoId) {
+                    paiRecomendadoId = p.id_permissao;
+                }
+            });
+
+            if (paiRecomendadoId) {
+                selectPai.value = String(paiRecomendadoId);
+            }
+
+            AtualizarPreviewPermissao();
+        } catch (e) {
+            console.error('Erro ao buscar estrutura:', e);
+            selectRecurso.innerHTML = '<option value="__NOVO__">➕ Cadastrar Novo Recurso...</option>';
+            selectPai.innerHTML = '<option value="">○ Nenhuma (Permissão Independente / Raiz)</option>';
+            document.getElementById('containerRecursoNovo').classList.remove('d-none');
+            AtualizarPreviewPermissao();
+        }
+    }
+
+    function AoMudarRecursoSelect() {
+        const selectRecurso = document.getElementById('permissaoRecursoSelect');
+        const containerNovo = document.getElementById('containerRecursoNovo');
+        const inputRecurso = document.getElementById('permissaoRecursoInput');
+
+        if (selectRecurso.value === '__NOVO__') {
+            containerNovo.classList.remove('d-none');
+            inputRecurso.value = '';
+            inputRecurso.focus();
+        } else {
+            containerNovo.classList.add('d-none');
+            inputRecurso.value = selectRecurso.value;
+        }
+        AtualizarPreviewPermissao();
+    }
+
+    function AtualizarPreviewPermissao() {
+        const selectModulo = document.getElementById('permissaoModulo');
+        const modCodigo = selectModulo?.selectedOptions[0]?.dataset.codigo || 'MODULO';
+
+        const inputRecurso = document.getElementById('permissaoRecursoInput');
+        let recurso = (inputRecurso?.value || 'RECURSO').toUpperCase().trim().replace(/[^A-Z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'RECURSO';
+        if (inputRecurso) inputRecurso.value = recurso;
+
+        const selectAcao = document.getElementById('permissaoAcao');
+        const acao = selectAcao?.value || 'VISUALIZAR';
+
+        const selectPai = document.getElementById('permissaoPai');
+        const paiTexto = selectPai?.selectedOptions[0]?.textContent || 'Raiz';
+
+        const inputDescricao = document.getElementById('permissaoDescricao');
+        let descricao = inputDescricao?.value?.trim();
+        if (!descricao) {
+            descricao = `Permite a ação de ${acao} no recurso ${recurso}`;
+        }
+
+        document.getElementById('previewChave').innerText = `${modCodigo}.${recurso}.${acao}`;
+        document.getElementById('previewDescricao').innerText = descricao;
+        
+        const badgeAcao = document.getElementById('previewBadgeAcao');
+        if (badgeAcao) {
+            badgeAcao.innerText = acao;
+        }
+
+        const previewHeranca = document.getElementById('previewHeranca');
+        if (previewHeranca) {
+            if (selectPai?.value) {
+                previewHeranca.innerHTML = `↳ Herda de: <span class="font-bold">${paiTexto.replace('⭐ [Recomendado: Gestor] ', '')}</span>`;
+            } else {
+                previewHeranca.innerHTML = `○ Permissão Raiz`;
+            }
+        }
+    }
+
+    async function SubmeterNovaPermissao(ev) {
+        ev.preventDefault();
+        const btn = document.getElementById('btnSalvarPermissao');
+        
+        const payload = {
+            sistema_id: SISTEMA_ID_SELECIONADO,
+            id_modulo: document.getElementById('permissaoModulo').value,
+            recurso: document.getElementById('permissaoRecursoInput').value,
+            acao: document.getElementById('permissaoAcao').value,
+            id_permissao_pai: document.getElementById('permissaoPai').value || null,
+            descricao: document.getElementById('permissaoDescricao').value,
+            sensivel: document.getElementById('permissaoSensivel').checked
+        };
+
+        if (!payload.recurso || payload.recurso === 'RECURSO') {
+            alert('Por favor, informe o nome do recurso protegido.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Criando...';
+
+        try {
+            const resp = await fetch("{{ url_for('Seguranca.criar_nova_permissao') }}", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
+                body: JSON.stringify(payload)
+            });
+            const dados = await resp.json();
+            if (!resp.ok || dados.status !== 'success') throw new Error(dados.message || 'Falha ao cadastrar');
+            
+            alert(`Permissão cadastrada com sucesso!\nA página será atualizada.`);
+            window.location.reload();
+        } catch (e) {
+            alert('Erro ao criar permissão: ' + e.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph-bold ph-plus"></i> Criar Permissão';
+        }
+    }
+
+    // Modal Gerenciador de Módulos
+    function AbrirGerenciadorModulos() {
+        LuftBase.abrirModal('modalGerenciadorModulos');
+        CarregarListaModulos();
+    }
+
+    async function CarregarListaModulos() {
+        document.getElementById('visaoListaModulos').classList.remove('d-none');
+        document.getElementById('visaoFormModulo').classList.add('d-none');
+        const tbody = document.getElementById('linhasModulos');
+        tbody.innerHTML = '<tr><td colspan="7" class="p-3 text-center text-muted">Carregando...</td></tr>';
+
+        try {
+            const resp = await fetch(`{{ request.script_root }}/seguranca/api/modulos/listar?sistema_id=${SISTEMA_ID_SELECIONADO}`);
+            const dados = await resp.json();
+            if (!resp.ok || dados.status !== 'success') throw new Error(dados.message || 'Falha');
+
+            const modulos = dados.data || [];
+            if (modulos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-3 text-center text-muted">Nenhum módulo cadastrado.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            modulos.forEach(mod => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--luft-border-light)';
+                tr.innerHTML = `
+                    <td class="p-2 font-mono font-bold text-xs text-primary">
+                        <i class="${mod.icone || 'ph-bold ph-folder'} mr-1"></i> ${mod.codigo_modulo}
+                    </td>
+                    <td class="p-2 text-xs font-semibold text-main">${mod.nome_modulo}</td>
+                    <td class="p-2 text-xs text-muted max-w-xs truncate">${mod.descricao_modulo || '-'}</td>
+                    <td class="p-2 text-center text-xs font-mono">${mod.ordem_exibicao}</td>
+                    <td class="p-2 text-center">
+                        <span class="badge-status badge-status-default">${mod.total_permissoes}</span>
+                    </td>
+                    <td class="p-2 text-center">
+                        <span class="badge-status ${mod.ativo ? 'badge-status-allow' : 'badge-status-deny'}">
+                            ${mod.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                    </td>
+                    <td class="p-2 text-right">
+                        <button class="btn btn-xs btn-outline" onclick='EditarModuloForm(${JSON.stringify(mod)})'>
+                            <i class="ph-bold ph-pencil-simple"></i> Editar
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-danger">Erro ao carregar módulos: ${e.message}</td></tr>`;
+        }
+    }
+
+    function ExibirFormNovoModulo() {
+        document.getElementById('visaoListaModulos').classList.add('d-none');
+        document.getElementById('visaoFormModulo').classList.remove('d-none');
+        document.getElementById('tituloFormModulo').innerHTML = '<i class="ph-bold ph-folder-plus text-primary"></i> Cadastrar Novo Módulo';
+        
+        document.getElementById('moduloFormId').value = '0';
+        document.getElementById('moduloFormCodigo').value = '';
+        document.getElementById('moduloFormCodigo').removeAttribute('readonly');
+        document.getElementById('moduloFormNome').value = '';
+        document.getElementById('moduloFormDescricao').value = '';
+        document.getElementById('moduloFormIcone').value = 'ph-folder';
+        document.getElementById('moduloFormOrdem').value = '10';
+        document.getElementById('moduloFormAtivo').checked = true;
+        AtualizarPreviewIconeModulo();
+    }
+
+    function EditarModuloForm(mod) {
+        document.getElementById('visaoListaModulos').classList.add('d-none');
+        document.getElementById('visaoFormModulo').classList.remove('d-none');
+        document.getElementById('tituloFormModulo').innerHTML = `<i class="ph-bold ph-pencil-simple text-primary"></i> Editar Módulo: ${mod.nome_modulo}`;
+        
+        document.getElementById('moduloFormId').value = mod.id_modulo;
+        document.getElementById('moduloFormCodigo').value = mod.codigo_modulo;
+        document.getElementById('moduloFormCodigo').setAttribute('readonly', 'readonly');
+        document.getElementById('moduloFormNome').value = mod.nome_modulo;
+        document.getElementById('moduloFormDescricao').value = mod.descricao_modulo || '';
+        document.getElementById('moduloFormIcone').value = mod.icone || 'ph-folder';
+        document.getElementById('moduloFormOrdem').value = mod.ordem_exibicao;
+        document.getElementById('moduloFormAtivo').checked = !!mod.ativo;
+        AtualizarPreviewIconeModulo();
+    }
+
+    function CancelarFormModulo() {
+        document.getElementById('visaoFormModulo').classList.add('d-none');
+        document.getElementById('visaoListaModulos').classList.remove('d-none');
+    }
+
+    function AtualizarPreviewIconeModulo() {
+        const iconeInput = document.getElementById('moduloFormIcone')?.value || 'ph-folder';
+        const iconeEl = document.getElementById('previewIconeModulo');
+        if (iconeEl) {
+            iconeEl.className = `ph-bold ${iconeInput}`;
+        }
+    }
+
+    async function SubmeterFormModulo(ev) {
+        ev.preventDefault();
+        const btn = document.getElementById('btnSalvarModulo');
+        const payload = {
+            sistema_id: SISTEMA_ID_SELECIONADO,
+            id_modulo: parseInt(document.getElementById('moduloFormId').value) || 0,
+            codigo: document.getElementById('moduloFormCodigo').value.trim().toUpperCase(),
+            nome: document.getElementById('moduloFormNome').value.trim(),
+            descricao: document.getElementById('moduloFormDescricao').value.trim(),
+            icone: document.getElementById('moduloFormIcone').value.trim(),
+            ordem_exibicao: parseInt(document.getElementById('moduloFormOrdem').value) || 10,
+            ativo: document.getElementById('moduloFormAtivo').checked
+        };
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Salvando...';
+
+        try {
+            const resp = await fetch("{{ request.script_root }}/seguranca/api/modulos/salvar", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
+                body: JSON.stringify(payload)
+            });
+            const dados = await resp.json();
+            if (!resp.ok || dados.status !== 'success') throw new Error(dados.message || 'Falha ao salvar');
+
+            alert(dados.message || 'Módulo salvo com sucesso!');
+            window.location.reload();
+        } catch (e) {
+            alert('Erro ao salvar módulo: ' + e.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph-bold ph-check"></i> Salvar Módulo';
+        }
+    }
+</script>
+{% endblock %}

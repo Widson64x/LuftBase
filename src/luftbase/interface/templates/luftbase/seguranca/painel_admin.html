@@ -1,0 +1,2204 @@
+{% extends layout_base | default(luft_base_template) | default('luftbase/base.html') %}
+{% import "luftbase/components.html" as ui %}
+
+{% block titulo %}Painel de Controle - LuftBase{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_raiz_aplicacao | default('/') }}" class="luft-breadcrumb-item d-flex align-items-center gap-1 text-muted text-decoration-none" style="text-decoration: none;">
+        <i class="ph-fill ph-house"></i> {{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default(luft_app_name) | default('Luft-WorkSpace') }}
+    </a>
+    <i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
+    <span class="luft-breadcrumb-item active font-semibold">Painel de Controle</span>
+{% endblock %}
+
+{% block content %}
+{% set aba_inicial = 'tab-seguranca' if pode_ver_seguranca else ('tab-ambiente' if pode_ver_ambiente else ('tab-publicacoes' if (pode_ver_comunicados or pode_ver_atualizacoes) else ('tab-auditoria' if pode_ver_auditoria else ('tab-configuracoes' if pode_ver_configuracoes else '')))) %}
+
+<style>
+    /* ==========================================================================
+       PAINEL DE CONTROLE - ESTILOS VISUAIS E ESPAÇAMENTOS REFINADOS
+       ========================================================================== */
+    .painel-wrapper {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 8px 4px 64px 4px;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cabeçalho do Painel com Badge de Escopo */
+    .painel-header-box {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-bottom: 28px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--luft-border-light);
+    }
+
+    .painel-scope-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-radius: var(--luft-radius-lg);
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--luft-text-main);
+        box-shadow: var(--luft-shadow-sm);
+    }
+
+    /* Sub-navegação interna (Segmented Pills Control) */
+    .subnav-pills-bar {
+        display: inline-flex;
+        align-items: center;
+        background: var(--luft-bg-app);
+        padding: 5px;
+        border-radius: var(--luft-radius-xl);
+        border: 1px solid var(--luft-border);
+        gap: 6px;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+    }
+
+    .subnav-pill-btn {
+        background: transparent;
+        border: none;
+        padding: 9px 18px;
+        border-radius: var(--luft-radius-lg);
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--luft-text-muted);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .subnav-pill-btn:hover {
+        color: var(--luft-text-main);
+        background: rgba(0, 0, 0, 0.03);
+    }
+
+    .subnav-pill-btn.active {
+        background: var(--luft-bg-panel);
+        color: var(--luft-primary-600);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Grid de Sistemas */
+    .sistemas-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 24px;
+        margin-top: 16px;
+    }
+
+    .sistema-card {
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-xl);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.25s ease;
+        position: relative;
+        box-shadow: var(--luft-shadow-sm);
+    }
+
+    .sistema-card.protegido {
+        border-color: color-mix(in srgb, var(--luft-warning-500) 42%, var(--luft-border));
+        background: linear-gradient(145deg, color-mix(in srgb, var(--luft-warning-50) 48%, var(--luft-bg-panel)), var(--luft-bg-panel) 62%);
+    }
+
+    .sistema-card:hover {
+        border-color: var(--luft-primary-300);
+        box-shadow: var(--luft-shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .sistema-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 14px;
+    }
+
+    .sistema-icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--luft-radius-lg);
+        background: var(--luft-primary-50);
+        color: var(--luft-primary-600);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        border: 1px solid var(--luft-primary-100);
+    }
+
+    .sistema-title {
+        font-size: 1.125rem;
+        font-weight: 800;
+        color: var(--luft-text-main);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sistema-id-chip {
+        font-family: monospace;
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: var(--luft-radius-sm);
+        background: var(--luft-bg-app);
+        border: 1px solid var(--luft-border);
+        color: var(--luft-text-muted);
+        font-weight: 600;
+    }
+
+    .sistema-desc {
+        font-size: 0.875rem;
+        color: var(--luft-text-muted);
+        line-height: 1.6;
+        min-height: 44px;
+        margin-bottom: 16px;
+    }
+
+    .sistema-chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    .sistema-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: var(--luft-radius-md);
+        background: var(--luft-bg-app);
+        border: 1px solid var(--luft-border-light);
+        color: var(--luft-text-muted);
+    }
+
+    .sistema-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 16px;
+        margin-top: auto;
+        border-top: 1px solid var(--luft-border-light);
+    }
+
+    /* Badges de Status Pulsantes */
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }
+
+    .status-pill.online {
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+    }
+
+    .status-pill.offline {
+        background: #fff1f2;
+        color: #be123c;
+        border: 1px solid #fecdd3;
+    }
+
+    .status-pulse-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        position: relative;
+    }
+
+    .status-pill.online .status-pulse-dot {
+        background-color: #10b981;
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+    }
+
+    .status-pill.offline .status-pulse-dot {
+        background-color: #f43f5e;
+        box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.25);
+    }
+
+    /* Cards de Serviços */
+    .servicos-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 20px;
+    }
+
+    .servico-card {
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-xl);
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        box-shadow: var(--luft-shadow-sm);
+        transition: all 0.2s ease;
+    }
+
+    .servico-card:hover {
+        border-color: var(--luft-primary-300);
+        box-shadow: var(--luft-shadow-md);
+    }
+
+    /* Grid de Módulos da Aba Segurança */
+    .admin-modules-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 24px;
+        margin-top: 16px;
+    }
+
+    .module-card {
+        background: var(--luft-bg-panel);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-xl);
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.25s ease;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: var(--luft-shadow-sm);
+    }
+
+    .module-card:hover {
+        border-color: var(--luft-primary-400);
+        box-shadow: var(--luft-shadow-lg);
+        transform: translateY(-3px);
+    }
+
+    .module-card-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--luft-radius-xl);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        margin-bottom: 20px;
+        background: var(--luft-primary-50);
+        color: var(--luft-primary-600);
+        border: 1px solid var(--luft-primary-100);
+    }
+
+    .module-card-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        margin: 0 0 10px 0;
+        color: var(--luft-text-main);
+    }
+
+    .module-card-desc {
+        font-size: 0.9rem;
+        color: var(--luft-text-muted);
+        line-height: 1.6;
+        flex-grow: 1;
+        margin: 0 0 20px 0;
+    }
+
+    .module-card-action {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--luft-primary-600);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: auto;
+        transition: gap 0.2s;
+    }
+
+    .module-card:hover .module-card-action {
+        gap: 10px;
+    }
+
+    /* Modal Form Aesthetics */
+    .modal-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    @media (max-width: 640px) {
+        .modal-form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .icon-picker-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        max-height: 130px;
+        overflow-y: auto;
+        padding: 12px;
+        background: var(--luft-bg-app);
+        border: 1px solid var(--luft-border);
+        border-radius: var(--luft-radius-lg);
+    }
+
+    .icon-picker-btn {
+        width: 42px;
+        height: 42px;
+        border-radius: var(--luft-radius-md);
+        border: 1px solid var(--luft-border);
+        background: var(--luft-bg-panel);
+        color: var(--luft-text-main);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .icon-picker-btn:hover {
+        border-color: var(--luft-primary-400);
+        color: var(--luft-primary-600);
+        background: var(--luft-primary-50);
+        transform: translateY(-2px);
+    }
+
+    .icon-picker-btn.active {
+        background: var(--luft-primary-600);
+        color: white;
+        border-color: var(--luft-primary-600);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Cadastro de sistema: validação por campo */
+    .campo-obrigatorio { color: var(--luft-danger-600, #dc2626); margin-left: 2px; }
+    .campo-opcional { font-weight: 400; color: var(--luft-text-muted); font-size: 0.7rem; margin-left: 4px; }
+    .form-control.campo-invalido,
+    .form-select.campo-invalido {
+        border-color: var(--luft-danger-500, #ef4444);
+        background: var(--luft-danger-50, #fef2f2);
+    }
+    .form-control.campo-invalido:focus,
+    .form-select.campo-invalido:focus { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18); }
+    .campo-erro {
+        display: none;
+        align-items: flex-start;
+        gap: 4px;
+        margin-top: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--luft-danger-600, #dc2626);
+    }
+    .campo-erro.visivel { display: flex; }
+    .campo-erro i { margin-top: 2px; flex-shrink: 0; }
+    .resumo-erros-sistema {
+        display: none;
+        margin-bottom: 16px;
+        padding: 12px 14px;
+        border-radius: var(--luft-radius-md);
+        border: 1px solid var(--luft-danger-200, #fecaca);
+        background: var(--luft-danger-50, #fef2f2);
+        color: var(--luft-danger-700, #b91c1c);
+        font-size: 0.8rem;
+    }
+    .resumo-erros-sistema.visivel { display: block; }
+    .resumo-erros-sistema ul { margin: 6px 0 0; padding-left: 18px; }
+    .resumo-erros-sistema li { margin-bottom: 2px; }
+    .resumo-erros-sistema a { color: inherit; text-decoration: underline; cursor: pointer; font-weight: 600; }
+    .etapas-cadastro-sistema { margin: 8px 0 0; padding-left: 20px; font-size: 0.75rem; color: var(--luft-text-muted); }
+    .etapas-cadastro-sistema li { margin-bottom: 2px; }
+    .etapas-cadastro-sistema li.etapa-inativa { opacity: 0.55; }
+</style>
+
+<div class="painel-wrapper">
+
+    {# ── CABEÇALHO DO PAINEL DE CONTROLE ── #}
+    <div class="painel-header-box">
+        <div>
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="sistema-icon-box">
+                    <i class="ph-bold ph-sliders-horizontal"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-2xl text-main m-0" style="letter-spacing: -0.5px;">Painel de Controle</h1>
+                    <p class="text-sm text-muted m-0 mt-1">Gerencie módulos, acessos, infraestrutura e governança do ecossistema.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="painel-scope-badge">
+                <i class="ph-bold {% if is_master %}ph-crown text-warning{% else %}ph-app-window text-primary{% endif %}"></i>
+                <span>Sistema ID #{{ sistema_atual_id }}</span>
+                <span class="text-muted">•</span>
+                <span class="{% if is_master %}text-warning{% else %}text-muted{% endif %}">
+                    {% if is_master %}Hub Master Global{% else %}Aplicação Delimitada{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    {# ── ABAS PRINCIPAIS ── #}
+    {% call ui.tabs('tabs-painel', 'mb-6') %}
+        {% if pode_ver_seguranca %}
+            {{ ui.tab_btn('tab-seguranca', 'Segurança & Permissões', 'ph-bold ph-shield-check', aba_inicial == 'tab-seguranca') }}
+        {% endif %}
+
+        {% if pode_ver_ambiente %}
+            {{ ui.tab_btn('tab-ambiente', 'Aplicações & Ambiente', 'ph-bold ph-sliders-horizontal', aba_inicial == 'tab-ambiente') }}
+        {% endif %}
+
+        {% if pode_ver_comunicados or pode_ver_atualizacoes %}
+            {{ ui.tab_btn('tab-publicacoes', 'Comunicação', 'ph-bold ph-megaphone', aba_inicial == 'tab-publicacoes') }}
+        {% endif %}
+
+        {% if pode_ver_auditoria %}
+            {{ ui.tab_btn('tab-auditoria', 'Auditoria & Análise', 'ph-bold ph-file-magnifying-glass', aba_inicial == 'tab-auditoria') }}
+        {% endif %}
+
+        {% if pode_ver_configuracoes %}
+            {{ ui.tab_btn('tab-configuracoes', 'Configurações Gerais', 'ph-bold ph-gear', aba_inicial == 'tab-configuracoes') }}
+        {% endif %}
+
+        {% block extra_tabs %}{% endblock %}
+
+        <button class="luft-tab-btn" disabled type="button" style="opacity: 0.45; cursor: not-allowed;" title="Módulo em desenvolvimento">
+            <i class="ph-bold ph-plugs-connected"></i> Integrações
+        </button>
+    {% endcall %}
+
+    {# ====================================================================== #}
+    {# ── 1. ABA DE SEGURANÇA ── #}
+    {# ====================================================================== #}
+    {% if pode_ver_seguranca %}
+    {% call ui.tab_panel('tab-seguranca', aba_inicial == 'tab-seguranca') %}
+        <div class="py-2">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h3 class="font-bold text-lg text-main m-0">Governança e Controle de Acessos</h3>
+                    <p class="text-sm text-muted m-0 mt-1">Gerencie permissões RBAC, grupos de usuários e orquestração de bases de dados.</p>
+                </div>
+            </div>
+
+            <div class="admin-modules-grid">
+                <a href="{{ url_for('Seguranca.visualizar_gerenciador') }}" class="module-card">
+                    <div class="module-card-icon">
+                        <i class="ph-bold ph-shield-check"></i>
+                    </div>
+                    <h4 class="module-card-title">Segurança & Permissões</h4>
+                    <p class="module-card-desc">
+                        Controle granular de acesso baseado em papéis (RBAC). Configure grupos, permissões específicas por sistema e overrides individuais de usuários.
+                    </p>
+                    <div class="module-card-action">
+                        Abrir Gerenciador de Acessos <i class="ph-bold ph-arrow-right"></i>
+                    </div>
+                </a>
+
+                {% block extra_cards_seguranca %}{% endblock %}
+            </div>
+        </div>
+    {% endcall %}
+    {% endif %}
+
+    {# ====================================================================== #}
+    {# ── 2. ABA DE APLICAÇÕES & AMBIENTE ── #}
+    {# ====================================================================== #}
+    {% if pode_ver_ambiente %}
+    {% call ui.tab_panel('tab-ambiente', aba_inicial == 'tab-ambiente') %}
+        <div class="py-2">
+
+            {# Sub-Navegação (Segmented Pills Control) #}
+            <div class="subnav-pills-bar">
+                <button type="button" class="subnav-pill-btn active" id="btnSubSistemas" onclick="alternarSubAbaAmbiente('sistemas')">
+                    <i class="ph-bold ph-app-window"></i> Catálogo & Manutenção
+                </button>
+                <button type="button" class="subnav-pill-btn" id="btnSubVariaveis" onclick="alternarSubAbaAmbiente('variaveis')">
+                    <i class="ph-bold ph-sliders-horizontal"></i> Variáveis de Ambiente (.env)
+                </button>
+                <button type="button" class="subnav-pill-btn" id="btnSubServicos" onclick="alternarSubAbaAmbiente('servicos')">
+                    <i class="ph-bold ph-gear-six"></i> Serviços do Servidor
+                </button>
+            </div>
+
+            {# ── SUB-ABA 1: CATÁLOGO & MANUTENÇÃO DE SISTEMAS ── #}
+            <div id="subpainel-sistemas">
+                {% if is_master and pode_gerenciar_manutencao %}
+                    <div class="luft-card mb-6" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, transparent 100%); border-left: 4px solid var(--luft-warning-500); padding: 20px 24px;">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-warning-light text-warning rounded-xl d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; font-size: 1.3rem;">
+                                    <i class="ph-bold ph-warning"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-main m-0" style="font-size: 1.05rem;">Ações Globais de Infraestrutura (Master)</h4>
+                                    <p class="text-muted text-sm m-0">Alternância em lote para as aplicações conectadas, preservando o sistema base.</p>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button class="btn btn-outline btn-sm d-flex align-items-center gap-2 text-danger hover-bg-danger hover-text-white" onclick="alternarManutencaoLote(true)">
+                                    <i class="ph-bold ph-power"></i> Parar Sistemas Alteráveis
+                                </button>
+                                <button class="btn btn-success btn-sm d-flex align-items-center gap-2" onclick="alternarManutencaoLote(false)">
+                                    <i class="ph-bold ph-play"></i> Ligar Sistemas Alteráveis
+                                </button>
+                                {% if pode_criar_sistema %}
+                                <button class="btn btn-primary btn-sm d-flex align-items-center gap-2" onclick="abrirModalNovoSistema()">
+                                    <i class="ph-bold ph-plus-circle"></i> Novo Sistema
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-3">
+                    <div>
+                        <h3 class="font-bold text-lg text-main m-0 d-flex align-items-center gap-2">
+                            <i class="ph-bold ph-hard-drives text-primary"></i> Sistemas Integrados
+                        </h3>
+                        <p class="text-sm text-muted m-0 mt-1">Status operacional em tempo real e controle de modo de manutenção.</p>
+                    </div>
+                    {% if sistemas|length > 3 %}
+                    <div class="luft-search-box shadow-sm" style="width: 280px;">
+                        <i class="ph-bold ph-magnifying-glass text-muted"></i>
+                        <input type="text" placeholder="Filtrar por nome..." class="luft-search-input" onkeyup="filtrarSistemas(this.value)">
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="sistemas-grid" id="container-sistemas">
+                    {% for sys in sistemas %}
+                    <div class="sistema-card {% if sys.Id_Sistema == 0 %}protegido{% endif %}" 
+                         data-id="{{ sys.Id_Sistema }}"
+                         data-nome="{{ sys.Nome_Sistema }}"
+                         data-categoria="{{ sys.Categoria }}"
+                         data-descricao="{{ sys.Descricao_Sistema or '' }}"
+                         data-ordem="{{ sys.Ordem_Exibicao }}"
+                         data-icone="{{ sys.Icone or 'ph-bold ph-app-window' }}"
+                         data-cor="{{ sys.Cor or '' }}"
+                         data-link="{{ sys.Link or '' }}"
+                         data-url-saude="{{ sys.Url_Saude or '' }}"
+                         data-responsavel="{{ sys.Responsavel or '' }}"
+                         data-contato-suporte="{{ sys.Contato_Suporte or '' }}"
+                         data-ativo="{{ 'true' if sys.Ativo else 'false' }}"
+                         data-em-manutencao="{{ 'true' if sys.Em_Manutencao else 'false' }}"
+                         data-permissao-base="{{ sys.Permissao_Base or '' }}"
+                         data-schema="{{ sys.Schema_Aplicacao or '' }}"
+                         data-protegido="{{ 'true' if sys.Id_Sistema == 0 else 'false' }}"
+                         style="{% if sys.Cor %}border-top: 3px solid {{ sys.Cor }};{% endif %}"
+                    >
+                        <div class="sistema-card-header">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="sistema-icon-box" style="{% if sys.Cor %}background: color-mix(in srgb, {{ sys.Cor }} 12%, var(--luft-bg-panel)); color: {{ sys.Cor }}; border-color: color-mix(in srgb, {{ sys.Cor }} 30%, var(--luft-border));{% endif %}">
+                                    <i class="{{ sys.Icone or 'ph-bold ph-app-window' }}"></i>
+                                </div>
+                                <div>
+                                    <h4 class="sistema-title">
+                                        {{ sys.Nome_Sistema }}
+                                        <span class="sistema-id-chip">#{{ sys.Id_Sistema }}</span>
+                                    </h4>
+                                    <div class="d-flex align-items-center gap-1 mt-1 flex-wrap">
+                                        <span class="luft-badge {% if sys.Categoria == 'HUB' %}luft-badge-warning{% elif sys.Categoria == 'SERVICO' %}luft-badge-secondary{% else %}luft-badge-primary{% endif %}" style="font-size: 0.65rem; padding: 2px 7px;">
+                                            {{ sys.Categoria }}
+                                        </span>
+                                        {% if sys.Ordem_Exibicao > 0 %}
+                                        <span class="text-xs text-muted" title="Ordem de exibição no catálogo">
+                                            #ordem {{ sys.Ordem_Exibicao }}
+                                        </span>
+                                        {% endif %}
+                                        {% if sys.Id_Sistema == 0 %}
+                                            <span class="luft-badge luft-badge-secondary" style="font-size: 0.65rem; padding: 2px 6px;"><i class="ph-bold ph-lock-key"></i> NÚCLEO PROTEGIDO</span>
+                                        {% endif %}
+                                        {% if not sys.Ativo %}
+                                            <span class="luft-badge luft-badge-danger" style="font-size: 0.65rem; padding: 2px 6px;">INATIVO</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <span class="status-pill {% if sys.Em_Manutencao %}offline{% else %}online{% endif %}" id="sys-pill-{{ sys.Id_Sistema }}">
+                                <span class="status-pulse-dot"></span>
+                                <span id="sys-label-{{ sys.Id_Sistema }}">{{ 'Manutenção' if sys.Em_Manutencao else 'Online' }}</span>
+                            </span>
+                        </div>
+
+                        <div class="sistema-desc">
+                            {{ sys.Descricao_Sistema or 'Nenhuma descrição informada para esta aplicação corporativa.' }}
+                        </div>
+
+                        <div class="sistema-chips-row">
+                            <span class="sistema-chip" title="Rota base ou URL no servidor">
+                                <i class="ph-bold ph-link text-muted"></i>
+                                <span class="font-mono">{{ sys.Link or '/' }}</span>
+                            </span>
+                            
+                            {% if sys.Permissao_Base %}
+                            <span class="sistema-chip" title="Permissão base necessária para visualizar o card no Workspace">
+                                <i class="ph-bold ph-shield-check text-primary"></i>
+                                <span class="font-mono text-xs">{{ sys.Permissao_Base }}</span>
+                            </span>
+                            {% elif sys.Id_Sistema == 0 %}
+                            <span class="sistema-chip" title="Acesso corporativo global ao Hub Master">
+                                <i class="ph-bold ph-crown text-warning"></i>
+                                <span class="font-mono text-xs">PLATAFORMA.SISTEMA.ACESSAR</span>
+                            </span>
+                            {% else %}
+                            <span class="sistema-chip text-warning" title="Sem permissão base explícita (eh_acesso_sistema = True) — visível somente a administradores">
+                                <i class="ph-bold ph-warning"></i>
+                                <span class="font-mono text-xs">Sem permissão base (Restrito Admin)</span>
+                            </span>
+                            {% endif %}
+
+                            {% if sys.Responsavel %}
+                            <span class="sistema-chip" title="Responsável técnico ou de negócio">
+                                <i class="ph-bold ph-user text-muted"></i>
+                                <span>{{ sys.Responsavel }}</span>
+                            </span>
+                            {% endif %}
+
+                            {% if sys.Url_Saude %}
+                            <a href="{{ sys.Url_Saude }}" target="_blank" class="sistema-chip text-decoration-none" title="Verificar URL de integridade e saúde">
+                                <i class="ph-bold ph-heartbeat text-success"></i>
+                                <span>Healthcheck</span>
+                            </a>
+                            {% endif %}
+                        </div>
+
+                        <div class="sistema-card-footer">
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="luft-switch-wrapper" style="margin: 0;" title="{% if sys.Id_Sistema == 0 %}Sistema base protegido: somente consulta{% elif not pode_gerenciar_manutencao or (not is_master and sys.Id_Sistema != sistema_atual_id) %}Sem permissão para alterar manutenção{% else %}Alternar status de manutenção{% endif %}">
+                                    <div class="luft-switch">
+                                        <input 
+                                            type="checkbox" 
+                                            id="sys-toggle-{{ sys.Id_Sistema }}" 
+                                            {% if not sys.Em_Manutencao %}checked{% endif %}
+                                            {% if sys.Id_Sistema == 0 or not pode_gerenciar_manutencao or (not is_master and sys.Id_Sistema != sistema_atual_id) %}disabled{% endif %}
+                                            {% if sys.Id_Sistema != 0 and pode_gerenciar_manutencao and (is_master or sys.Id_Sistema == sistema_atual_id) %}onchange="alternarManutencaoIndividual({{ sys.Id_Sistema }}, !this.checked, '{{ sys.Nome_Sistema }}')"{% endif %}
+                                        >
+                                        <span class="luft-slider"></span>
+                                    </div>
+                                </label>
+                                <span class="text-xs text-muted font-semibold">Operação</span>
+                            </div>
+
+                            {% if sys.Id_Sistema != 0 and pode_editar_sistemas and (is_master or sys.Id_Sistema == sistema_atual_id) %}
+                            <button 
+                                type="button" 
+                                class="btn btn-sm btn-outline d-flex align-items-center gap-2" 
+                                onclick="abrirModalSistemaPorCard(this.closest('.sistema-card'))"
+                                title="Configurar todos os metadados do sistema"
+                            >
+                                <i class="ph-bold ph-gear"></i>
+                                <span>Editar</span>
+                            </button>
+                            {% elif sys.Id_Sistema == 0 %}
+                            <span class="text-xs text-muted font-semibold d-flex align-items-center gap-1" title="Cadastro protegido contra alterações">
+                                <i class="ph-bold ph-eye"></i> Somente leitura
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="p-8 text-center text-muted luft-card" style="grid-column: 1 / -1;">
+                        <i class="ph-bold ph-hard-drive text-3xl text-muted mb-2 d-block"></i>
+                        Nenhum sistema encontrado no banco de dados corporativo.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# ── SUB-ABA 2: VARIÁVEIS DE AMBIENTE (.ENV) ── #}
+            <div id="subpainel-variaveis" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-4 mb-4">
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        {% if projetos_operacao|length > 1 %}
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="selectProjetoOperacao" class="text-sm font-semibold text-muted">Projeto:</label>
+                            <select id="selectProjetoOperacao" class="form-select form-select-sm" style="min-width: 240px;" onchange="carregarVariaveisProjeto(this.value)">
+                                {% for proj in projetos_operacao %}
+                                <option value="{{ proj.idProjeto }}" data-protegido="{{ 'true' if proj.protegido else 'false' }}">{{ proj.nomeProjeto }}{% if proj.protegido %} — somente leitura{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div class="luft-search-box shadow-sm" style="width: 280px;">
+                            <i class="ph-bold ph-magnifying-glass text-muted"></i>
+                            <input type="text" id="filtroVariavelInput" placeholder="Buscar por chave ou descrição..." class="luft-search-input" onkeyup="filtrarTabelaVariaveis(this.value)">
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm d-flex align-items-center gap-2" onclick="recarregarVariaveis()">
+                        <i class="ph-bold ph-arrows-clockwise"></i> Recarregar Arquivo .env
+                    </button>
+                </div>
+
+                <div class="luft-card p-0 overflow-hidden shadow-sm" style="border-radius: var(--luft-radius-xl);">
+                    <div class="table-responsive">
+                        <table class="table table-hover m-0" id="tabelaVariaveis">
+                            <thead style="background: var(--luft-bg-app); border-bottom: 1px solid var(--luft-border);">
+                                <tr>
+                                    <th style="width: 28%; padding: 14px 20px;">CHAVE</th>
+                                    <th style="width: 42%; padding: 14px 20px;">VALOR ATUAL</th>
+                                    <th style="width: 20%; padding: 14px 20px;">DESCRIÇÃO</th>
+                                    <th style="width: 10%; padding: 14px 20px; text-align: right;">AÇÃO</th>
+                                </tr>
+                            </thead>
+                            <tbody id="corpoTabelaVariaveis">
+                                <tr><td colspan="4" class="text-center p-6 text-muted"><i class="ph-bold ph-spinner ph-spin"></i> Carregando variáveis do ambiente...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {# ── SUB-ABA 3: SERVIÇOS DO SERVIDOR ── #}
+            <div id="subpainel-servicos" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                    <div>
+                        <h3 class="font-bold text-lg text-main m-0 d-flex align-items-center gap-2">
+                            <i class="ph-bold ph-gear-six text-primary"></i> Serviços Operacionais no Host
+                        </h3>
+                        <p class="text-sm text-muted m-0 mt-1">Controle de ciclo de vida de daemons Linux (systemctl) e serviços Windows (sc).</p>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm d-flex align-items-center gap-2" onclick="recarregarServicos()">
+                        <i class="ph-bold ph-arrows-clockwise"></i> Atualizar Status
+                    </button>
+                </div>
+
+                <div class="servicos-grid" id="gridServicos">
+                    {% for servico in servicos_operacao %}
+                    <div class="servico-card" id="card-servico-{{ servico.idServico }}" data-protegido="{{ 'true' if servico.protegido else 'false' }}">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <h4 class="font-bold text-main m-0" style="font-size: 1.05rem;">{{ servico.nomeExibicao }}</h4>
+                                <small class="text-muted font-mono d-block mt-1">{{ servico.nomeServico or 'Não vinculado a este ambiente' }}</small>
+                            </div>
+                            <span class="luft-badge {% if servico.status == 'RUNNING' %}luft-badge-success{% elif servico.status == 'STOPPED' %}luft-badge-danger{% else %}luft-badge-secondary{% endif %}" id="badge-servico-{{ servico.idServico }}">
+                                {{ servico.status }}
+                            </span>
+                        </div>
+                        <p class="text-sm text-muted m-0" style="line-height: 1.5; min-height: 40px;">{{ servico.descricao }}</p>
+                        {% if servico.protegido %}
+                        <div class="d-flex justify-content-end pt-3 border-top">
+                            <span class="text-xs text-muted font-semibold d-flex align-items-center gap-1" title="Serviço essencial protegido contra comandos">
+                                <i class="ph-bold ph-shield-check text-warning"></i> Serviço base — somente monitoramento
+                            </span>
+                        </div>
+                        {% elif pode_executar_servicos %}
+                        <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                            <button type="button" class="btn btn-sm btn-outline text-success d-flex align-items-center gap-1" onclick="executarAcaoServico('{{ servico.idServico }}', 'iniciar')" {% if servico.status == 'RUNNING' or not servico.nomeServico %}disabled{% endif %}>
+                                <i class="ph-bold ph-play"></i> Iniciar
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline text-danger d-flex align-items-center gap-1" onclick="executarAcaoServico('{{ servico.idServico }}', 'parar')" {% if servico.status != 'RUNNING' or not servico.nomeServico %}disabled{% endif %}>
+                                <i class="ph-bold ph-power"></i> Parar
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline d-flex align-items-center gap-1" onclick="executarAcaoServico('{{ servico.idServico }}', 'reiniciar')" {% if not servico.nomeServico %}disabled{% endif %}>
+                                <i class="ph-bold ph-arrows-clockwise"></i> Reiniciar
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="p-8 text-center text-muted luft-card" style="grid-column: 1 / -1;">
+                        <i class="ph-bold ph-gear text-3xl text-muted mb-2 d-block"></i>
+                        Nenhum serviço mapeado para monitoramento neste ambiente.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# ============================================================== #}
+            {# ── MODAIS DO AMBIENTE ── #}
+            {# ============================================================== #}
+
+            {# Modal Editar Sistema #}
+            {% if pode_editar_sistemas %}
+            {% call ui.modal('modalEditarSistema', 'Editar Sistema Integrado', 'lg', 'ph-gear') %}
+                <form id="formEditarSistema" onsubmit="event.preventDefault(); salvarConfiguracoesSistema();">
+                    <input type="hidden" id="editSysId">
+                    
+                    <div class="d-flex align-items-center justify-content-between mb-4 pb-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-xs font-semibold text-muted">ID DO SISTEMA:</span>
+                            <span class="badge bg-secondary font-mono" id="editSysIdBadge">#</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-4">
+                            <label class="d-flex align-items-center gap-2 m-0 cursor-pointer text-xs font-semibold text-main">
+                                <input type="checkbox" id="editSysAtivo" class="form-check-input m-0">
+                                <span>Ativo no Catálogo</span>
+                            </label>
+                            <label class="d-flex align-items-center gap-2 m-0 cursor-pointer text-xs font-semibold text-danger">
+                                <input type="checkbox" id="editSysEmManutencao" class="form-check-input m-0">
+                                <span>Modo Manutenção</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="modal-form-row mb-4">
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="editSysNome">Nome da Aplicação <span class="text-danger">*</span></label>
+                            <input type="text" id="editSysNome" class="form-control" placeholder="Ex: Luft-Integrador" required>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <div class="flex-grow-1">
+                                <label class="form-label text-sm font-semibold mb-1" for="editSysCategoria">Categoria</label>
+                                <select id="editSysCategoria" class="form-select">
+                                    <option value="APLICACAO">Aplicação (Padrão)</option>
+                                    <option value="SERVICO">Serviço / Daemon</option>
+                                    <option value="HUB">Hub / Portal Central</option>
+                                </select>
+                            </div>
+                            <div style="width: 90px;">
+                                <label class="form-label text-sm font-semibold mb-1" for="editSysOrdem" title="Ordem de exibição nos painéis">Ordem</label>
+                                <input type="number" id="editSysOrdem" class="form-control" min="0" value="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-sm font-semibold mb-1" for="editSysDescricao">Descrição Corporativa</label>
+                        <textarea id="editSysDescricao" class="form-control" rows="2" placeholder="Breve descrição da aplicação corporativa"></textarea>
+                    </div>
+
+                    <div class="modal-form-row mb-4">
+                        <div>
+                            {{ ui.campo_icone('editSysIcone', 'editSysIcone', 'ph-bold ph-app-window', 'Ícone Representativo', 'Ex: ph-bold ph-app-window', 'Catálogo corporativo com mais de 240 ícones Phosphor prontos', false, 'editSysCor') }}
+                        </div>
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="editSysCor">Cor Temática</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="color" id="editSysCorPicker" value="#2563eb" style="width: 44px; height: 38px; padding: 2px; border-radius: var(--luft-radius-md); border: 1px solid var(--luft-border); background: var(--luft-bg-panel); cursor: pointer;" onchange="document.getElementById('editSysCor').value = this.value; atualizarPreviewCorIcone('editSysIcone-preview-box', this.value);">
+                                <input type="text" id="editSysCor" class="form-control font-mono text-xs" placeholder="#2563eb" oninput="document.getElementById('editSysCorPicker').value = this.value; atualizarPreviewCorIcone('editSysIcone-preview-box', this.value);">
+                            </div>
+                            <div class="d-flex gap-1 mt-1">
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: var(--luft-brand, #2563eb); border: 1px solid var(--luft-primary-hover, #1d4ed8);" onclick="setarCor('editSysCor', 'editSysCorPicker', '#2563eb', 'editSysIcone-preview-box')" title="Azul Corporativo"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #059669; border: 1px solid #047857;" onclick="setarCor('editSysCor', 'editSysCorPicker', '#059669', 'editSysIcone-preview-box')" title="Verde"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #7c3aed; border: 1px solid #6d28d9;" onclick="setarCor('editSysCor', 'editSysCorPicker', '#7c3aed', 'editSysIcone-preview-box')" title="Roxo"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #d97706; border: 1px solid #b45309;" onclick="setarCor('editSysCor', 'editSysCorPicker', '#d97706', 'editSysIcone-preview-box')" title="Âmbar"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #e11d48; border: 1px solid #be123c;" onclick="setarCor('editSysCor', 'editSysCorPicker', '#e11d48', 'editSysIcone-preview-box')" title="Rosa / Vermelho"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #0891b2; border: 1px solid #0e7490;" onclick="setarCor('editSysCor', 'editSysCorPicker', '#0891b2', 'editSysIcone-preview-box')" title="Ciano / Petróleo"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-form-row mb-4">
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="editSysLink">Link / Rota Base</label>
+                            <input type="text" id="editSysLink" class="form-control font-mono text-xs" placeholder="Ex: /Luft-Integrador/ ou https://app.empresa.com.br">
+                        </div>
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="editSysUrlSaude">URL de Saúde (Healthcheck)</label>
+                            <input type="text" id="editSysUrlSaude" class="form-control font-mono text-xs" placeholder="Ex: /Luft-Integrador/api/health">
+                        </div>
+                    </div>
+
+                    <div class="modal-form-row mb-4">
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="editSysResponsavel">Responsável Técnico / Área</label>
+                            <input type="text" id="editSysResponsavel" class="form-control text-xs" placeholder="Ex: Equipe de TI / Sustentação">
+                        </div>
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="editSysContatoSuporte">Contato de Suporte</label>
+                            <input type="text" id="editSysContatoSuporte" class="form-control text-xs" placeholder="Ex: suporte.ti@empresa.com.br">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-sm font-semibold mb-1" for="editSysSchema">Schema da Aplicação (PostgreSQL)</label>
+                        <input type="text" id="editSysSchema" class="form-control font-mono text-xs" placeholder="Ex: connectair">
+                        <small class="text-xs text-muted">Nome do schema dedicado desta aplicação no PostgreSQL.</small>
+                    </div>
+
+                    <div class="p-3 rounded-lg border mb-4" style="background: var(--luft-bg-app);">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <label class="form-label text-sm font-semibold m-0 d-flex align-items-center gap-2">
+                                <i class="ph-bold ph-shield-check text-primary"></i>
+                                <span>Permissão Base de Acesso (Workspace)</span>
+                            </label>
+                            <span class="badge bg-secondary font-mono text-xs" style="font-size: 0.65rem;">
+                                <i class="ph-bold ph-lock-key"></i> Gerenciada pelo Sistema
+                            </span>
+                        </div>
+                        <p class="text-xs text-muted mb-2">Permissão hierárquica (<code>eh_acesso_sistema = True</code>) associada a esta aplicação. Gerenciada internamente pelo sistema.</p>
+                        <input type="text" id="editSysChavePermissao" class="form-control font-mono text-xs" readonly disabled style="background: var(--luft-bg-panel); cursor: not-allowed; opacity: 0.85;" placeholder="Nenhuma permissão base vinculada">
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-3 pt-4 border-top">
+                        <button type="button" class="btn btn-outline" onclick="LuftBase.fecharModal('modalEditarSistema')">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+                            <i class="ph-bold ph-check"></i> Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            {% endcall %}
+            {% endif %}
+
+            {# Modal Novo Sistema (Master) #}
+            {% if pode_criar_sistema %}
+            {% call ui.modal('modalNovoSistema', 'Cadastrar Novo Sistema', 'lg', 'ph-plus-circle') %}
+                <form id="formNovoSistema" novalidate onsubmit="event.preventDefault(); salvarNovoSistema();">
+                    <div id="resumoErrosNovoSistema" class="resumo-erros-sistema" role="alert" aria-live="assertive" tabindex="-1">
+                        <div class="d-flex align-items-center gap-2 font-semibold">
+                            <i class="ph-bold ph-warning-circle" style="font-size: 1.1rem;"></i>
+                            <span id="resumoErrosNovoSistemaTitulo">O sistema não foi cadastrado.</span>
+                        </div>
+                        <ul id="resumoErrosNovoSistemaLista"></ul>
+                    </div>
+
+                    <p class="text-xs text-muted mb-3">
+                        Campos marcados com <span class="campo-obrigatorio">*</span> são obrigatórios. Todos os demais são opcionais e podem ser preenchidos depois, na edição do sistema.
+                    </p>
+
+                    <details class="mb-3 text-xs" id="detalhesNovoSysId">
+                        <summary class="text-muted cursor-pointer font-semibold py-1">
+                            <i class="ph-bold ph-gear"></i> Definir ID numérico manualmente <span class="campo-opcional">(opcional — por padrão o banco gera o ID)</span>
+                        </summary>
+                        <div class="mt-2" style="max-width: 280px;">
+                            <input type="number" id="novoSysId" data-campo="IdSistema" class="form-control form-control-sm" placeholder="Deixe vazio para auto-incremento" min="1" step="1" oninput="atualizarProvisionamentoSistema()">
+                            <div class="campo-erro" data-erro-de="IdSistema"></div>
+                        </div>
+                    </details>
+
+                    <div class="modal-form-row mb-4">
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="novoSysNome">Nome do Sistema<span class="campo-obrigatorio">*</span></label>
+                            <input type="text" id="novoSysNome" data-campo="Nome" class="form-control" placeholder="Ex: Luft-Integrador" maxlength="100" autocomplete="off" oninput="sugerirChavePermissao(this.value)">
+                            <div class="campo-erro" data-erro-de="Nome"></div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <div class="flex-grow-1">
+                                <label class="form-label text-sm font-semibold mb-1" for="novoSysCategoria">Categoria</label>
+                                <select id="novoSysCategoria" data-campo="Categoria" class="form-select">
+                                    <option value="APLICACAO" selected>Aplicação (Padrão)</option>
+                                    <option value="SERVICO">Serviço / Daemon</option>
+                                    <option value="HUB">Hub / Portal Central</option>
+                                </select>
+                                <div class="campo-erro" data-erro-de="Categoria"></div>
+                            </div>
+                            <div style="width: 90px;">
+                                <label class="form-label text-sm font-semibold mb-1" for="novoSysOrdem" title="Ordem de exibição nos painéis">Ordem</label>
+                                <input type="number" id="novoSysOrdem" data-campo="OrdemExibicao" class="form-control" min="0" max="32767" step="1" value="0">
+                                <div class="campo-erro" data-erro-de="OrdemExibicao"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-sm font-semibold mb-1" for="novoSysDescricao">Descrição Corporativa</label>
+                        <textarea id="novoSysDescricao" data-campo="Descricao" class="form-control" rows="2" maxlength="500" placeholder="Breve descrição da aplicação corporativa"></textarea>
+                        <div class="campo-erro" data-erro-de="Descricao"></div>
+                    </div>
+
+                    <div class="modal-form-row mb-4">
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="novoSysIcone">Ícone Representativo</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="luft-icon-preview-box" id="novoSysIcone-preview-box" style="width: 40px; height: 38px; border-radius: var(--luft-radius-md); background: var(--luft-bg-app); border: 1px solid var(--luft-border); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: var(--luft-brand, #2563eb); flex-shrink: 0;">
+                                    <i id="novoSysIcone-preview" class="ph-bold ph-app-window"></i>
+                                </div>
+                                <input type="text" id="novoSysIcone" data-campo="Icone" class="form-control font-mono text-xs" value="ph-bold ph-app-window" placeholder="ph-bold ph-app-window" maxlength="255"
+                                    oninput="const p = document.getElementById('novoSysIcone-preview'); if (p) p.className = this.value || 'ph-bold ph-app-window';">
+                                <button type="button" class="btn btn-outline d-flex align-items-center gap-1 text-nowrap"
+                                    onclick="LuftBase.abrirSeletorIcones({ targetInput: 'novoSysIcone', targetPreview: 'novoSysIcone-preview', iconeAtual: document.getElementById('novoSysIcone')?.value, cor: document.getElementById('novoSysCor')?.value })"
+                                    title="Abrir catálogo com mais de 240 ícones Phosphor">
+                                    <i class="ph-bold ph-squares-four"></i><span>Escolher...</span>
+                                </button>
+                            </div>
+                            <small class="text-xs text-muted">Se ficar vazio, usa o ícone padrão.</small>
+                            <div class="campo-erro" data-erro-de="Icone"></div>
+                        </div>
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="novoSysCor">Cor Temática</label>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="color" id="novoSysCorPicker" value="#2563eb" style="width: 44px; height: 38px; padding: 2px; border-radius: var(--luft-radius-md); border: 1px solid var(--luft-border); background: var(--luft-bg-panel); cursor: pointer;" onchange="document.getElementById('novoSysCor').value = this.value; atualizarPreviewCorIcone('novoSysIcone-preview-box', this.value); limparErroCampo('Cor');">
+                                <input type="text" id="novoSysCor" data-campo="Cor" class="form-control font-mono text-xs" placeholder="#2563eb" value="#2563eb" maxlength="30" oninput="if (/^#[0-9a-fA-F]{6}$/.test(this.value)) document.getElementById('novoSysCorPicker').value = this.value; atualizarPreviewCorIcone('novoSysIcone-preview-box', this.value);">
+                            </div>
+                            <div class="d-flex gap-1 mt-1">
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: var(--luft-brand, #2563eb); border: 1px solid var(--luft-primary-hover, #1d4ed8);" onclick="setarCor('novoSysCor', 'novoSysCorPicker', '#2563eb', 'novoSysIcone-preview-box'); limparErroCampo('Cor');" title="Azul Corporativo"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #059669; border: 1px solid #047857;" onclick="setarCor('novoSysCor', 'novoSysCorPicker', '#059669', 'novoSysIcone-preview-box'); limparErroCampo('Cor');" title="Verde"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #7c3aed; border: 1px solid #6d28d9;" onclick="setarCor('novoSysCor', 'novoSysCorPicker', '#7c3aed', 'novoSysIcone-preview-box'); limparErroCampo('Cor');" title="Roxo"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #d97706; border: 1px solid #b45309;" onclick="setarCor('novoSysCor', 'novoSysCorPicker', '#d97706', 'novoSysIcone-preview-box'); limparErroCampo('Cor');" title="Âmbar"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #e11d48; border: 1px solid #be123c;" onclick="setarCor('novoSysCor', 'novoSysCorPicker', '#e11d48', 'novoSysIcone-preview-box'); limparErroCampo('Cor');" title="Rosa / Vermelho"></button>
+                                <button type="button" class="btn btn-xs rounded-circle p-0" style="width: 18px; height: 18px; background: #0891b2; border: 1px solid #0e7490;" onclick="setarCor('novoSysCor', 'novoSysCorPicker', '#0891b2', 'novoSysIcone-preview-box'); limparErroCampo('Cor');" title="Ciano / Petróleo"></button>
+                            </div>
+                            <div class="campo-erro" data-erro-de="Cor"></div>
+                        </div>
+                    </div>
+
+                    <div class="modal-form-row mb-4">
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="novoSysLink">Link / Rota Base</label>
+                            <input type="text" id="novoSysLink" data-campo="Link" class="form-control font-mono text-xs" maxlength="500" placeholder="Ex: /Luft-Integrador/ ou https://app.empresa.com.br">
+                            <div class="campo-erro" data-erro-de="Link"></div>
+                        </div>
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="novoSysUrlSaude">URL de Saúde (Healthcheck)</label>
+                            <input type="text" id="novoSysUrlSaude" data-campo="UrlSaude" class="form-control font-mono text-xs" maxlength="500" placeholder="Ex: /Luft-Integrador/api/health">
+                            <div class="campo-erro" data-erro-de="UrlSaude"></div>
+                        </div>
+                    </div>
+
+                    <div class="modal-form-row mb-4">
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="novoSysResponsavel">Responsável Técnico / Área</label>
+                            <input type="text" id="novoSysResponsavel" data-campo="Responsavel" class="form-control text-xs" maxlength="150" placeholder="Ex: Equipe de TI / Sustentação">
+                            <div class="campo-erro" data-erro-de="Responsavel"></div>
+                        </div>
+                        <div>
+                            <label class="form-label text-sm font-semibold mb-1" for="novoSysContatoSuporte">Contato de Suporte</label>
+                            <input type="text" id="novoSysContatoSuporte" data-campo="ContatoSuporte" class="form-control text-xs" maxlength="255" placeholder="Ex: suporte.ti@empresa.com.br">
+                            <div class="campo-erro" data-erro-de="ContatoSuporte"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-sm font-semibold mb-1" for="novoSysSchema">Schema da Aplicação (PostgreSQL)</label>
+                        <input type="text" id="novoSysSchema" data-campo="SchemaAplicacao" class="form-control font-mono text-xs" maxlength="63" autocomplete="off" placeholder="Ex: connectair (obrigatório ao provisionar banco e Vault)" oninput="atualizarEtapasCadastroSistema()">
+                        <div class="campo-erro" data-erro-de="SchemaAplicacao"></div>
+                        <small class="text-xs text-muted d-block mt-1">
+                            Apenas letras minúsculas, números e <code>_</code>. Se o schema já existir no banco, ele é reaproveitado. Com o provisionamento marcado, quem cria é o usuário administrativo informado abaixo; sem ele, o usuário do próprio Workspace precisa de permissão <code>CREATE</code> no banco. Se não for possível criar, <strong>nada é gravado</strong> e o motivo aparece aqui.
+                        </small>
+                    </div>
+
+                    <div class="p-3 rounded-lg border mb-4" style="background: var(--luft-bg-app);">
+                        <label class="d-flex align-items-center gap-2 m-0 mb-2 cursor-pointer text-sm font-semibold text-main">
+                            <input type="checkbox" id="novoSysProvisionar" class="form-check-input m-0" checked onchange="atualizarProvisionamentoSistema()">
+                            <i class="ph-bold ph-database text-primary"></i>
+                            <span>Provisionar banco e Vault agora</span>
+                        </label>
+                        <p class="text-xs text-muted mb-2">
+                            Faz o mesmo que o <code>luftbase bootstrap</code> para este sistema: cria o schema, a role
+                            <code id="novoSysPrevRole">luft_&lt;schema&gt;_app</code> com senha nova e acesso ao core, e grava
+                            <code id="novoSysPrevSegredo">sistemas/&lt;id&gt;</code> no Vault. As credenciais abaixo são usadas
+                            somente neste cadastro e <strong>nunca são gravadas</strong>.
+                        </p>
+                        <div id="novoSysDestino" class="text-xs text-muted mb-3">Carregando destino…</div>
+                        <div id="novoSysCamposProvisionamento">
+                            <div class="mb-3">
+                                <label class="form-label text-xs font-semibold mb-1" for="novoSysTokenVault">Token de operador do Vault</label>
+                                <input type="password" id="novoSysTokenVault" data-campo="TokenOperadorVault" class="form-control form-control-sm font-mono" autocomplete="off" spellcheck="false">
+                                <div class="campo-erro" data-erro-de="TokenOperadorVault"></div>
+                            </div>
+                            <div class="d-flex gap-3">
+                                <div class="flex-grow-1">
+                                    <label class="form-label text-xs font-semibold mb-1" for="novoSysUsuarioBanco">Usuário administrativo do PostgreSQL</label>
+                                    <input type="text" id="novoSysUsuarioBanco" data-campo="UsuarioBanco" class="form-control form-control-sm" value="admin" autocomplete="off" spellcheck="false">
+                                    <div class="campo-erro" data-erro-de="UsuarioBanco"></div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <label class="form-label text-xs font-semibold mb-1" for="novoSysSenhaBanco">Senha</label>
+                                    <input type="password" id="novoSysSenhaBanco" data-campo="SenhaBanco" class="form-control form-control-sm" autocomplete="new-password">
+                                    <div class="campo-erro" data-erro-de="SenhaBanco"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-4 mb-4 p-3 rounded-lg border" style="background: var(--luft-bg-app);">
+                        <label class="d-flex align-items-center gap-2 m-0 cursor-pointer text-xs font-semibold text-main">
+                            <input type="checkbox" id="novoSysAtivo" class="form-check-input m-0" checked>
+                            <span>Ativo no Catálogo</span>
+                        </label>
+                        <label class="d-flex align-items-center gap-2 m-0 cursor-pointer text-xs font-semibold text-danger">
+                            <input type="checkbox" id="novoSysEmManutencao" class="form-check-input m-0">
+                            <span>Modo Manutenção</span>
+                        </label>
+                    </div>
+
+                    <div class="p-3 rounded-lg border mb-4" style="background: var(--luft-bg-app);">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <label class="form-label text-sm font-semibold m-0 d-flex align-items-center gap-2" for="novoSysChavePermissao">
+                                <i class="ph-bold ph-shield-check text-primary"></i>
+                                <span>Permissão Base de Acesso</span>
+                            </label>
+                            <span class="badge bg-primary-light text-primary text-xs" style="font-size: 0.65rem;">
+                                <i class="ph-bold ph-clock"></i> Será criada ao cadastrar
+                            </span>
+                        </div>
+                        <p class="text-xs text-muted mb-2">
+                            Esta permissão <strong>ainda não existe</strong> em <code>tb_permissao</code>. Ela só é criada quando você clicar em <strong>Cadastrar Sistema</strong>, nesta ordem e na mesma transação (se qualquer etapa falhar, nada é gravado):
+                        </p>
+                        <ol class="etapas-cadastro-sistema mb-2" id="etapasCadastroSistema">
+                            <li>Cria o sistema em <code>core.tb_sistema</code> e obtém o ID.</li>
+                            <li id="etapaCadastroSchema" class="etapa-inativa">Provisiona o schema <code id="etapaCadastroSchemaNome">—</code> <em>(somente se informado)</em><span id="etapaCadastroRole">, a role e os privilégios no core</span>.</li>
+                            <li>Cria o módulo <code>PLATAFORMA</code> do sistema.</li>
+                            <li>Cria a permissão base (<code>eh_acesso_sistema = true</code>) em <code>core.tb_permissao</code> e a associa ao novo sistema.</li>
+                            <li>Concede essa permissão ao seu grupo de acesso.</li>
+                            <li id="etapaCadastroVault">Grava o segredo do sistema no Vault (último passo; se falhar, nada fica gravado).</li>
+                        </ol>
+                        <label class="text-xs text-muted mb-1 d-block" for="novoSysChavePermissao">Prévia da chave que será gerada:</label>
+                        <input type="text" id="novoSysChavePermissao" class="form-control font-mono text-xs" readonly disabled style="background: var(--luft-bg-panel); cursor: not-allowed; opacity: 0.85;" placeholder="Preencha o Nome do Sistema para ver a prévia">
+                        <div class="campo-erro" data-erro-de="ChavePermissaoBase"></div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-3 pt-4 border-top">
+                        <button type="button" class="btn btn-outline" onclick="LuftBase.fecharModal('modalNovoSistema')">
+                            Cancelar
+                        </button>
+                        <button type="submit" id="btnCadastrarSistema" class="btn btn-primary d-flex align-items-center gap-2">
+                            <i class="ph-bold ph-plus"></i> <span>Cadastrar Sistema</span>
+                        </button>
+                    </div>
+                </form>
+            {% endcall %}
+            {% endif %}
+
+            {# Modal Editar Variável .env #}
+            {% if pode_editar_ambiente %}
+            {% call ui.modal('modalEditarVariavel', 'Editar Variável de Ambiente', 'md', 'ph-sliders-horizontal') %}
+                <form id="formEditarVariavel">
+                    <input type="hidden" id="editVarProjeto">
+                    <div class="mb-4">
+                        <label class="form-label text-sm font-semibold mb-1">Chave da Variável</label>
+                        <input type="text" id="editVarChave" class="form-control font-mono font-bold" readonly style="background: var(--luft-bg-app);">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-sm font-semibold mb-1">Valor no Arquivo .env</label>
+                        <input type="text" id="editVarValor" class="form-control font-mono" placeholder="Informe o novo valor">
+                        <div class="form-text text-xs mt-2 text-muted" id="editVarDescricao"></div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-3 pt-4 border-top">
+                        <button type="button" class="btn btn-outline" onclick="LuftBase.fecharModal('modalEditarVariavel')">
+                            Cancelar
+                        </button>
+                        <button type="button" class="btn btn-primary d-flex align-items-center gap-2" onclick="salvarVariavelEnv()">
+                            <i class="ph-bold ph-floppy-disk"></i> Salvar no .env
+                        </button>
+                    </div>
+                </form>
+            {% endcall %}
+            {% endif %}
+        </div>
+    {% endcall %}
+    {% endif %}
+
+    {# ====================================================================== #}
+    {# ── 3. ABA DE COMUNICADOS E NOTAS DE ATUALIZAÇÃO ── #}
+    {# ====================================================================== #}
+    {% if pode_ver_comunicados or pode_ver_atualizacoes %}
+    {% call ui.tab_panel('tab-publicacoes', aba_inicial == 'tab-publicacoes') %}
+        <div class="py-2">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h3 class="font-bold text-lg text-main m-0">Central de Comunicação</h3>
+                    <p class="text-sm text-muted m-0 mt-1">Publique informações segmentadas e mantenha um changelog confiável para todo o ecossistema.</p>
+                </div>
+                <span class="luft-badge luft-badge-primary d-flex align-items-center gap-1">
+                    <i class="ph-bold ph-globe-hemisphere-west"></i>
+                    Sistema ID 0 publica globalmente
+                </span>
+            </div>
+
+            <div class="admin-modules-grid">
+                {% if pode_ver_comunicados %}
+                <a href="{{ url_comunicados | default('/publicacoes/comunicados') }}" class="module-card">
+                    <div class="module-card-icon">
+                        <i class="ph-bold ph-megaphone"></i>
+                    </div>
+                    <h4 class="module-card-title">Comunicados</h4>
+                    <p class="module-card-desc">
+                        Crie comunicados gerais ou direcionados a vários grupos. A publicação dispara notificações no sistema automaticamente.
+                    </p>
+                    <div class="module-card-action">
+                        Gerenciar comunicados <i class="ph-bold ph-arrow-right"></i>
+                    </div>
+                </a>
+                {% endif %}
+
+                {% if pode_ver_atualizacoes %}
+                <a href="{{ url_atualizacoes | default('/publicacoes/atualizacoes') }}" class="module-card">
+                    <div class="module-card-icon">
+                        <i class="ph-bold ph-rocket-launch"></i>
+                    </div>
+                    <h4 class="module-card-title">Notas de Atualização</h4>
+                    <p class="module-card-desc">
+                        Registre versões, novidades, melhorias, correções e itens de segurança em um changelog centralizado.
+                    </p>
+                    <div class="module-card-action">
+                        Gerenciar changelog <i class="ph-bold ph-arrow-right"></i>
+                    </div>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    {% endcall %}
+    {% endif %}
+
+    {# ====================================================================== #}
+    {# ── 4. ABA GLOBAL DE AUDITORIA & ANÁLISE ── #}
+    {# ====================================================================== #}
+    {% if pode_ver_auditoria %}
+    {% call ui.tab_panel('tab-auditoria', aba_inicial == 'tab-auditoria') %}
+        <div class="py-2">
+            {% include "luftbase/seguranca/_auditoria.html" %}
+        </div>
+    {% endcall %}
+    {% endif %}
+
+    {# ====================================================================== #}
+    {# ── 5. ABA DE CONFIGURAÇÕES GERAIS DO SISTEMA ── #}
+    {# ====================================================================== #}
+    {% if pode_ver_configuracoes %}
+    {% call ui.tab_panel('tab-configuracoes', aba_inicial == 'tab-configuracoes') %}
+        <div class="py-2">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h3 class="font-bold text-lg text-main m-0">Configurações Gerais</h3>
+                    <p class="text-sm text-muted m-0 mt-1">Parâmetros e rotinas administrativas específicas deste sistema.</p>
+                </div>
+            </div>
+
+            <div class="admin-modules-grid">
+                {% for parametro in parametros_aplicacao | default([]) %}
+                <a href="{{ parametro.url }}" class="module-card">
+                    <div class="module-card-icon">
+                        <i class="{{ parametro.icone }}"></i>
+                    </div>
+                    <h4 class="module-card-title">{{ parametro.titulo }}</h4>
+                    <p class="module-card-desc">{{ parametro.descricao }}</p>
+                    <div class="module-card-action">
+                        {{ parametro.acao }} <i class="ph-bold ph-arrow-right"></i>
+                    </div>
+                </a>
+                {% endfor %}
+                {% block extra_cards_configuracoes %}
+                {% if not (parametros_aplicacao | default([])) %}
+                <div class="luft-empty-state py-12 text-center luft-card" style="border-radius: var(--luft-radius-xl); border: 1px dashed var(--luft-border); grid-column: 1 / -1;">
+                    <div class="bg-primary-light text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 52px; height: 52px; font-size: 1.4rem;">
+                        <i class="ph-bold ph-sliders"></i>
+                    </div>
+                    <h4 class="font-bold text-main m-0 text-base">Parâmetros Gerais Padronizados</h4>
+                    <p class="text-sm text-muted m-0 mt-1" style="max-width: 480px; margin: 0 auto; line-height: 1.5;">
+                        Esta aplicação opera com parâmetros corporativos padronizados pelo LuftBase. Módulos ou rotinas específicas desta aplicação podem ser acoplados aqui através do template local da aplicação.
+                    </p>
+                </div>
+                {% endif %}
+                {% endblock %}
+            </div>
+
+            {# Ponto de extensão adicional para blocos customizados de cada aplicação #}
+            {% block config_custom %}{% endblock %}
+        </div>
+    {% endcall %}
+    {% endif %}
+
+    {# Painéis de abas extras providos por aplicações filhas #}
+    {% block extra_tab_panels %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ super() }}
+<script>
+    const CSRF_TOKEN = "{{ luft_csrf_token }}";
+
+    function exibirToast(titulo, mensagem, tipo = 'info') {
+        if (typeof LuftBase !== 'undefined' && typeof LuftBase.toast === 'function') {
+            LuftBase.toast(titulo, mensagem, tipo);
+        } else if (typeof LuftBase !== 'undefined' && typeof LuftBase.notificar === 'function') {
+            const t = tipo === 'error' ? 'danger' : tipo;
+            LuftBase.notificar(mensagem, t, titulo);
+        } else {
+            console.log(`[${tipo.toUpperCase()}] ${titulo}: ${mensagem}`);
+        }
+    }
+
+    // --------------------------------------------------------------------------
+    // Sub-Abas do Ambiente (Segmented Pills Control)
+    // --------------------------------------------------------------------------
+    function alternarSubAbaAmbiente(aba, atualizarUrl = true) {
+        const btnSistemas = document.getElementById('btnSubSistemas');
+        const btnVariaveis = document.getElementById('btnSubVariaveis');
+        const btnServicos = document.getElementById('btnSubServicos');
+        if (btnSistemas) btnSistemas.classList.toggle('active', aba === 'sistemas');
+        if (btnVariaveis) btnVariaveis.classList.toggle('active', aba === 'variaveis');
+        if (btnServicos) btnServicos.classList.toggle('active', aba === 'servicos');
+
+        const pSistemas = document.getElementById('subpainel-sistemas');
+        const pVariaveis = document.getElementById('subpainel-variaveis');
+        const pServicos = document.getElementById('subpainel-servicos');
+        if (pSistemas) pSistemas.style.display = (aba === 'sistemas') ? 'block' : 'none';
+        if (pVariaveis) pVariaveis.style.display = (aba === 'variaveis') ? 'block' : 'none';
+        if (pServicos) pServicos.style.display = (aba === 'servicos') ? 'block' : 'none';
+
+        if (atualizarUrl && window.history && window.history.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', 'tab-ambiente');
+            url.searchParams.set('sub', aba);
+            window.history.replaceState(null, '', url.pathname + url.search);
+        }
+
+        document.querySelectorAll('.luft-sidebar [data-tab="tab-ambiente"]').forEach(el => {
+            const elSub = el.getAttribute('data-sub');
+            if (elSub) el.classList.toggle('ativo', elSub === aba);
+        });
+
+        if (aba === 'variaveis') {
+            const selectProj = document.getElementById('selectProjetoOperacao');
+            const projId = selectProj ? selectProj.value : (projetoAtualVariaveis || '{{ projetos_operacao[0].idProjeto if projetos_operacao else "" }}');
+            if (projId) carregarVariaveisProjeto(projId);
+        }
+        if (aba === 'servicos') {
+            recarregarServicos(true);
+        }
+    }
+
+    // --------------------------------------------------------------------------
+    // Manutenção de Sistemas
+    // --------------------------------------------------------------------------
+    function atualizarBadgeStatus(id_sistema, is_manutencao) {
+        const label = document.getElementById(`sys-label-${id_sistema}`);
+        if(label) {
+            label.innerText = is_manutencao ? 'Manutenção' : 'Online';
+        }
+        
+        const pill = document.getElementById(`sys-pill-${id_sistema}`);
+        if(pill) {
+            pill.className = `status-pill ${is_manutencao ? 'offline' : 'online'}`;
+        }
+    }
+
+    async function alternarManutencaoIndividual(id_sistema, estado, nome_sistema) {
+        if (Number(id_sistema) === 0) {
+            exibirToast('Sistema protegido', 'O sistema base (ID 0) permite somente consulta.', 'warning');
+            return;
+        }
+
+        const toggle = document.getElementById(`sys-toggle-${id_sistema}`);
+        // Salva estado anterior para restaurar com precisão caso a chamada falhe
+        const estadoAnteriorChecked = toggle ? !toggle.checked : false;
+
+        try {
+            const req = await fetch('{{ url_for("Configuracoes.api_manutencao_alternar") }}', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': CSRF_TOKEN
+                },
+                body: JSON.stringify({ IdSistema: id_sistema, EmManutencao: estado })
+            });
+            const resp = await req.json();
+
+            if(resp.status === 'success') {
+                atualizarBadgeStatus(id_sistema, estado);
+                exibirToast('Status Atualizado', `${nome_sistema} agora está ${estado ? 'em Manutenção' : 'Online'}.`, 'info');
+            } else {
+                if (toggle) toggle.checked = estadoAnteriorChecked;
+                exibirToast('Atenção', resp.message || 'Sem permissão para alterar.', 'warning');
+            }
+        } catch (error) {
+            console.error('Erro ao alternar manutenção', error);
+            if (toggle) toggle.checked = estadoAnteriorChecked;
+            exibirToast('Erro', 'Falha ao comunicar com o servidor.', 'error');
+        }
+    }
+
+    async function alternarManutencaoLote(estado) {
+        const acaoTexto = estado ? 'COLOCAR EM MANUTENÇÃO' : 'TIRAR DE MANUTENÇÃO';
+        const confirmacao = confirm(`Atenção: Deseja realmente ${acaoTexto} todos os sistemas alteráveis? O sistema base será preservado.`);
+        if(!confirmacao) return;
+
+        const ids = [];
+        {% for sys in sistemas %}
+            {% if sys.Id_Sistema != 0 %}
+            ids.push({{ sys.Id_Sistema }});
+            {% endif %}
+        {% endfor %}
+
+        try {
+            const req = await fetch('{{ url_for("Configuracoes.api_manutencao_lote") }}', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': CSRF_TOKEN
+                },
+                body: JSON.stringify({ IdsSistemas: ids, EmManutencao: estado })
+            });
+            const resp = await req.json();
+
+            if(resp.status === 'success') {
+                ids.forEach(id => {
+                    const chk = document.getElementById(`sys-toggle-${id}`);
+                    if(chk) chk.checked = !estado;
+                    atualizarBadgeStatus(id, estado);
+                });
+                exibirToast('Sucesso', resp.message || 'Operação em lote concluída.', 'success');
+            } else {
+                exibirToast('Erro', resp.message || 'Falha ao executar operação em lote.', 'error');
+            }
+        } catch (error) {
+            console.error("Erro no lote", error);
+            exibirToast('Erro', 'Erro ao processar requisição.', 'error');
+        }
+    }
+
+    // --------------------------------------------------------------------------
+    // Gestão de Cores e Ícones
+    // --------------------------------------------------------------------------
+    function setarCor(inputId, pickerId, cor, previewBoxId) {
+        const inp = document.getElementById(inputId);
+        const pck = document.getElementById(pickerId);
+        if (inp) inp.value = cor;
+        if (pck) pck.value = cor;
+        atualizarPreviewCorIcone(previewBoxId, cor);
+    }
+
+    function atualizarPreviewCorIcone(boxId, cor) {
+        const box = document.getElementById(boxId);
+        if (box) {
+            box.style.color = cor || 'var(--luft-primary-600)';
+        }
+    }
+
+    function prefixoChaveSistema(nome) {
+        // Espelha prefixo_chave_sistema() do backend: a chave precisa começar por letra.
+        let prefixo = (nome || '').trim().replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase();
+        if (prefixo && !/^[A-Z]/.test(prefixo)) prefixo = `SISTEMA_${prefixo}`;
+        return prefixo.slice(0, 50);
+    }
+
+    function sugerirChavePermissao(nome) {
+        const prefixo = prefixoChaveSistema(nome);
+        const inp = document.getElementById('novoSysChavePermissao');
+        if (inp) {
+            inp.value = prefixo ? `${prefixo}.SISTEMA.ACESSAR` : '';
+        }
+    }
+
+    // --------------------------------------------------------------------------
+    // Modais de Criação & Edição Completa de Sistemas
+    // --------------------------------------------------------------------------
+    function abrirModalSistemaPorCard(card) {
+        if (!card) return;
+        const id = card.dataset.id;
+        if (Number(id) === 0) {
+            exibirToast('Sistema protegido', 'Os dados do sistema base podem ser consultados, mas não alterados.', 'warning');
+            return;
+        }
+
+        document.getElementById('editSysId').value = id;
+        const badge = document.getElementById('editSysIdBadge');
+        if (badge) badge.innerText = `#${id}`;
+
+        document.getElementById('editSysNome').value = card.dataset.nome || '';
+        document.getElementById('editSysCategoria').value = card.dataset.categoria || 'APLICACAO';
+        document.getElementById('editSysOrdem').value = card.dataset.ordem || 0;
+        document.getElementById('editSysDescricao').value = card.dataset.descricao || '';
+        
+        const icone = card.dataset.icone || 'ph-bold ph-app-window';
+        document.getElementById('editSysIcone').value = icone;
+        const prevIcone = document.getElementById('editSysIcone-preview');
+        if (prevIcone) prevIcone.className = icone;
+
+        const cor = card.dataset.cor || '';
+        document.getElementById('editSysCor').value = cor;
+        document.getElementById('editSysCorPicker').value = cor || '#2563eb';
+        atualizarPreviewCorIcone('editSysIcone-preview-box', cor);
+
+        document.getElementById('editSysLink').value = card.dataset.link || '';
+        document.getElementById('editSysUrlSaude').value = card.dataset.urlSaude || '';
+        document.getElementById('editSysResponsavel').value = card.dataset.responsavel || '';
+        document.getElementById('editSysContatoSuporte').value = card.dataset.contatoSuporte || '';
+        document.getElementById('editSysAtivo').checked = card.dataset.ativo !== 'false';
+        document.getElementById('editSysEmManutencao').checked = card.dataset.emManutencao === 'true';
+        document.getElementById('editSysChavePermissao').value = card.dataset.permissaoBase || 'Não configurada';
+        const editSchemaEl = document.getElementById('editSysSchema');
+        if (editSchemaEl) editSchemaEl.value = card.dataset.schema || '';
+
+        LuftBase.abrirModal('modalEditarSistema');
+    }
+
+    function abrirModalSistema(id, nome, descricao, icone, link) {
+        const card = document.querySelector(`.sistema-card[data-id="${id}"]`);
+        if (card) {
+            return abrirModalSistemaPorCard(card);
+        }
+    }
+
+    async function salvarConfiguracoesSistema() {
+        const id = document.getElementById('editSysId').value;
+        const nome = document.getElementById('editSysNome').value.trim();
+        if (!nome) {
+            exibirToast('Atenção', 'Nome do sistema é obrigatório.', 'warning');
+            return;
+        }
+
+        const payload = {
+            IdSistema: id,
+            Nome: nome,
+            Categoria: document.getElementById('editSysCategoria').value,
+            OrdemExibicao: document.getElementById('editSysOrdem').value,
+            Descricao: document.getElementById('editSysDescricao').value.trim(),
+            Icone: document.getElementById('editSysIcone').value.trim(),
+            Cor: document.getElementById('editSysCor').value.trim(),
+            Link: document.getElementById('editSysLink').value.trim(),
+            UrlSaude: document.getElementById('editSysUrlSaude').value.trim(),
+            Responsavel: document.getElementById('editSysResponsavel').value.trim(),
+            ContatoSuporte: document.getElementById('editSysContatoSuporte').value.trim(),
+            Ativo: document.getElementById('editSysAtivo').checked,
+            EmManutencao: document.getElementById('editSysEmManutencao').checked,
+            SchemaAplicacao: document.getElementById('editSysSchema')?.value?.trim() || null
+        };
+
+        try {
+            const req = await fetch('{{ url_for("Configuracoes.api_sistema_atualizar") }}', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'X-CSRF-Token': CSRF_TOKEN 
+                },
+                body: JSON.stringify(payload)
+            });
+            const resp = await req.json();
+
+            if (resp.status === 'success') {
+                exibirToast('Sucesso', 'Configurações atualizadas com sucesso.', 'success');
+                setTimeout(() => window.location.reload(), 600);
+            } else {
+                exibirToast('Erro', resp.message || 'Erro ao salvar as configurações.', 'error');
+            }
+        } catch (error) {
+            console.error('Erro ao salvar config', error);
+            exibirToast('Erro', 'Ocorreu um erro ao salvar as configurações.', 'error');
+        } finally {
+            LuftBase.fecharModal('modalEditarSistema');
+        }
+    }
+
+    function abrirModalNovoSistema() {
+        const form = document.getElementById('formNovoSistema');
+        if (form) form.reset();
+        
+        const idInput = document.getElementById('novoSysId');
+        if (idInput) idInput.value = '';
+        const schemaInput = document.getElementById('novoSysSchema');
+        if (schemaInput) schemaInput.value = '';
+
+        document.getElementById('novoSysCorPicker').value = '#2563eb';
+        document.getElementById('novoSysCor').value = '#2563eb';
+        atualizarPreviewCorIcone('novoSysIcone-preview-box', '#2563eb');
+
+        const prev = document.getElementById('novoSysIcone-preview');
+        if (prev) prev.className = 'ph-bold ph-app-window';
+        document.getElementById('novoSysIcone').value = 'ph-bold ph-app-window';
+
+        document.getElementById('novoSysAtivo').checked = true;
+        document.getElementById('novoSysEmManutencao').checked = false;
+
+        // Credenciais nunca sobrevivem entre aberturas do modal.
+        document.getElementById('novoSysProvisionar').checked = true;
+        document.getElementById('novoSysTokenVault').value = '';
+        document.getElementById('novoSysSenhaBanco').value = '';
+        document.getElementById('novoSysUsuarioBanco').value = 'admin';
+        carregarDestinoProvisionamento();
+        atualizarProvisionamentoSistema();
+
+        const permInput = document.getElementById('novoSysChavePermissao');
+        if (permInput) permInput.value = '';
+
+        const detalhesId = document.getElementById('detalhesNovoSysId');
+        if (detalhesId) detalhesId.open = false;
+        limparErrosNovoSistema();
+        atualizarEtapasCadastroSistema();
+        definirEnvioNovoSistema(false);
+
+        LuftBase.abrirModal('modalNovoSistema');
+    }
+
+    // Rótulos exibidos no resumo de erros, indexados pelo nome do campo no payload.
+    const ROTULOS_CAMPOS_SISTEMA = {
+        IdSistema: 'ID manual',
+        Nome: 'Nome do Sistema',
+        Categoria: 'Categoria',
+        OrdemExibicao: 'Ordem',
+        Descricao: 'Descrição Corporativa',
+        Icone: 'Ícone Representativo',
+        Cor: 'Cor Temática',
+        Link: 'Link / Rota Base',
+        UrlSaude: 'URL de Saúde',
+        Responsavel: 'Responsável Técnico / Área',
+        ContatoSuporte: 'Contato de Suporte',
+        SchemaAplicacao: 'Schema da Aplicação',
+        ChavePermissaoBase: 'Permissão Base de Acesso',
+        TokenOperadorVault: 'Token de operador do Vault',
+        UsuarioBanco: 'Usuário administrativo do PostgreSQL',
+        SenhaBanco: 'Senha do usuário administrativo'
+    };
+
+    async function carregarDestinoProvisionamento() {
+        const alvo = document.getElementById('novoSysDestino');
+        if (!alvo) return;
+        try {
+            const req = await fetch('{{ url_for("Configuracoes.api_sistema_destino_provisionamento") }}', {
+                headers: { 'Accept': 'application/json' }
+            });
+            const resp = await req.json();
+            if (!req.ok || resp.status !== 'success') throw new Error(resp.message || req.status);
+            alvo.innerHTML = `Destino: ambiente <strong>${escaparHtmlSistema(resp.ambiente)}</strong> · ` +
+                `banco <code>${escaparHtmlSistema(resp.banco)}</code> · ` +
+                `Vault <code>${escaparHtmlSistema(resp.vault)}</code> ` +
+                `(<code>${escaparHtmlSistema(resp.pasta_segredos)}</code>)`;
+            alvo.dataset.pasta = resp.pasta_segredos || '';
+            atualizarProvisionamentoSistema();
+        } catch (erro) {
+            alvo.textContent = 'Não foi possível carregar o destino do provisionamento.';
+        }
+    }
+
+    function slugSistema(nome) {
+        let slug = (nome || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        if (slug && !/^[a-z]/.test(slug)) slug = `sistema-${slug}`;
+        return slug;
+    }
+
+    function atualizarProvisionamentoSistema() {
+        const provisionar = document.getElementById('novoSysProvisionar')?.checked;
+        const campos = document.getElementById('novoSysCamposProvisionamento');
+        if (campos) campos.style.display = provisionar ? '' : 'none';
+        const schema = document.getElementById('novoSysSchema')?.value?.trim() || '';
+        const id = document.getElementById('novoSysId')?.value?.trim() || '<id>';
+        const pasta = document.getElementById('novoSysDestino')?.dataset?.pasta || 'sistemas';
+        const role = document.getElementById('novoSysPrevRole');
+        if (role) role.textContent = schema ? `luft_${schema}_app` : 'luft_<schema>_app';
+        const segredo = document.getElementById('novoSysPrevSegredo');
+        if (segredo) segredo.textContent = `${pasta}/${id}`;
+        const etapaRole = document.getElementById('etapaCadastroRole');
+        if (etapaRole) etapaRole.style.display = provisionar ? '' : 'none';
+        const etapaVault = document.getElementById('etapaCadastroVault');
+        if (etapaVault) etapaVault.classList.toggle('etapa-inativa', !provisionar);
+    }
+
+    function escaparHtmlSistema(texto) {
+        const div = document.createElement('div');
+        div.textContent = texto == null ? '' : String(texto);
+        return div.innerHTML;
+    }
+
+    function campoDoFormularioSistema(campo) {
+        return document.querySelector(`#formNovoSistema [data-campo="${campo}"]`);
+    }
+
+    function limparErroCampo(campo) {
+        const input = campoDoFormularioSistema(campo);
+        if (input) {
+            input.classList.remove('campo-invalido');
+            input.removeAttribute('aria-invalid');
+        }
+        const alvo = document.querySelector(`#formNovoSistema [data-erro-de="${campo}"]`);
+        if (alvo) {
+            alvo.classList.remove('visivel');
+            alvo.innerHTML = '';
+        }
+    }
+
+    function limparErrosNovoSistema() {
+        document.querySelectorAll('#formNovoSistema [data-erro-de]').forEach(el => limparErroCampo(el.dataset.erroDe));
+        const resumo = document.getElementById('resumoErrosNovoSistema');
+        if (resumo) resumo.classList.remove('visivel');
+        const lista = document.getElementById('resumoErrosNovoSistemaLista');
+        if (lista) lista.innerHTML = '';
+    }
+
+    function focarCampoSistema(campo) {
+        const input = campoDoFormularioSistema(campo);
+        if (!input) return;
+        if (campo === 'IdSistema') {
+            const detalhes = document.getElementById('detalhesNovoSysId');
+            if (detalhes) detalhes.open = true;
+        }
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input.focus({ preventScroll: true });
+    }
+
+    function exibirErrosNovoSistema(titulo, erros) {
+        limparErrosNovoSistema();
+        const campos = Object.keys(erros || {});
+        const lista = document.getElementById('resumoErrosNovoSistemaLista');
+        document.getElementById('resumoErrosNovoSistemaTitulo').textContent = titulo;
+
+        campos.forEach(campo => {
+            const mensagem = erros[campo];
+            const input = campoDoFormularioSistema(campo);
+            if (input) {
+                input.classList.add('campo-invalido');
+                input.setAttribute('aria-invalid', 'true');
+            }
+            const alvo = document.querySelector(`#formNovoSistema [data-erro-de="${campo}"]`);
+            if (alvo) {
+                alvo.innerHTML = `<i class="ph-bold ph-x-circle"></i><span>${escaparHtmlSistema(mensagem)}</span>`;
+                alvo.classList.add('visivel');
+            }
+            const rotulo = ROTULOS_CAMPOS_SISTEMA[campo] || campo;
+            const item = document.createElement('li');
+            item.innerHTML = `<a data-focar="${escaparHtmlSistema(campo)}">${escaparHtmlSistema(rotulo)}</a>: ${escaparHtmlSistema(mensagem)}`;
+            item.querySelector('a').addEventListener('click', () => focarCampoSistema(campo));
+            lista.appendChild(item);
+        });
+
+        const resumo = document.getElementById('resumoErrosNovoSistema');
+        resumo.classList.add('visivel');
+        resumo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (campos.length) {
+            focarCampoSistema(campos[0]);
+        }
+    }
+
+    function validarNovoSistemaLocal(payload) {
+        // Checagens rápidas no navegador; o backend repete todas e é a fonte da verdade.
+        const erros = {};
+        if (!payload.Nome) {
+            erros.Nome = 'Informe o nome do sistema. Este campo é obrigatório.';
+        } else if (!prefixoChaveSistema(payload.Nome)) {
+            erros.Nome = 'O nome precisa conter ao menos uma letra ou número.';
+        }
+        if (payload.IdSistema !== undefined && !/^[1-9][0-9]*$/.test(String(payload.IdSistema))) {
+            erros.IdSistema = 'O ID manual deve ser um número inteiro maior que zero.';
+        }
+        if (payload.OrdemExibicao !== '' && !/^[0-9]+$/.test(String(payload.OrdemExibicao))) {
+            erros.OrdemExibicao = 'A ordem deve ser um número inteiro a partir de 0.';
+        }
+        if (payload.Cor && !/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(payload.Cor)) {
+            erros.Cor = 'Cor inválida. Use hexadecimal no formato #RRGGBB (ex: #2563eb).';
+        }
+        const rotaValida = valor => !valor || (!/\s/.test(valor) && (valor.startsWith('/') || /^https?:\/\/[^/\s]+/.test(valor)));
+        if (!rotaValida(payload.Link)) {
+            erros.Link = "Use uma rota iniciada por '/' (ex: /Luft-Integrador/) ou uma URL http(s):// completa, sem espaços.";
+        }
+        if (!rotaValida(payload.UrlSaude)) {
+            erros.UrlSaude = "Use uma rota iniciada por '/' (ex: /Luft-Integrador/api/health) ou uma URL http(s):// completa, sem espaços.";
+        }
+        if (payload.ProvisionarInfraestrutura) {
+            if (!payload.SchemaAplicacao) {
+                erros.SchemaAplicacao = 'Informe o schema: ele é obrigatório para provisionar o banco e o Vault.';
+            }
+            if (!payload.TokenOperadorVault) erros.TokenOperadorVault = 'Informe o token de operador do Vault.';
+            if (!payload.UsuarioBanco) erros.UsuarioBanco = 'Informe o usuário administrativo do PostgreSQL (ex: admin).';
+            if (!payload.SenhaBanco) erros.SenhaBanco = 'Informe a senha do usuário administrativo.';
+        }
+        if (payload.SchemaAplicacao) {
+            if (payload.SchemaAplicacao !== payload.SchemaAplicacao.toLowerCase()) {
+                erros.SchemaAplicacao = `O schema deve ser todo em minúsculas (use '${payload.SchemaAplicacao.toLowerCase()}').`;
+            } else if (!/^[a-z_][a-z0-9_]{0,62}$/.test(payload.SchemaAplicacao)) {
+                erros.SchemaAplicacao = "Schema inválido. Comece com letra ou '_' e use apenas letras minúsculas, números e '_'. Hífens e espaços não são aceitos.";
+            }
+        }
+        return erros;
+    }
+
+    function atualizarEtapasCadastroSistema() {
+        const schema = document.getElementById('novoSysSchema')?.value?.trim() || '';
+        const etapa = document.getElementById('etapaCadastroSchema');
+        const nome = document.getElementById('etapaCadastroSchemaNome');
+        if (etapa) etapa.classList.toggle('etapa-inativa', !schema);
+        if (nome) nome.textContent = schema || '—';
+        limparErroCampo('SchemaAplicacao');
+        atualizarProvisionamentoSistema();
+    }
+
+    function definirEnvioNovoSistema(enviando) {
+        const botao = document.getElementById('btnCadastrarSistema');
+        if (!botao) return;
+        botao.disabled = enviando;
+        botao.innerHTML = enviando
+            ? '<i class="ph-bold ph-spinner ph-spin"></i> <span>Cadastrando...</span>'
+            : '<i class="ph-bold ph-plus"></i> <span>Cadastrar Sistema</span>';
+    }
+
+    async function salvarNovoSistema() {
+        const payload = {
+            Nome: document.getElementById('novoSysNome').value.trim(),
+            Categoria: document.getElementById('novoSysCategoria').value,
+            OrdemExibicao: document.getElementById('novoSysOrdem').value.trim(),
+            Descricao: document.getElementById('novoSysDescricao').value.trim(),
+            Icone: document.getElementById('novoSysIcone').value.trim(),
+            Cor: document.getElementById('novoSysCor').value.trim(),
+            Link: document.getElementById('novoSysLink').value.trim(),
+            UrlSaude: document.getElementById('novoSysUrlSaude').value.trim(),
+            Responsavel: document.getElementById('novoSysResponsavel').value.trim(),
+            ContatoSuporte: document.getElementById('novoSysContatoSuporte').value.trim(),
+            Ativo: document.getElementById('novoSysAtivo').checked,
+            EmManutencao: document.getElementById('novoSysEmManutencao').checked,
+            SchemaAplicacao: document.getElementById('novoSysSchema')?.value?.trim() || null,
+            ProvisionarInfraestrutura: document.getElementById('novoSysProvisionar').checked
+        };
+        if (payload.ProvisionarInfraestrutura) {
+            payload.TokenOperadorVault = document.getElementById('novoSysTokenVault').value.trim();
+            payload.UsuarioBanco = document.getElementById('novoSysUsuarioBanco').value.trim();
+            payload.SenhaBanco = document.getElementById('novoSysSenhaBanco').value;
+        }
+
+        const idInformado = document.getElementById('novoSysId')?.value?.trim();
+        if (idInformado) {
+            payload.IdSistema = idInformado;
+        }
+
+        const errosLocais = validarNovoSistemaLocal(payload);
+        const qtdLocais = Object.keys(errosLocais).length;
+        if (qtdLocais) {
+            exibirErrosNovoSistema(
+                `Corrija ${qtdLocais} campo${qtdLocais > 1 ? 's' : ''} antes de cadastrar:`,
+                errosLocais
+            );
+            return;
+        }
+
+        limparErrosNovoSistema();
+        definirEnvioNovoSistema(true);
+        try {
+            const req = await fetch('{{ url_for("Configuracoes.api_sistema_criar") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': CSRF_TOKEN
+                },
+                body: JSON.stringify(payload)
+            });
+
+            let resp = null;
+            try {
+                resp = await req.json();
+            } catch (_) {
+                resp = null;
+            }
+
+            if (req.ok && resp && resp.status === 'success') {
+                const etapas = Array.isArray(resp.etapas) && resp.etapas.length ? ' ' + resp.etapas.join(' ') : '';
+                document.getElementById('novoSysTokenVault').value = '';
+                document.getElementById('novoSysSenhaBanco').value = '';
+                exibirToast('Sistema cadastrado', (resp.message || 'Sistema cadastrado com sucesso.') + etapas, 'success');
+                LuftBase.fecharModal('modalNovoSistema');
+                setTimeout(() => window.location.reload(), 1200);
+                return;
+            }
+
+            // Erro: o modal continua aberto com tudo o que foi preenchido.
+            let mensagem;
+            if (resp && resp.message) {
+                mensagem = resp.message;
+            } else if (req.status === 401 || req.status === 403) {
+                mensagem = `Acesso negado (HTTP ${req.status}). Sua sessão pode ter expirado ou você não tem a permissão de criar sistemas.`;
+            } else {
+                mensagem = `O servidor respondeu com erro HTTP ${req.status} sem detalhes. Verifique o log do servidor.`;
+            }
+            exibirErrosNovoSistema(mensagem, (resp && resp.erros) || {});
+        } catch (error) {
+            console.error('Erro ao criar sistema', error);
+            exibirErrosNovoSistema('Não foi possível contatar o servidor. Verifique sua conexão e tente novamente.', {});
+        } finally {
+            definirEnvioNovoSistema(false);
+        }
+    }
+
+    // Ao corrigir um campo, o destaque de erro dele some imediatamente.
+    ['input', 'change'].forEach(evento => {
+        document.getElementById('formNovoSistema')?.addEventListener(evento, e => {
+            const campo = e.target?.dataset?.campo;
+            if (campo) limparErroCampo(campo);
+        });
+    });
+
+    // --------------------------------------------------------------------------
+    // Variáveis de Ambiente (.env)
+    // --------------------------------------------------------------------------
+    let variaveisCache = [];
+    let projetoAtualVariaveis = '';
+    const podeEditarAmbiente = {{ 'true' if pode_editar_ambiente else 'false' }};
+    const projetosProtegidos = new Set([
+        {% for projeto in projetos_operacao if projeto.protegido %}
+        {{ projeto.idProjeto|tojson }},
+        {% endfor %}
+    ].map(String));
+
+    function projetoSelecionadoProtegido(idProjeto) {
+        return projetosProtegidos.has(String(idProjeto || ''));
+    }
+
+    async function carregarVariaveisProjeto(idProjeto) {
+        projetoAtualVariaveis = idProjeto;
+        const corpo = document.getElementById('corpoTabelaVariaveis');
+        corpo.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-muted"><i class="ph-bold ph-spinner ph-spin"></i> Carregando variáveis do arquivo .env...</td></tr>';
+
+        try {
+            const req = await fetch(`{{ url_for("Configuracoes.api_ambiente_variaveis") }}?idProjeto=${encodeURIComponent(idProjeto)}`);
+            const resp = await req.json();
+
+            if (resp.status === 'success' && resp.data && resp.data.variaveis) {
+                variaveisCache = resp.data.variaveis;
+                renderizarTabelaVariaveis(variaveisCache);
+            } else {
+                corpo.innerHTML = `<tr><td colspan="4" class="text-center p-6 text-danger">${resp.message || 'Erro ao carregar variáveis.'}</td></tr>`;
+            }
+        } catch (erro) {
+            corpo.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-danger">Falha ao buscar variáveis do servidor.</td></tr>';
+        }
+    }
+
+    function renderizarTabelaVariaveis(lista) {
+        const corpo = document.getElementById('corpoTabelaVariaveis');
+        if (!lista.length) {
+            corpo.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-muted">Nenhuma variável permitida encontrada para este projeto.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        lista.forEach(item => {
+            html += `
+                <tr>
+                    <td style="padding: 14px 20px;">
+                        <span class="font-mono font-bold text-main">${item.chave}</span>
+                    </td>
+                    <td style="padding: 14px 20px;">
+                        <span class="font-mono text-xs text-muted" style="max-width: 320px; display: inline-block; word-break: break-all;">
+                            ${item.valor || '<span class="opacity-50">(não configurado)</span>'}
+                        </span>
+                    </td>
+                    <td style="padding: 14px 20px;" class="text-xs text-muted">
+                        ${item.descricao || '-'}
+                    </td>
+                    <td style="padding: 14px 20px; text-align: right;">
+                        ${item.permiteEdicao && podeEditarAmbiente ? `
+                            <button type="button" class="btn btn-sm btn-outline d-inline-flex align-items-center gap-1" onclick="abrirModalVariavel('${item.chave}', '${(item.valor || "").replace(/'/g, "\\'")}', '${(item.descricao || "").replace(/'/g, "\\'")}')" title="Editar valor">
+                                <i class="ph-bold ph-pencil"></i>
+                                <span>Editar</span>
+                            </button>
+                        ` : '<span class="text-xs text-muted font-mono"><i class="ph-bold ph-lock"></i> Bloqueada</span>'}
+                    </td>
+                </tr>
+            `;
+        });
+        corpo.innerHTML = html;
+    }
+
+    function filtrarTabelaVariaveis(termo) {
+        const t = (termo || '').toLowerCase().trim();
+        const filtradas = variaveisCache.filter(v => v.chave.toLowerCase().includes(t) || (v.descricao && v.descricao.toLowerCase().includes(t)));
+        renderizarTabelaVariaveis(filtradas);
+    }
+
+    function abrirModalVariavel(chave, valor, descricao) {
+        if (projetoSelecionadoProtegido(projetoAtualVariaveis)) {
+            exibirToast('Ambiente protegido', 'As variáveis do sistema base permitem somente consulta.', 'warning');
+            return;
+        }
+
+        document.getElementById('editVarProjeto').value = projetoAtualVariaveis;
+        document.getElementById('editVarChave').value = chave;
+        document.getElementById('editVarValor').value = valor;
+        document.getElementById('editVarDescricao').innerText = descricao || 'Esta variável afeta o comportamento da aplicação após reinício do processo.';
+        LuftBase.abrirModal('modalEditarVariavel');
+    }
+
+    async function salvarVariavelEnv() {
+        const projeto = document.getElementById('editVarProjeto').value;
+        const chave = document.getElementById('editVarChave').value;
+        const valor = document.getElementById('editVarValor').value;
+
+        if (projetoSelecionadoProtegido(projeto)) {
+            exibirToast('Ambiente protegido', 'As variáveis do sistema base não podem ser alteradas.', 'warning');
+            return;
+        }
+
+        try {
+            const req = await fetch('{{ url_for("Configuracoes.api_ambiente_variaveis_salvar") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+                body: JSON.stringify({ idProjeto: projeto, chave: chave, valor: valor })
+            });
+            const resp = await req.json();
+
+            if (resp.status === 'success') {
+                exibirToast('Sucesso', 'Variável atualizada no arquivo .env.', 'success');
+                LuftBase.fecharModal('modalEditarVariavel');
+                carregarVariaveisProjeto(projeto);
+            } else {
+                exibirToast('Erro', resp.message || 'Falha ao atualizar variável.', 'error');
+            }
+        } catch (erro) {
+            exibirToast('Erro', 'Ocorreu um erro ao salvar a variável.', 'error');
+        }
+    }
+
+    function recarregarVariaveis() {
+        const selectProj = document.getElementById('selectProjetoOperacao');
+        const projId = selectProj ? selectProj.value : (projetoAtualVariaveis || '{{ projetos_operacao[0].idProjeto if projetos_operacao else "" }}');
+        if (projId) {
+            carregarVariaveisProjeto(projId);
+            exibirToast('Arquivo .env', 'Recarregando variáveis do ambiente...', 'info');
+        }
+    }
+
+    // --------------------------------------------------------------------------
+    // Serviços do Servidor
+    // --------------------------------------------------------------------------
+    async function executarAcaoServico(idServico, acao) {
+        const cardServico = document.getElementById(`card-servico-${idServico}`);
+        if (cardServico && cardServico.dataset.protegido === 'true') {
+            exibirToast('Serviço protegido', 'Serviços do sistema base permitem somente monitoramento.', 'warning');
+            return;
+        }
+
+        const confirmacao = confirm(`Deseja realmente ${acao.toUpperCase()} o serviço '${idServico}'?`);
+        if (!confirmacao) return;
+
+        try {
+            const req = await fetch('{{ url_for("Configuracoes.api_ambiente_servicos_acao") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+                body: JSON.stringify({ idServico: idServico, acao: acao })
+            });
+            const resp = await req.json();
+
+            if (resp.status === 'success') {
+                exibirToast('Sucesso', resp.message, 'success');
+                recarregarServicos();
+            } else {
+                exibirToast('Erro', resp.message || 'Falha ao executar ação de serviço.', 'error');
+            }
+        } catch (erro) {
+            exibirToast('Erro', 'Erro ao comunicar com o host.', 'error');
+        }
+    }
+
+    async function recarregarServicos(silencioso = false) {
+        try {
+            const req = await fetch('{{ url_for("Configuracoes.api_ambiente_servicos") }}');
+            const resp = await req.json();
+            if (resp.status === 'success' && resp.data && resp.data.servicos) {
+                resp.data.servicos.forEach(serv => {
+                    const card = document.getElementById(`card-servico-${serv.idServico}`);
+                    const badge = document.getElementById(`badge-servico-${serv.idServico}`);
+                    if (badge) {
+                        badge.innerText = serv.status;
+                        badge.className = `luft-badge ${serv.status === 'RUNNING' ? 'luft-badge-success' : (serv.status === 'STOPPED' ? 'luft-badge-danger' : 'luft-badge-secondary')}`;
+                    }
+                    if (card) {
+                        const protegido = serv.protegido === true || card.dataset.protegido === 'true';
+                        const smallNome = card.querySelector('small.font-mono');
+                        if (smallNome && serv.nomeServico) {
+                            smallNome.innerText = serv.nomeServico;
+                        }
+                        const btnIniciar = card.querySelector('button[onclick*="iniciar"]');
+                        const btnParar = card.querySelector('button[onclick*="parar"]');
+                        const btnReiniciar = card.querySelector('button[onclick*="reiniciar"]');
+                        if (btnIniciar) btnIniciar.disabled = protegido || serv.status === 'RUNNING' || !serv.nomeServico;
+                        if (btnParar) btnParar.disabled = protegido || serv.status !== 'RUNNING' || !serv.nomeServico;
+                        if (btnReiniciar) btnReiniciar.disabled = protegido || !serv.nomeServico;
+                    }
+                });
+                if (!silencioso) {
+                    exibirToast('Status Atualizado', 'Serviços consultados com sucesso.', 'info');
+                }
+            }
+        } catch (erro) {
+            console.error('Erro ao recarregar serviços', erro);
+        }
+    }
+
+    function filtrarSistemas(termo) {
+        const t = (termo || '').toLowerCase().trim();
+        document.querySelectorAll('#container-sistemas .sistema-card').forEach(card => {
+            const nome = card.dataset.nome || '';
+            card.style.display = nome.includes(t) ? 'flex' : 'none';
+        });
+    }
+
+    // --------------------------------------------------------------------------
+    // Sincronização e Deep-Linking de Abas e Sub-Abas do Painel
+    // --------------------------------------------------------------------------
+    function alternarAbaPainel(tabId, subId = null, atualizarHistorico = true) {
+        if (!tabId) return;
+        const btnTab = document.querySelector(`.painel-wrapper .luft-tab-btn[onclick*="${tabId}"]`);
+        if (btnTab && typeof LuftBase !== 'undefined' && typeof LuftBase.abrirTab === 'function') {
+            LuftBase.abrirTab(btnTab, tabId);
+        }
+        if (subId && typeof alternarSubAbaAmbiente === 'function') {
+            if (tabId === 'tab-ambiente') alternarSubAbaAmbiente(subId, false);
+        }
+
+        // Sincroniza estado visual no menu lateral
+        document.querySelectorAll('.luft-sidebar [data-tab]').forEach(el => {
+            const elTab = el.getAttribute('data-tab');
+            const elSub = el.getAttribute('data-sub');
+            const ehAtivo = (elTab === tabId) && (!subId || !elSub || elSub === subId);
+            el.classList.toggle('ativo', ehAtivo);
+        });
+
+        if (atualizarHistorico && window.history && window.history.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tabId);
+            if (subId) url.searchParams.set('sub', subId);
+            else url.searchParams.delete('sub');
+            window.history.replaceState(null, '', url.pathname + url.search);
+        }
+    }
+
+    function ativarAbaPorUrl() {
+        const params = new URLSearchParams(window.location.search);
+        let tab = params.get('tab') || (window.location.hash ? window.location.hash.replace('#', '').split(':')[0] : null);
+        let sub = params.get('sub') || (window.location.hash && window.location.hash.includes(':') ? window.location.hash.split(':')[1] : null);
+
+        if (tab) {
+            alternarAbaPainel(tab, sub, false);
+        }
+    }
+
+    window.addEventListener('popstate', ativarAbaPorUrl);
+    document.addEventListener('DOMContentLoaded', () => {
+        ativarAbaPorUrl();
+
+        // Envolve os botões de tab do próprio painel para atualizar a URL e a Sidebar
+        document.querySelectorAll('.painel-wrapper .luft-tab-btn').forEach(btn => {
+            const match = (btn.getAttribute('onclick') || '').match(/abrirTab\([^,]+,\s*'([^']+)'\)/);
+            if (match && match[1]) {
+                const tabId = match[1];
+                btn.addEventListener('click', () => {
+                    let subId = null;
+                    if (tabId === 'tab-ambiente') {
+                        subId = document.querySelector('#btnSubSistemas.active, #btnSubVariaveis.active, #btnSubServicos.active')?.id?.replace('btnSub', '')?.toLowerCase() || 'sistemas';
+                    }
+                    if (window.history && window.history.replaceState) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('tab', tabId);
+                        if (subId) url.searchParams.set('sub', subId);
+                        else url.searchParams.delete('sub');
+                        window.history.replaceState(null, '', url.pathname + url.search);
+                    }
+                    document.querySelectorAll('.luft-sidebar [data-tab]').forEach(el => {
+                        const elTab = el.getAttribute('data-tab');
+                        const elSub = el.getAttribute('data-sub');
+                        const ehAtivo = (elTab === tabId) && (!subId || !elSub || elSub === subId);
+                        el.classList.toggle('ativo', ehAtivo);
+                    });
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

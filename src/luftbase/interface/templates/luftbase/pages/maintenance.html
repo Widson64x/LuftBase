@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema em Manutenção - {{ luft_nome_app | default('LuftControl') }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.13.0/lottie.min.js" defer></script>
+
+    <style>
+        /* Mapeamento das Variáveis Nativas do LuftBase para independência da tela */
+        :root {
+            --luft-bg-app: #f8fafc;
+            --luft-bg-panel: #ffffff;
+            --luft-border: #e2e8f0;
+            --luft-text-main: #0f172a;
+            --luft-text-muted: #64748b;
+            --luft-primary-500: var(--luft-primary-500, #3b82f6);
+            --luft-warning-500: #f59e0b;
+            --luft-warning-50: #fffbeb;
+            --luft-radius-lg: 16px;
+            --luft-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        }
+
+        /* Suporte automático ao Dark Mode do sistema */
+        [data-theme="dark"] {
+            --luft-bg-app: #0f172a;
+            --luft-bg-panel: #1e293b;
+            --luft-border: #334155;
+            --luft-text-main: #f8fafc;
+            --luft-text-muted: #94a3b8;
+            --luft-warning-50: rgba(245, 158, 11, 0.1);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--luft-bg-app);
+            color: var(--luft-text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        /* Container principal com animação suave de entrada */
+        .luft-maintenance-card {
+            background: var(--luft-bg-panel);
+            border: 1px solid var(--luft-border);
+            border-radius: var(--luft-radius-lg);
+            box-shadow: var(--luft-shadow-lg);
+            max-width: 480px;
+            width: 100%;
+            padding: 48px 40px;
+            text-align: center;
+            animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+
+        /* Ilustração animada da manutenção */
+        .luft-animation-wrapper {
+            width: min(100%, 360px);
+            aspect-ratio: 16 / 9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+
+        .luft-animation-player {
+            width: 100%;
+            height: 100%;
+        }
+
+        .luft-animation-player svg {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .luft-animation-fallback {
+            width: 80px;
+            height: 80px;
+            background: var(--luft-warning-50);
+            color: var(--luft-warning-500);
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            animation: pulseContainer 2.5s infinite ease-in-out;
+        }
+
+        .luft-animation-wrapper.is-fallback .luft-animation-fallback {
+            display: flex;
+        }
+
+        .luft-animation-wrapper.is-fallback .luft-animation-player {
+            display: none;
+        }
+
+        /* Classe de rotação contínua e linear para a engrenagem */
+        .luft-spin-gear {
+            display: inline-block;
+            animation: luftSpin 5s linear infinite;
+        }
+
+        /* Elementos de conteúdo aparecem progressivamente (Fade-In com delays) */
+        .luft-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+            letter-spacing: -0.5px;
+            animation: fadeInProgress 0.5s ease forwards;
+            animation-delay: 0.15s;
+            opacity: 0;
+        }
+
+        .luft-desc {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--luft-text-muted);
+            margin: 0 0 32px 0;
+            animation: fadeInProgress 0.5s ease forwards;
+            animation-delay: 0.25s;
+            opacity: 0;
+        }
+
+        .luft-status-box {
+            background: var(--luft-bg-app);
+            border: 1px solid var(--luft-border);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--luft-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: fadeInProgress 0.5s ease forwards;
+            animation-delay: 0.35s;
+            opacity: 0;
+        }
+
+        .luft-pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--luft-warning-500);
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .luft-pulse-dot::after {
+            content: '';
+            position: absolute;
+            top: -4px; left: -4px; right: -4px; bottom: -4px;
+            border-radius: 50%;
+            border: 2px solid var(--luft-warning-500);
+            animation: pulse 2s infinite ease-out;
+        }
+
+        .luft-footer-brand {
+            margin-top: 32px;
+            font-size: 0.8rem;
+            color: var(--luft-text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px; /* Aumentei um pouco o gap para respirar com a logo */
+            font-weight: 500;
+            animation: fadeInProgress 0.5s ease forwards;
+            animation-delay: 0.45s;
+            opacity: 0;
+        }
+
+        .luft-footer-brand img {
+            width: 20px; /* Tamanho proporcional para rodapé */
+            height: auto;
+            border-radius: 4px; /* Suaviza as bordas caso a imagem seja quadrada */
+        }
+
+        .luft-admin-link {
+            display: inline-block;
+            margin-top: 24px;
+            font-size: 0.75rem;
+            color: var(--luft-text-muted);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            animation: fadeInProgress 0.5s ease forwards;
+            animation-delay: 0.55s;
+            opacity: 0;
+        }
+
+        .luft-admin-link:hover {
+            color: var(--luft-primary-500);
+            text-decoration: underline;
+        }
+
+        /* Definição das Keyframes de Animação */
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInProgress {
+            from { opacity: 0; }
+            to { opacity: 0.8; } /* Link e footer ficam com opacidade sutil */
+        }
+        
+        .luft-title, .luft-desc, .luft-status-box {
+            /* Força os elementos principais a irem para opacidade total após o fade */
+            animation-fill-mode: forwards;
+        }
+        .luft-title { to { opacity: 1; } }
+        .luft-desc { to { opacity: 1; } }
+        .luft-status-box { to { opacity: 1; } }
+
+        @keyframes luftSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+
+        @keyframes pulseContainer {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+            50% { box-shadow: 0 0 16px 2px rgba(245, 158, 11, 0.1); }
+        }
+    </style>
+</head>
+<body data-theme="{{ luft_theme | default('light') }}">
+
+    <div class="luft-maintenance-card">
+        <div id="luft-maintenance-animation-wrapper" class="luft-animation-wrapper" aria-hidden="true">
+            <div id="luft-maintenance-animation" class="luft-animation-player"></div>
+            <div class="luft-animation-fallback">
+                <i class="ph-bold ph-gear luft-spin-gear"></i>
+            </div>
+        </div>
+        
+        <h1 class="luft-title">Sistema em Manutenção</h1>
+        
+        <p class="luft-desc">
+            {{ mensagem | default('Estamos realizando uma atualização de infraestrutura para melhorar os recursos do sistema. Retornaremos à operação normal em breve.') }}
+        </p>
+        
+        <div class="luft-status-box">
+            <div class="luft-pulse-dot"></div>
+            Operação em Manutenção
+        </div>
+        
+        <div class="luft-footer-brand">
+            <img src="{{ url_for('luftbase.static', filename='icons/luft-logo-150x150-Dark.png') }}" alt="Logo Luft">
+            <span>{{ luft_company_name | default('Luft Logistics') }}</span>
+        </div>
+
+        <a href="{{ request.script_root }}/login" class="luft-admin-link">
+            Acesso Administrativo
+        </a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const wrapper = document.getElementById('luft-maintenance-animation-wrapper');
+            const container = document.getElementById('luft-maintenance-animation');
+            const animations = [
+                "{{ url_for('luftbase.static', filename='video/Maintenance1.json') }}",
+                "{{ url_for('luftbase.static', filename='video/Maintenance2.json') }}"
+            ];
+            const animationPath = animations[Math.floor(Math.random() * animations.length)];
+
+            if (!window.lottie) {
+                wrapper.classList.add('is-fallback');
+                return;
+            }
+
+            const animation = window.lottie.loadAnimation({
+                container: container,
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                path: animationPath,
+                rendererSettings: {
+                    preserveAspectRatio: 'xMidYMid meet'
+                }
+            });
+
+            animation.addEventListener('data_failed', function () {
+                animation.destroy();
+                wrapper.classList.add('is-fallback');
+            });
+        });
+    </script>
+
+</body>
+</html>

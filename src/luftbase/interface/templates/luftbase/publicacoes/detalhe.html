@@ -1,0 +1,63 @@
+{% extends layout_base | default('luftbase/base.html') %}
+
+{% block titulo %}{{ publicacao.titulo }}{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/publicacoes.css') }}">
+{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_raiz_aplicacao | default('/') }}" class="luft-breadcrumb-item d-flex align-items-center gap-1 text-muted text-decoration-none" style="text-decoration: none;">
+    <i class="ph-fill ph-house"></i> {{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default(luft_app_name) | default('Luft-WorkSpace') }}
+</a>
+<i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
+<a href="{{ url_for('LuftPublicacoes.listar_comunicados' if publicacao.tipo_publicacao == 'COMUNICADO' else 'LuftPublicacoes.listar_atualizacoes') }}" class="luft-breadcrumb-item text-muted text-decoration-none" style="text-decoration: none;">
+    {{ 'Comunicados' if publicacao.tipo_publicacao == 'COMUNICADO' else 'Notas de Atualização' }}
+</a>
+<i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
+<span class="luft-breadcrumb-item active font-semibold">{{ publicacao.titulo }}</span>
+{% endblock %}
+
+{% block content %}
+<main class="publicacao-detail-shell">
+    <button type="button" class="publicacao-detail-back" onclick="history.back()"><i class="ph-bold ph-arrow-left"></i> Voltar</button>
+    <article class="publicacao-detail">
+        <header class="publicacao-detail-header prioridade-{{ publicacao.prioridade|lower }}">
+            <div class="publicacao-detail-icon"><i class="ph-bold {{ 'ph-megaphone' if publicacao.tipo_publicacao == 'COMUNICADO' else 'ph-rocket-launch' }}"></i></div>
+            <div class="publicacao-detail-heading">
+                <div class="publicacao-badges">
+                    <span class="publicacao-chip global">{{ 'COMUNICADO' if publicacao.tipo_publicacao == 'COMUNICADO' else 'CHANGELOG' }}</span>
+                    {% if publicacao.versao %}<span class="publicacao-version">v{{ publicacao.versao|replace('v', '') }}</span>{% endif %}
+                    {% if publicacao.id_sistema == 0 %}<span class="publicacao-chip"><i class="ph-bold ph-globe"></i> Global</span>{% endif %}
+                    {% if publicacao.fonte != 'INTERNO' %}<span class="publicacao-chip fonte"><i class="ph-bold ph-envelope"></i> {{ publicacao.fonte }}</span>{% endif %}
+                </div>
+                <h1>{{ publicacao.titulo }}</h1>
+                {% if publicacao.resumo %}<p>{{ publicacao.resumo }}</p>{% endif %}
+            </div>
+        </header>
+        <div class="publicacao-detail-meta">
+            <span><i class="ph ph-user"></i> {{ publicacao.criado_por }}</span>
+            <span><i class="ph ph-calendar-blank"></i> {{ (publicacao.data_publicacao or publicacao.data_criacao or '')[:16]|replace('T', ' ') }}</span>
+            <span><i class="ph ph-users"></i> {{ 'Geral' if publicacao.tipo_audiencia == 'GERAL' else 'Grupo direcionado' }}</span>
+        </div>
+        <div class="publicacao-detail-content">{{ publicacao.conteudo }}</div>
+
+        {% if publicacao.itens_atualizacao %}
+        <section class="publicacao-changelog">
+            <h2>O que mudou</h2>
+            {% for item in publicacao.itens_atualizacao %}
+            <div class="publicacao-changelog-item item-{{ item.tipo|lower }}">
+                <span>{{ item.tipo }}</span>
+                <div><h3>{{ item.titulo }}</h3>{% if item.descricao %}<p>{{ item.descricao }}</p>{% endif %}</div>
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        {% if publicacao.url_externa %}
+        <footer class="publicacao-external"><i class="ph-bold ph-arrow-square-out"></i><div><strong>Conteúdo de origem externa</strong><span>{{ publicacao.remetente_externo or publicacao.fonte }}</span></div><a class="btn btn-outline btn-sm" href="{{ publicacao.url_externa }}" rel="noopener noreferrer">Abrir origem</a></footer>
+        {% endif %}
+    </article>
+</main>
+{% endblock %}

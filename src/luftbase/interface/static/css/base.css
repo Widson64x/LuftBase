@@ -1,0 +1,147 @@
+/* Adaptadores oficiais do LuftBase sobre a identidade visual corporativa. */
+
+:root {
+  --luft-cor-fundo: var(--luft-bg-app);
+  --luft-cor-superficie: var(--luft-bg-panel);
+  --luft-cor-superficie-elevada: var(--luft-bg-panel-hover);
+  --luft-cor-texto: var(--luft-text-main);
+  --luft-cor-texto-suave: var(--luft-text-muted);
+  --luft-cor-texto-inverso: #fff;
+  --luft-cor-borda: var(--luft-border);
+  --luft-cor-destaque: var(--luft-primary-600);
+  --luft-cor-foco: #f59e0b;
+  --luft-cor-sucesso: var(--luft-success-600);
+  --luft-cor-alerta: var(--luft-warning-600);
+  --luft-cor-perigo: var(--luft-danger-600);
+  --luft-espaco-1: var(--luft-space-1);
+  --luft-espaco-2: var(--luft-space-2);
+  --luft-espaco-3: var(--luft-space-3);
+  --luft-espaco-4: var(--luft-space-4);
+  --luft-espaco-5: var(--luft-space-6);
+  --luft-raio-medio: var(--luft-radius-lg);
+  --luft-raio-grande: var(--luft-radius-2xl);
+  --luft-sombra-media: var(--luft-shadow-md);
+}
+
+button, input, select, textarea { font: inherit; }
+
+:focus-visible {
+  outline: 3px solid var(--luft-cor-foco) !important;
+  outline-offset: 3px;
+}
+
+.luft-somente-leitor {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.luft-pular-conteudo {
+  position: fixed;
+  top: .5rem;
+  left: .5rem;
+  z-index: 9999;
+  padding: .75rem 1rem;
+  color: #fff;
+  background: var(--luft-primary-hover, var(--luft-primary-700));
+  border-radius: .625rem;
+  transform: translateY(-160%);
+}
+
+.luft-pular-conteudo:focus { transform: translateY(0); }
+.luft-logo { color: inherit; text-decoration: none; }
+.luft-logo-icon-wrapper { position: relative; display: inline-grid; width: 42px; height: 42px; place-items: center; }
+.luft-logo-img { position: absolute; width: 42px; height: 42px; object-fit: contain; }
+.luft-logo-escuro { display: none; }
+[data-theme="dark"] .luft-logo-claro { display: none; }
+[data-theme="dark"] .luft-logo-escuro { display: block; }
+.luft-logo-text { display: grid; min-width: 0; line-height: 1.05; }
+.luft-logo-text strong { font-size: 1.05rem; letter-spacing: .08em; }
+.luft-logo-text small { max-width: 165px; margin-top: .3rem; overflow: hidden; color: var(--luft-primary-600); font-size: .68rem; font-weight: 750; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.luft-sidebar-toggle { font-size: 1.35rem; font-weight: 800; }
+.luft-sidebar.collapsed .luft-sidebar-toggle span:first-child { display: inline-block; transform: rotate(180deg); }
+.luft-sidebar.collapsed .luft-seletor-tema { display: none; }
+.luft-nav-icone { display: inline-grid; width: 1.5rem; margin-right: .5rem; place-items: center; color: var(--luft-primary-600); font-size: 1.05rem; }
+.luft-nav-link > span:last-child { margin-right: auto; }
+
+.luft-sidebar-footer { display: grid; gap: .85rem; padding: 1rem; border-top: 1px solid var(--luft-border); }
+.luft-user { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.luft-avatar { display: grid; width: 2.45rem; height: 2.45rem; flex: 0 0 auto; place-items: center; color: #fff; background: linear-gradient(145deg, var(--luft-primary-500), var(--luft-primary-800)); border-radius: 50%; font-weight: 800; box-shadow: var(--luft-shadow-sm); }
+.luft-user-info { display: grid; min-width: 0; }
+.luft-user-info strong, .luft-user-info small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.luft-user-info strong { font-size: .82rem; }
+.luft-user-info small { color: var(--luft-text-muted); font-size: .68rem; }
+.luft-actions { display: flex; align-items: center; gap: .5rem; }
+.luft-seletor-tema { min-width: 0; height: 2.35rem; flex: 1; padding: 0 .65rem; color: var(--luft-text-main); background: var(--luft-bg-panel-hover); border: 1px solid var(--luft-border); border-radius: .65rem; font-size: .75rem; }
+.luft-btn-action { display: inline-grid; width: 2.35rem; height: 2.35rem; flex: 0 0 auto; place-items: center; color: var(--luft-text-main); background: var(--luft-bg-panel-hover); border: 1px solid var(--luft-border); border-radius: .65rem; cursor: pointer; text-decoration: none; }
+.luft-btn-action:hover { color: var(--luft-primary-600); border-color: var(--luft-primary-300); }
+
+.luft-main { min-width: 0; }
+.luft-topbar-identidade { display: flex; align-items: center; gap: .75rem; }
+.luft-topbar-identidade strong { display: block; font-size: .95rem; }
+.luft-topbar-contexto { margin: 0 0 .1rem; color: var(--luft-primary-600); font-size: .62rem; font-weight: 800; letter-spacing: .13em; }
+.luft-menu-mobile { display: none; padding: .4rem .6rem; color: var(--luft-text-main); background: transparent; border: 1px solid var(--luft-border); border-radius: .5rem; }
+.luft-content { overflow-y: auto; }
+.luft-main-footer { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .6rem 1.5rem; color: var(--luft-text-muted); background: var(--luft-bg-panel); border-top: 1px solid var(--luft-border); font-size: .68rem; }
+.luft-footer-version-link { position: absolute; right: 12px; bottom: 4px; text-decoration: none; cursor: pointer; }
+.luft-footer-version-link:hover .luft-footer-version-meta { opacity: 1; color: var(--luft-primary-600); text-decoration: underline; }
+.luft-footer-version-meta { font-size: 0.58rem; line-height: 1; text-align: right; color: var(--luft-text-muted); opacity: 0.65; letter-spacing: 0.3px; transition: all 0.2s ease; }
+
+.luft-botao,
+.luft-campo input,
+.luft-campo select,
+.luft-campo textarea {
+  min-height: 2.75rem;
+  padding: .625rem .875rem;
+  color: var(--luft-text-main);
+  background: var(--luft-bg-panel);
+  border: 1px solid var(--luft-border);
+  border-radius: var(--luft-radius-lg);
+}
+.luft-botao { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; cursor: pointer; font-weight: 700; text-decoration: none; }
+.luft-botao:hover { background: var(--luft-bg-panel-hover); }
+.luft-botao-primario { color: #fff; background: var(--luft-primary-600); border-color: transparent; }
+.luft-botao-primario:hover { background: var(--luft-primary-hover, var(--luft-primary-700)); }
+.luft-botao-secundario { background: var(--luft-bg-panel); }
+.luft-cartao { padding: 1.5rem; background: var(--luft-bg-panel); border: 1px solid var(--luft-border); border-radius: var(--luft-radius-2xl); box-shadow: var(--luft-shadow-md); }
+.luft-texto-suave { color: var(--luft-text-muted); }
+.luft-campo { display: grid; gap: .5rem; margin-block: 1rem; }
+.luft-alerta { padding: 1rem; border: 1px solid var(--luft-border); border-left: .35rem solid var(--luft-primary-600); border-radius: .625rem; }
+.luft-alerta-perigo { border-left-color: var(--luft-danger-600); }
+.luft-distintivo { display: inline-flex; padding: .2rem .55rem; background: var(--luft-bg-panel-hover); border-radius: 999px; font-size: .8rem; font-weight: 700; }
+.luft-anuncios { position: fixed; right: 1rem; bottom: 1rem; z-index: 900; }
+.luft-admin-cabecalho { margin-bottom: 1.5rem; }
+.luft-admin-cabecalho h1, .luft-admin-secao h2 { margin: 0; }
+.luft-admin-cabecalho > p:last-child { max-width: 52rem; margin-top: .5rem; color: var(--luft-text-muted); }
+.luft-admin-sobretitulo { margin: 0 0 .35rem; color: var(--luft-primary-600); font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.luft-admin-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+.luft-admin-modulo { display: flex; gap: 1rem; padding: 1.25rem; color: var(--luft-text-main); background: var(--luft-bg-panel); border: 1px solid var(--luft-border); border-radius: var(--luft-radius-2xl); box-shadow: var(--luft-shadow-sm); text-decoration: none; }
+.luft-admin-modulo:hover { border-color: var(--luft-primary-300); box-shadow: var(--luft-shadow-md); transform: translateY(-2px); }
+.luft-admin-modulo > span:last-child { display: grid; gap: .35rem; }
+.luft-admin-modulo small { color: var(--luft-text-muted); line-height: 1.45; }
+.luft-admin-icone { display: grid; width: 2.5rem; height: 2.5rem; flex: 0 0 auto; place-items: center; color: #fff; background: linear-gradient(145deg, var(--luft-primary-500), var(--luft-primary-800)); border-radius: .75rem; }
+.luft-admin-secao { display: grid; gap: 1rem; margin-top: 1rem; }
+.luft-admin-dados { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 0; }
+.luft-admin-dados > div { padding: .8rem; background: var(--luft-bg-panel-hover); border-radius: .65rem; }
+.luft-admin-dados dt { color: var(--luft-text-muted); font-size: .7rem; font-weight: 750; text-transform: uppercase; }
+.luft-admin-dados dd { margin: .25rem 0 0; font-weight: 650; }
+.luft-admin-links { display: flex; flex-wrap: wrap; gap: .65rem; }
+
+@media (max-width: 56rem) {
+  .luft-sidebar { position: fixed; inset: 0 auto 0 0; transform: translateX(-105%); }
+  .luft-sidebar.aberta-mobile { transform: translateX(0); }
+  .luft-sidebar-toggle { display: none; }
+  .luft-menu-mobile { display: inline-flex; }
+  .luft-main-footer { align-items: flex-start; flex-direction: column; }
+  .luft-admin-grade, .luft-admin-dados { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}

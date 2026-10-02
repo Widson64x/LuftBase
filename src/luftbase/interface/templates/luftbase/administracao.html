@@ -1,0 +1,52 @@
+<header class="luft-admin-cabecalho">
+  <p class="luft-admin-sobretitulo">Governança da plataforma</p>
+  <h1>Administração do ambiente</h1>
+  <p>Recursos sistêmicos centralizados pelo LuftBase, sem expor credenciais ou detalhes sensíveis.</p>
+</header>
+
+<nav class="luft-admin-grade" aria-label="Módulos administrativos">
+  <a class="luft-admin-modulo" href="#seguranca">
+    <span class="luft-admin-icone" aria-hidden="true"><i class="ph-bold ph-shield-check"></i></span>
+    <span><strong>Segurança &amp; Permissões</strong><small>Permissões por sistema, grupo e exceções de usuário.</small></span>
+  </a>
+  <a class="luft-admin-modulo" href="{{ url_publicacoes | default('#publicacoes') }}">
+    <span class="luft-admin-icone" aria-hidden="true"><i class="ph-bold ph-newspaper"></i></span>
+    <span><strong>Publicações</strong><small>Comunicados, notas de atualização e audiência.</small></span>
+  </a>
+  <a class="luft-admin-modulo" href="#aplicacoes">
+    <span class="luft-admin-icone" aria-hidden="true"><i class="ph-bold ph-app-window"></i></span>
+    <span><strong>Aplicações &amp; Ambiente</strong><small>Catálogo, manutenção, links e diagnóstico operacional.</small></span>
+  </a>
+</nav>
+
+<section id="seguranca" class="luft-admin-secao luft-cartao">
+  <div><p class="luft-admin-sobretitulo">Autorização</p><h2>Segurança &amp; Permissões</h2></div>
+  <p>
+    O sistema <code>0</code> define permissões globais herdáveis. Uma permissão específica da
+    aplicação prevalece sobre a global e qualquer chave ausente continua negada por padrão.
+  </p>
+</section>
+
+<section id="aplicacoes" class="luft-admin-secao luft-cartao">
+  <div><p class="luft-admin-sobretitulo">Catálogo corporativo</p><h2>Aplicações &amp; Ambiente</h2></div>
+  <dl class="luft-admin-dados">
+    <div><dt>Aplicação</dt><dd>{{ aplicacao.nome }}</dd></div>
+    <div><dt>Identificador técnico</dt><dd><code>{{ aplicacao.identificador }}</code></dd></div>
+    <div><dt>Sistema</dt><dd>{{ aplicacao.sistema_id }}</dd></div>
+    <div><dt>Ambiente</dt><dd>{{ aplicacao.ambiente.value }}</dd></div>
+    <div><dt>Versão</dt><dd>{{ aplicacao.versao or 'não informada' }}</dd></div>
+    <div><dt>Manutenção</dt><dd>{{ 'sim' if aplicacao.em_manutencao else 'não' }}</dd></div>
+  </dl>
+</section>
+
+<section class="luft-admin-secao luft-cartao">
+  <div><p class="luft-admin-sobretitulo">Operação</p><h2>Diagnóstico seguro</h2></div>
+  <div class="luft-admin-links">
+    <a class="luft-botao luft-botao-secundario" href="{{ url_for('luftbase.saude') }}">Saúde</a>
+    <a class="luft-botao luft-botao-secundario" href="{{ url_for('luftbase.prontidao') }}">Prontidão</a>
+    <a class="luft-botao luft-botao-secundario" href="{{ url_for('luftbase.metricas') }}">Métricas</a>
+  </div>
+  <p class="luft-texto-suave">PostgreSQL: <code>{{ caminhos.postgresql }}</code></p>
+  <p class="luft-texto-suave">SQL Server somente leitura: <code>{{ caminhos.sqlserver }}</code></p>
+  <p class="luft-texto-suave">Redis compartilhado: <code>{{ caminhos.sessoes_redis }}</code></p>
+</section>

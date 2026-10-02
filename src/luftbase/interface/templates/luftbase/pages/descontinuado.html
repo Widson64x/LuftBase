@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% set nome_sistema = config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default('Sistema Luft') %}
+    <title>Sistema descontinuado - {{ nome_sistema }}</title>
+    <script src="{{ url_for('luftbase_interface.static', filename='js/phosphor-icons.js') }}"></script>
+    <style>
+        :root {
+            --fundo: #f8fafc;
+            --painel: #ffffff;
+            --borda: #e2e8f0;
+            --texto: #0f172a;
+            --suave: #64748b;
+            --destaque: #475569;
+            --destaque-fundo: #f1f5f9;
+            --primaria: var(--luft-brand, #1d63d8);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --fundo: #0f172a;
+                --painel: #1e293b;
+                --borda: #334155;
+                --texto: #f8fafc;
+                --suave: #94a3b8;
+                --destaque: #cbd5e1;
+                --destaque-fundo: rgba(148, 163, 184, 0.12);
+            }
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: var(--fundo);
+            color: var(--texto);
+            font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+        }
+        .cartao {
+            width: 100%;
+            max-width: 520px;
+            padding: 40px 36px;
+            text-align: center;
+            background: var(--painel);
+            border: 1px solid var(--borda);
+            border-radius: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        }
+        .icone {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--destaque-fundo);
+            color: var(--destaque);
+            font-size: 36px;
+        }
+        .rotulo {
+            margin: 0 0 6px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--suave);
+        }
+        h1 { margin: 0 0 12px; font-size: 24px; line-height: 1.25; }
+        p { margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: var(--suave); }
+        a.botao {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 22px;
+            border-radius: 10px;
+            background: var(--primaria);
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            text-decoration: none;
+        }
+        a.botao:focus-visible { outline: 3px solid rgba(var(--luft-brand-rgb, 29, 99, 216), 0.35); outline-offset: 2px; }
+    </style>
+</head>
+<body>
+    <main class="cartao" role="main">
+        <div class="icone" aria-hidden="true"><i class="ph-bold ph-archive"></i></div>
+        <p class="rotulo">{{ nome_sistema }}</p>
+        <h1>Este sistema foi descontinuado</h1>
+        <p>
+            O {{ nome_sistema }} não está mais disponível para uso.
+            Os dados foram preservados. Em caso de dúvidas, procure a equipe de TI.
+        </p>
+        <a class="botao" href="/"><i class="ph-bold ph-squares-four" aria-hidden="true"></i> Ir para o Luft-Workspace</a>
+    </main>
+</body>
+</html>

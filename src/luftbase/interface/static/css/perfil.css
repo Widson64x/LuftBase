@@ -1,0 +1,949 @@
+/* ==========================================================================
+   DRAWER E GERENCIAMENTO DE PERFIL DO USUÁRIO — LuftBase
+   ========================================================================== */
+
+/* ---------- BACKDROP ---------- */
+.luft-perfil-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 998;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s ease;
+}
+
+.luft-perfil-backdrop.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ---------- DRAWER PANEL ---------- */
+.luft-perfil-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 480px;
+    max-width: 95vw;
+    height: 100vh;
+    background: var(--luft-bg-panel, #ffffff);
+    border-left: 1px solid var(--luft-border, #e2e8f0);
+    box-shadow: -10px 0 45px rgba(0, 0, 0, 0.22);
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+    overflow: hidden;
+}
+
+.luft-perfil-drawer.open {
+    transform: translateX(0);
+}
+
+/* ---------- HEADER ---------- */
+.luft-perfil-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--luft-border, #e2e8f0);
+    background: var(--luft-bg-panel, #ffffff);
+    flex-shrink: 0;
+}
+
+.luft-perfil-header-title-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.luft-perfil-header-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(var(--luft-brand-rgb, 29, 99, 216), 0.1);
+    color: var(--luft-primary-600, #1d63d8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.luft-perfil-header-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--luft-text-main, #0f172a);
+    margin: 0;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.luft-perfil-header-sub {
+    font-size: 0.76rem;
+    color: var(--luft-text-muted, #64748b);
+    display: block;
+    margin-top: 2px;
+}
+
+.luft-perfil-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--luft-text-muted, #64748b);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.luft-perfil-close-btn:hover {
+    background: var(--luft-bg-hover, #f1f5f9);
+    color: var(--luft-text-main, #0f172a);
+    border-color: var(--luft-border, #cbd5e1);
+}
+
+/* ---------- HERO IDENTITY ---------- */
+.luft-perfil-hero {
+    padding: 22px 24px 16px;
+    background: linear-gradient(180deg, rgba(var(--luft-brand-rgb, 29, 99, 216), 0.04) 0%, transparent 100%);
+    border-bottom: 1px solid var(--luft-border, #e2e8f0);
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    flex-shrink: 0;
+}
+
+.luft-perfil-avatar-container {
+    flex-shrink: 0;
+}
+
+.luft-perfil-avatar-wrap {
+    position: relative;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: var(--luft-brand-tint, #dbeafe);
+    color: var(--luft-primary-600, #1d63d8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(var(--luft-brand-rgb, 29, 99, 216), 0.15);
+    border: 3px solid #ffffff;
+    overflow: hidden;
+}
+
+.luft-perfil-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.luft-perfil-avatar-initials {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+.luft-perfil-avatar-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(2px);
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 50%;
+}
+
+.luft-perfil-avatar-wrap:hover .luft-perfil-avatar-overlay {
+    opacity: 1;
+}
+
+.luft-perfil-avatar-overlay i {
+    font-size: 18px;
+}
+
+.luft-perfil-hero-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.luft-perfil-hero-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.luft-perfil-hero-name {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--luft-text-main, #0f172a);
+    margin: 0;
+    line-height: 1.25;
+}
+
+.luft-perfil-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.luft-pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: luft-dot-pulse 1.8s infinite;
+}
+
+@keyframes luft-dot-pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.luft-perfil-hero-role {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--luft-primary-600, #1d63d8);
+    margin: 4px 0 10px;
+}
+
+.luft-perfil-id-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.luft-badge-corporate {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--luft-bg-app, #f8fafc);
+    border: 1px solid var(--luft-border, #e2e8f0);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--luft-text-main, #334155);
+}
+
+.luft-badge-corporate strong {
+    color: var(--luft-text-main, #0f172a);
+}
+
+/* Ações Rápidas de Avatar */
+.luft-perfil-avatar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    background: var(--luft-bg-panel, #ffffff);
+    border-bottom: 1px solid var(--luft-border, #e2e8f0);
+    flex-shrink: 0;
+}
+
+.luft-btn-perfil-sm {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.luft-btn-secondary {
+    background: var(--luft-bg-app, #f1f5f9);
+    border-color: var(--luft-border, #cbd5e1);
+    color: var(--luft-text-main, #334155);
+}
+
+.luft-btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+.luft-btn-ghost {
+    background: transparent;
+}
+
+.luft-btn-ghost:hover {
+    background: rgba(239, 68, 68, 0.08);
+}
+
+/* ---------- TABS ---------- */
+.luft-perfil-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--luft-border, #e2e8f0);
+    background: var(--luft-bg-panel, #ffffff);
+    padding: 0 16px;
+    flex-shrink: 0;
+}
+
+.luft-perfil-tab-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 10px;
+    border: none;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--luft-text-muted, #64748b);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.luft-perfil-tab-btn:hover {
+    color: var(--luft-primary-600, #1d63d8);
+    background: rgba(var(--luft-brand-rgb, 29, 99, 216), 0.02);
+}
+
+.luft-perfil-tab-btn.active {
+    color: var(--luft-primary-600, #1d63d8);
+    border-bottom-color: var(--luft-primary-600, #1d63d8);
+}
+
+/* ---------- CONTEÚDO SCROLLÁVEL ---------- */
+.luft-perfil-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    min-height: 0;
+}
+
+.luft-perfil-pane {
+    display: none;
+}
+
+.luft-perfil-pane.active {
+    display: block;
+    animation: luft-fade-in 0.2s ease-out;
+}
+
+@keyframes luft-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- FORMULÁRIOS & CAMPOS ---------- */
+.luft-form-group {
+    margin-bottom: 16px;
+}
+
+.luft-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.luft-form-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--luft-text-main, #334155);
+    margin-bottom: 6px;
+}
+
+.luft-label-hint {
+    font-size: 11px;
+    font-weight: normal;
+    color: var(--luft-text-muted, #94a3b8);
+}
+
+.luft-input-icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.luft-input-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--luft-text-muted, #94a3b8);
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.luft-input {
+    width: 100%;
+    height: 40px;
+    padding: 8px 12px 8px 38px;
+    border-radius: 8px;
+    border: 1px solid var(--luft-border, #cbd5e1);
+    background: var(--luft-bg-app, #ffffff);
+    color: var(--luft-text-main, #0f172a);
+    font-size: 13px;
+    transition: all 0.15s ease;
+    outline: none;
+}
+
+.luft-input:focus {
+    border-color: var(--luft-primary-600, #1d63d8);
+    box-shadow: 0 0 0 3px rgba(var(--luft-brand-rgb, 29, 99, 216), 0.12);
+}
+
+/* Readonly Card */
+.luft-perfil-readonly-card {
+    background: rgba(var(--luft-brand-rgb, 29, 99, 216), 0.04);
+    border: 1px dashed rgba(var(--luft-brand-rgb, 29, 99, 216), 0.25);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 18px;
+}
+
+.luft-readonly-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--luft-text-main, #0f172a);
+    margin-bottom: 6px;
+}
+
+.luft-readonly-desc {
+    font-size: 11px;
+    color: var(--luft-text-muted, #64748b);
+    margin: 0 0 12px;
+    line-height: 1.4;
+}
+
+.luft-readonly-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+}
+
+.luft-readonly-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.luft-readonly-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--luft-text-muted, #64748b);
+    text-transform: uppercase;
+}
+
+.luft-readonly-value {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--luft-text-main, #0f172a);
+    word-break: break-all;
+}
+
+/* Botões do Formulário */
+.luft-perfil-form-actions {
+    margin-top: 20px;
+}
+
+.luft-btn-perfil {
+    width: 100%;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.luft-btn-primary {
+    background: var(--luft-primary-600, #1d63d8);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(var(--luft-brand-rgb, 29, 99, 216), 0.25);
+}
+
+.luft-btn-primary:hover {
+    background: var(--luft-primary-hover, var(--luft-primary-700, #154eb5));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--luft-brand-rgb, 29, 99, 216), 0.35);
+}
+
+/* ---------- SEÇÃO DE MODO E TEMA ---------- */
+.luft-perfil-section-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--luft-text-main, #0f172a);
+    margin: 0 0 4px;
+}
+
+.luft-perfil-section-sub {
+    font-size: 11.5px;
+    color: var(--luft-text-muted, #64748b);
+    margin: 0 0 12px;
+}
+
+.luft-mode-selector-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.luft-mode-card {
+    border: 2px solid var(--luft-border, #e2e8f0);
+    border-radius: 10px;
+    padding: 10px;
+    background: var(--luft-bg-app, #ffffff);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    text-align: center;
+}
+
+.luft-mode-card:hover {
+    border-color: var(--luft-primary-500, #3b82f6);
+    transform: translateY(-2px);
+}
+
+.luft-mode-card.selected {
+    border-color: var(--luft-primary-600, #1d63d8);
+    background: rgba(var(--luft-brand-rgb, 29, 99, 216), 0.04);
+    box-shadow: 0 0 0 2px rgba(var(--luft-brand-rgb, 29, 99, 216), 0.15);
+}
+
+.luft-mode-preview {
+    width: 100%;
+    height: 56px;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.light-preview {
+    background: #f8fafc;
+}
+.light-preview .preview-header {
+    height: 12px;
+    background: #e2e8f0;
+    border-bottom: 1px solid #cbd5e1;
+}
+.light-preview .preview-sidebar {
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 0;
+    width: 24%;
+    background: #ffffff;
+    border-right: 1px solid #e2e8f0;
+}
+.light-preview .preview-body {
+    position: absolute;
+    left: 28%;
+    right: 4px;
+    top: 16px;
+    bottom: 4px;
+    background: var(--luft-brand-tint, #dbeafe);
+    border-radius: 3px;
+}
+
+.dark-preview {
+    background: #0f172a;
+}
+.dark-preview .preview-header {
+    height: 12px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+}
+.dark-preview .preview-sidebar {
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 0;
+    width: 24%;
+    background: #0f172a;
+    border-right: 1px solid #1e293b;
+}
+.dark-preview .preview-body {
+    position: absolute;
+    left: 28%;
+    right: 4px;
+    top: 16px;
+    bottom: 4px;
+    background: var(--luft-brand-dk-bg, #1e3a8a);
+    border-radius: 3px;
+}
+
+.auto-preview {
+    background: linear-gradient(135deg, #f8fafc 50%, #0f172a 50%);
+}
+
+.luft-mode-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--luft-text-main, #334155);
+}
+
+.luft-theme-radio-card {
+    display: block;
+    cursor: pointer;
+}
+
+.luft-theme-radio-card input {
+    display: none;
+}
+
+.luft-theme-pill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 2px solid var(--luft-border, #e2e8f0);
+    background: var(--luft-bg-app, #ffffff);
+    border-radius: 10px;
+    transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.luft-theme-radio-card:hover .luft-theme-pill {
+    border-color: var(--luft-primary-500, #3b82f6);
+    transform: translateY(-1px);
+}
+
+.luft-theme-radio-card.selected .luft-theme-pill,
+.luft-theme-radio-card input:checked + .luft-theme-pill {
+    border-color: var(--luft-primary-600, #1d63d8);
+    background: rgba(var(--luft-brand-rgb, 29, 99, 216), 0.04);
+    box-shadow: 0 0 0 2px rgba(var(--luft-brand-rgb, 29, 99, 216), 0.15);
+}
+
+.luft-theme-radio-card input:focus-visible + .luft-theme-pill {
+    outline: 2px solid var(--luft-primary-600, #1d63d8);
+    outline-offset: 2px;
+}
+
+.luft-theme-selector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+}
+
+/* Amostra de cores do tema (ate 4 faixas) */
+.luft-theme-swatch {
+    display: flex;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+    transform: rotate(-30deg);
+}
+
+.luft-theme-swatch i {
+    flex: 1;
+}
+
+.luft-theme-modo-fixo,
+.luft-theme-modo-livre {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 10.5px;
+    font-style: normal;
+    font-weight: 700;
+    color: var(--luft-text-muted, #64748b);
+}
+
+.luft-theme-modo-fixo {
+    color: var(--luft-warning-700, #b45309);
+}
+
+/* Cartoes de modo bloqueados (tema com um unico modo) */
+.luft-mode-card:disabled,
+.luft-mode-card.indisponivel {
+    cursor: not-allowed;
+    opacity: 0.45;
+    transform: none;
+    filter: grayscale(0.6);
+}
+
+.luft-mode-card.indisponivel:hover {
+    border-color: var(--luft-border, #e2e8f0);
+    transform: none;
+}
+
+.luft-mode-card.selected:disabled,
+.luft-mode-card.selected.indisponivel {
+    opacity: 1;
+    filter: none;
+    cursor: default;
+}
+
+.luft-modo-aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 0 0 12px;
+    padding: 9px 12px;
+    border: 1px solid var(--luft-warning-200, #fde68a);
+    border-radius: 8px;
+    background: var(--luft-warning-50, #fffbeb);
+    color: var(--luft-warning-800, #92400e);
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+.luft-modo-aviso[hidden] {
+    display: none;
+}
+
+.luft-theme-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.luft-theme-name strong {
+    display: block;
+    font-size: 13px;
+    color: var(--luft-text-main, #0f172a);
+}
+
+.luft-theme-name small {
+    font-size: 11px;
+    color: var(--luft-text-muted, #64748b);
+}
+
+/* ---------- SEÇÃO DE TELEMETRIA & SESSÕES ---------- */
+.luft-telemetria-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 14px;
+    background: var(--luft-bg-app, #f8fafc);
+    border: 1px solid var(--luft-border, #e2e8f0);
+    border-radius: 10px;
+}
+
+.luft-telemetria-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.luft-telemetria-item i {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.luft-telemetria-label {
+    display: block;
+    font-size: 10.5px;
+    color: var(--luft-text-muted, #64748b);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.luft-telemetria-value {
+    display: block;
+    font-size: 12.5px;
+    color: var(--luft-text-main, #0f172a);
+    line-height: 1.2;
+}
+
+.luft-sessoes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.luft-btn-outline-danger {
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.luft-btn-outline-danger:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: #ef4444;
+}
+
+.luft-sessoes-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.luft-sessao-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--luft-bg-app, #ffffff);
+    border: 1px solid var(--luft-border, #e2e8f0);
+    border-radius: 8px;
+    gap: 12px;
+    transition: all 0.15s ease;
+}
+
+.luft-sessao-item.is-atual {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.03);
+}
+
+.luft-sessao-device {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.luft-sessao-icon {
+    font-size: 20px;
+    color: var(--luft-primary-600, #1d63d8);
+}
+
+.luft-sessao-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.luft-sessao-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--luft-text-main, #0f172a);
+}
+
+.luft-sessao-meta {
+    font-size: 11px;
+    color: var(--luft-text-muted, #64748b);
+}
+
+.luft-badge-sessao-atual {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #059669;
+    border-radius: 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+.luft-sessoes-carregando {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px;
+    color: var(--luft-text-muted, #94a3b8);
+    font-size: 12px;
+}
+
+/* ---------- FOOTER ---------- */
+.luft-perfil-footer {
+    padding: 14px 24px;
+    border-top: 1px solid var(--luft-border, #e2e8f0);
+    background: var(--luft-bg-panel, #ffffff);
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.luft-perfil-footer-text {
+    font-size: 11px;
+    color: var(--luft-text-muted, #94a3b8);
+}
+
+/* ---------- MODO ESCURO ---------- */
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-perfil-drawer {
+    background: var(--luft-dk-deep, #0f172a);
+    border-color: var(--luft-dk-surface, #1e293b);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-perfil-header,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-perfil-tabs,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-perfil-avatar-actions,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-perfil-footer {
+    background: var(--luft-dk-deep, #0f172a);
+    border-color: var(--luft-dk-surface, #1e293b);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-perfil-avatar-wrap {
+    border-color: var(--luft-dk-surface, #1e293b);
+    background: var(--luft-brand-dk-bg, #1e3a8a);
+    color: var(--luft-brand-dk-soft, #93c5fd);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-badge-corporate {
+    background: var(--luft-dk-surface, #1e293b);
+    border-color: var(--luft-dk-line, #334155);
+    color: #e2e8f0;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-btn-secondary {
+    background: var(--luft-dk-surface, #1e293b);
+    border-color: var(--luft-dk-line, #334155);
+    color: #e2e8f0;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-input {
+    background: var(--luft-dk-surface, #1e293b);
+    border-color: var(--luft-dk-line, #334155);
+    color: #f8fafc;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-mode-card {
+    background: var(--luft-dk-surface, #1e293b);
+    border-color: var(--luft-dk-line, #334155);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-telemetria-card,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-sessao-item {
+    background: var(--luft-dk-surface, #1e293b);
+    border-color: var(--luft-dk-line, #334155);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-perfil-readonly-card {
+    background: rgba(30, 58, 138, 0.2);
+    border-color: rgba(var(--luft-brand-dk-line-rgb, 59, 130, 246), 0.3);
+}

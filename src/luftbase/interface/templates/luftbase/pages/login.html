@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="{{ luft_theme | default('light') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#031b37">
+    <title>Login - {{ app_name | default(luft_app_name, true) | default('Luft System', true) }}</title>
+
+    {% if luft_favicon %}
+        <link rel="icon" href="{{ luft_favicon }}" type="image/x-icon">
+    {% else %}
+        <link rel="icon" href="{{ url_for('luftbase.static', filename='icons/luft-logo-150x150-Dark.png') }}" type="image/png">
+    {% endif %}
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/themes.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/animations.css') }}">
+    <link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/login.css') }}">
+</head>
+<body class="luft-login-page">
+    {% set backgrounds = login_backgrounds | default([], true) %}
+    <main class="login-shell">
+        <div class="login-background" aria-hidden="true">
+            <div class="login-background-layer is-active" data-login-background
+                 {% if backgrounds %}style="background-image: url('{{ backgrounds[0] }}');"{% endif %}></div>
+            <div class="login-background-layer" data-login-background></div>
+        </div>
+        <div class="login-color-wash" aria-hidden="true"></div>
+        <div class="login-ambient login-ambient-one" aria-hidden="true"></div>
+        <div class="login-ambient login-ambient-two" aria-hidden="true"></div>
+
+        <section class="login-brand-panel" aria-label="Luft Logistics">
+            <div class="login-brand-content">
+                <img
+                    class="login-brand-logo"
+                    src="{{ url_for('luftbase.static', filename='icons/luft-logo-150x150-Light.png') }}"
+                    alt="Luft Logistics"
+                >
+
+                <div class="login-brand-copy">
+                    <p class="login-eyebrow">Inteligência em movimento</p>
+                    <h1>Logística que conecta, eficiência que entrega.</h1>
+                    <span class="login-accent-line" aria-hidden="true"></span>
+                    <p class="login-brand-description">
+                        Soluções integradas em transporte e armazenagem com segurança,
+                        tecnologia e excelência.
+                    </p>
+                </div>
+                <!-- Está fora do padrão - se quiser arrumar fique a vontade '-'.
+                <div class="login-security-note">
+                    <span class="login-security-icon" aria-hidden="true">
+                        <i class="ph-fill ph-shield-check"></i>
+                    </span>
+                    <span>
+                        <strong>Acesso seguro e monitorado</strong>
+                        <small>Seus dados estão protegidos.</small>
+                    </span>
+                </div>
+                -->
+            </div>
+
+            {% if backgrounds | length > 1 %}
+                <div class="login-background-controls" aria-hidden="true">
+                    <span class="login-background-dot is-active" data-login-dot="0"></span>
+                    <span class="login-background-dot" data-login-dot="1"></span>
+                    <span class="login-background-dot" data-login-dot="2"></span>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="login-form-panel" aria-labelledby="login-title">
+            <div class="login-card">
+                <div class="login-card-highlight" aria-hidden="true"></div>
+                <header class="login-card-header">
+                    {% set logo = logo_url | default(url_for('luftbase.static', filename='icons/luft-logo-150x150-Dark.png')) %}
+                    <img src="{{ logo }}" alt="Luft Logistics" class="login-card-logo">
+                    <div>
+                        <p class="login-card-kicker">Portal corporativo</p>
+                        <h2 id="login-title">{{ app_name | default(luft_app_name, true) | default('Luft System', true) }}</h2>
+                        <p>Acesse a plataforma com suas credenciais corporativas.</p>
+                    </div>
+                </header>
+
+                <form class="login-form" method="POST" action="{{ action_url | default(request.path) }}" data-login-form>
+                    <div class="login-field">
+                        <label for="usuario">Usuário ou e-mail</label>
+                        <div class="login-input-wrap">
+                            <i class="ph ph-user" aria-hidden="true"></i>
+                            <input
+                                type="text"
+                                id="usuario"
+                                name="usuario"
+                                placeholder="Digite seu usuário ou e-mail"
+                                required
+                                autofocus
+                                autocomplete="username"
+                                autocapitalize="none"
+                                spellcheck="false"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="login-field">
+                        <label for="senha">Senha</label>
+                        <div class="login-input-wrap">
+                            <i class="ph ph-lock-key" aria-hidden="true"></i>
+                            <input
+                                type="password"
+                                id="senha"
+                                name="senha"
+                                placeholder="Digite sua senha"
+                                required
+                                autocomplete="current-password"
+                            >
+                            <button class="login-password-toggle" type="button" data-password-toggle aria-label="Exibir senha" aria-pressed="false">
+                                <i class="ph ph-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="login-form-options">
+                        <label class="login-checkbox" for="lembrar_mim">
+                            <input type="checkbox" id="lembrar_mim" name="lembrar_mim" value="1">
+                            <span class="login-checkbox-box" aria-hidden="true">
+                                <i class="ph-bold ph-check"></i>
+                            </span>
+                            <span>Lembrar acesso</span>
+                        </label>
+                        <span class="login-corporate-badge">
+                            <i class="ph-fill ph-shield-check" aria-hidden="true"></i>
+                            Rede corporativa
+                        </span>
+                    </div>
+
+                    <button type="submit" class="login-submit" data-login-submit>
+                        <span class="login-submit-content">
+                            <i class="ph-bold ph-lock-key" aria-hidden="true"></i>
+                            <span>Acessar sistema</span>
+                            <i class="ph-bold ph-arrow-right login-submit-arrow" aria-hidden="true"></i>
+                        </span>
+                        <span class="login-submit-loading" aria-hidden="true">
+                            <span class="login-spinner"></span>
+                            Entrando...
+                        </span>
+                    </button>
+                </form>
+
+                <footer class="login-card-footer">
+                    <span class="login-help-icon" aria-hidden="true"><i class="ph ph-headset"></i></span>
+                    <p>Precisa de ajuda? <strong>Entre em contato com o suporte de TI.</strong></p>
+                </footer>
+            </div>
+
+            <p class="login-copyright">&copy; Luft Logistics. Todos os direitos reservados.</p>
+        </section>
+    </main>
+
+    <script id="luftbase-login-config" type="application/json">
+        {{ {
+            'habilitar_mensagens': luft_habilitar_mensagens | default(true, true),
+            'catalogo_mensagens_status': luft_catalogo_mensagens_status | default({}, true),
+            'categoria_popup_status': luft_status_popup_category | default('luft-status-popup', true),
+            'duracao_popup_status': luft_status_popup_duration_default | default(8000, true),
+            'raiz': request.script_root,
+            'endpoint_mensagens': luft_endpoint_mensagens | default(request.script_root ~ '/_luftbase/mensagens', true),
+            'intervalo_polling_mensagens_ms': luft_intervalo_polling_mensagens_ms | default(1000, true),
+            'cabecalho_operacao_mensagens': luft_cabecalho_operacao_mensagens | default('X-LuftBase-Operacao-Id', true),
+            'fundos_login': backgrounds,
+        } | tojson }}
+    </script>
+    <script>
+        (() => {
+            const node = document.getElementById('luftbase-login-config');
+            const config = node ? JSON.parse(node.textContent || '{}') : {};
+            window.LUFT_HABILITAR_MENSAGENS = Boolean(config.habilitar_mensagens ?? true);
+            window.LUFT_CATALOGO_MENSAGENS_STATUS = config.catalogo_mensagens_status || {};
+            window.LUFT_STATUS_MESSAGES = window.LUFT_CATALOGO_MENSAGENS_STATUS;
+            window.LUFT_STATUS_POPUP_CATEGORY = config.categoria_popup_status || 'luft-status-popup';
+            window.LUFT_STATUS_POPUP_DURATION = config.duracao_popup_status ?? 8000;
+            window.LUFT_RAIZ = config.raiz || '';
+            window.LUFT_ENDPOINT_MENSAGENS = config.endpoint_mensagens || window.LUFT_RAIZ + '/_luftbase/mensagens';
+            window.LUFT_MESSAGE_BACKEND_ENDPOINT = window.LUFT_ENDPOINT_MENSAGENS;
+            window.LUFT_INTERVALO_POLLING_MENSAGENS_MS = config.intervalo_polling_mensagens_ms ?? 1000;
+            window.LUFT_MESSAGE_BACKEND_POLL_INTERVAL_MS = window.LUFT_INTERVALO_POLLING_MENSAGENS_MS;
+            window.LUFT_CABECALHO_OPERACAO_MENSAGENS = config.cabecalho_operacao_mensagens || 'X-LuftBase-Operacao-Id';
+            window.LUFT_MESSAGE_BACKEND_OPERATION_HEADER = window.LUFT_CABECALHO_OPERACAO_MENSAGENS;
+            window.LUFT_LOGIN_BACKGROUNDS = config.fundos_login || [];
+        })();
+    </script>
+    <script src="{{ url_for('luftbase.static', filename='js/base.js') }}"></script>
+    <script src="{{ url_for('luftbase.static', filename='js/login.js') }}"></script>
+</body>
+</html>

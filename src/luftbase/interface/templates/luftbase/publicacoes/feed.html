@@ -1,0 +1,189 @@
+{% extends layout_base | default('luftbase/base.html') %}
+
+{% set eh_comunicado = tipo_publicacao == 'COMUNICADO' %}
+{% set titulo_feed = 'Comunicados' if eh_comunicado else 'Notas de atualização' %}
+
+{% block titulo %}{{ titulo_feed }}{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/publicacoes.css') }}">
+{% endblock %}
+
+{% block breadcrumb %}
+<a href="{{ url_raiz_aplicacao | default('/') }}" class="luft-breadcrumb-item d-flex align-items-center gap-1 text-muted text-decoration-none" style="text-decoration: none;">
+    <i class="ph-fill ph-house"></i> {{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default(luft_app_name) | default('Luft-WorkSpace') }}
+</a>
+<i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
+<span class="luft-breadcrumb-item active font-semibold">{{ titulo_feed }}</span>
+{% endblock %}
+
+{% block content %}
+<main class="publicacoes-shell">
+    <header class="publicacoes-header">
+        <div class="publicacoes-title-group">
+            <a href="{{ url_raiz_aplicacao|default('/') }}" class="publicacoes-back" aria-label="Voltar"><i class="ph-bold ph-arrow-left"></i></a>
+            <span class="publicacoes-title-icon"><i class="ph-bold {{ 'ph-megaphone' if eh_comunicado else 'ph-rocket-launch' }}"></i></span>
+            <div>
+                <span class="publicacoes-eyebrow">Central de informações</span>
+                <h1>{{ titulo_feed }}</h1>
+                <p>{{ 'Avisos importantes para você e sua equipe.' if eh_comunicado else 'Histórico de melhorias e novidades do sistema.' }}</p>
+            </div>
+        </div>
+    </header>
+
+    <section class="publicacoes-toolbar luft-card">
+        <div class="publicacoes-switcher" aria-label="Tipo de publicação">
+            <a href="{{ url_for('LuftPublicacoes.listar_comunicados') }}" class="{{ 'active' if eh_comunicado else '' }}">
+                <i class="ph-bold ph-megaphone"></i> Comunicados
+            </a>
+            <a href="{{ url_for('LuftPublicacoes.listar_atualizacoes') }}" class="{{ 'active' if not eh_comunicado else '' }}">
+                <i class="ph-bold ph-rocket-launch"></i> Notas de atualização
+            </a>
+        </div>
+        <div class="publicacoes-search">
+            <i class="ph ph-magnifying-glass"></i>
+            <input id="publicacoesFeedBusca" type="search" placeholder="{{ 'Buscar comunicados por título, resumo ou autor...' if eh_comunicado else 'Buscar notas de atualização por título, versão ou melhoria...' }}" autocomplete="off">
+        </div>
+        <div class="publicacoes-feed-info">
+            <span class="publicacoes-feed-badge" id="publicacoesFeedBadge">
+                <strong id="publicacoesFeedContador">{{ publicacoes|length }}</strong>
+                <span id="publicacoesFeedRotulo">{{ 'comunicado(s)' if eh_comunicado else 'nota(s)' }}</span>
+            </span>
+        </div>
+    </section>
+
+    {% if publicacoes %}
+    <section class="publicacoes-list" id="publicacoesFeedLista" aria-label="{{ titulo_feed }}">
+        {% for publicacao in publicacoes %}
+        {% set termos_busca = [
+            publicacao.titulo,
+            publicacao.resumo or '',
+            publicacao.conteudo or '',
+            publicacao.versao or '',
+            publicacao.criado_por or '',
+            'fixado' if publicacao.fixado else '',
+            'novo' if not publicacao.lida else '',
+            'global' if publicacao.id_sistema == 0 else ''
+        ] %}
+        {% if publicacao.itens_atualizacao %}
+            {% for item in publicacao.itens_atualizacao %}
+                {% set _ = termos_busca.append(item.titulo or '') %}
+                {% set _ = termos_busca.append(item.descricao or '') %}
+                {% set _ = termos_busca.append(item.tipo or '') %}
+            {% endfor %}
+        {% endif %}
+        <article class="publicacao-card" data-busca="{{ termos_busca|join(' ')|lower|striptags }}">
+            <span class="publicacao-accent prioridade-{{ publicacao.prioridade|lower }}"></span>
+            <a class="publicacao-main publicacao-feed-link" href="{{ url_for('LuftPublicacoes.visualizar_publicacao', id_publicacao=publicacao.id) }}">
+                <div class="publicacao-topline">
+                    <div class="publicacao-badges">
+                        {% if not publicacao.lida %}<span class="publicacao-status status-publicado">Novo</span>{% endif %}
+                        {% if publicacao.fixado %}<span class="publicacao-chip"><i class="ph-bold ph-push-pin"></i> Fixado</span>{% endif %}
+                        {% if publicacao.id_sistema == 0 %}<span class="publicacao-chip global"><i class="ph-bold ph-globe"></i> Global</span>{% endif %}
+                        {% if publicacao.fonte != 'INTERNO' %}<span class="publicacao-chip fonte"><i class="ph-bold ph-envelope"></i> {{ publicacao.fonte }}</span>{% endif %}
+                    </div>
+                </div>
+                <div class="publicacao-heading">
+                    <h2>{{ publicacao.titulo }}</h2>
+                    {% if publicacao.versao %}<span class="publicacao-version">v{{ publicacao.versao|replace('v', '') }}</span>{% endif %}
+                </div>
+                <p>{{ (publicacao.resumo or publicacao.conteudo)|truncate(220, true) }}</p>
+                <div class="publicacao-meta">
+                    <span><i class="ph ph-user"></i> {{ publicacao.criado_por }}</span>
+                    <span><i class="ph ph-calendar-blank"></i> {{ (publicacao.data_publicacao or publicacao.data_criacao or '')[:16]|replace('T', ' ') }}</span>
+                </div>
+            </a>
+            <div class="publicacao-actions">
+                <a class="btn btn-outline btn-sm" href="{{ url_for('LuftPublicacoes.visualizar_publicacao', id_publicacao=publicacao.id) }}"><i class="ph-bold ph-arrow-right"></i><span>Abrir</span></a>
+            </div>
+        </article>
+        {% endfor %}
+    </section>
+
+    <section class="publicacoes-empty compact" id="publicacoesFeedVazioBusca" style="display: none;">
+        <div><i class="ph-bold ph-magnifying-glass"></i></div>
+        <h2>Nenhum resultado encontrado</h2>
+        <p>Não encontramos nenhum {{ 'comunicado' if eh_comunicado else 'registro de atualização' }} correspondente aos termos digitados.</p>
+        <button type="button" class="btn btn-outline btn-sm" id="btnLimparBuscaFeed" style="margin: 0 auto; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="ph-bold ph-x"></i> Limpar pesquisa
+        </button>
+    </section>
+    {% else %}
+    <section class="publicacoes-empty">
+        <div><i class="ph-bold ph-bell-simple-slash"></i></div>
+        <h2>Nenhuma publicação disponível</h2>
+        <p>Não há conteúdo publicado para você neste momento.</p>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const inputBusca = document.getElementById('publicacoesFeedBusca');
+    const containerLista = document.getElementById('publicacoesFeedLista');
+    const cards = Array.from(document.querySelectorAll('.publicacao-card'));
+    const vazioBusca = document.getElementById('publicacoesFeedVazioBusca');
+    const contadorVisiveis = document.getElementById('publicacoesFeedContador');
+    const rotuloContador = document.getElementById('publicacoesFeedRotulo');
+    const btnLimpar = document.getElementById('btnLimparBuscaFeed');
+    const ehComunicado = {{ 'true' if eh_comunicado else 'false' }};
+
+    function normalizar(texto) {
+        return (texto || '')
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    }
+
+    function filtrar() {
+        const termo = normalizar(inputBusca?.value);
+        let visiveis = 0;
+
+        cards.forEach(card => {
+            const textoBusca = normalizar(card.getAttribute('data-busca'));
+            const corresponde = !termo || textoBusca.includes(termo);
+            card.style.display = corresponde ? '' : 'none';
+            if (corresponde) visiveis++;
+        });
+
+        if (contadorVisiveis) contadorVisiveis.textContent = visiveis;
+        if (rotuloContador) {
+            if (ehComunicado) {
+                rotuloContador.textContent = visiveis === 1 ? 'comunicado' : 'comunicado(s)';
+            } else {
+                rotuloContador.textContent = visiveis === 1 ? 'nota' : 'nota(s)';
+            }
+        }
+
+        if (vazioBusca) {
+            vazioBusca.style.display = (visiveis === 0 && cards.length > 0) ? '' : 'none';
+        }
+        if (containerLista) {
+            containerLista.style.display = (visiveis === 0 && cards.length > 0) ? 'none' : '';
+        }
+    }
+
+    inputBusca?.addEventListener('input', filtrar);
+    btnLimpar?.addEventListener('click', () => {
+        if (inputBusca) {
+            inputBusca.value = '';
+            inputBusca.focus();
+            filtrar();
+        }
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const termoUrl = urlParams.get('q') || urlParams.get('busca');
+    if (termoUrl && inputBusca) {
+        inputBusca.value = termoUrl;
+        filtrar();
+    }
+});
+</script>
+{% endblock %}

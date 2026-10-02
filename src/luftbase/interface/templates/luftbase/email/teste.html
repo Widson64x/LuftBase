@@ -1,0 +1,16 @@
+{% extends "luftbase/email/base.html" %}
+{% import "luftbase/email/componentes.html" as ui_email %}
+
+{% block previa %}Teste de envio do LuftBase.{% endblock %}
+
+{% block faixa %}{{ ui_email.faixa("Integração de e-mail funcionando", "sucesso") }}{% endblock %}
+
+{% block conteudo %}
+  {{ ui_email.titulo("Teste de envio", rotulo="LuftBase") }}
+  {{ ui_email.paragrafo("Se você recebeu esta mensagem, a conta SMTP guardada no Vault está correta.") }}
+  {{ ui_email.tabela_resumo([
+      ("Ambiente", luft_email.ambiente),
+      ("Servidor", servidor),
+      ("Enviado em", luft_email.gerado_em),
+  ]) }}
+{% endblock %}

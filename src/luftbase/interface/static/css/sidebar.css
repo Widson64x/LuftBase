@@ -1,0 +1,446 @@
+/* Sidebar corporativa do LuftBase: card de usuario, acoes rapidas, grupos e subitens em arvore.
+   Movido do Hub.css do Workspace para que todos os sistemas tenham o mesmo shell. */
+.luft-sidebar {
+    width: 270px;
+    background: #ffffff;
+    border-right: 1px solid #e8eef5;
+    box-shadow: 1px 0 6px rgba(15, 23, 42, 0.02);
+}
+
+.luft-sidebar-header {
+    height: 76px;
+    padding: 0 18px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.luft-sidebar {
+    width: 280px;
+}
+
+.luft-sidebar-toggle {
+    position: absolute;
+    right: -15px;
+    top: 24px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--luft-brand-soft-2, #f0f7ff);
+    color: var(--luft-brand, #1d63d8);
+    border: 1px solid var(--luft-brand-border, #d0e1fd);
+    box-shadow: 0 2px 8px rgba(var(--luft-brand-rgb, 29, 99, 216), 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 100;
+    transition: all 0.2s ease;
+}
+
+.luft-sidebar-toggle:hover {
+    background: #e0effe;
+    color: #154fb3;
+    transform: scale(1.05);
+}
+
+.luft-sidebar.collapsed .luft-sidebar-toggle {
+    transform: rotate(180deg);
+}
+
+/* Cabeçalhos de Grupos (Accordion) */
+.luft-nav-wrapper > .luft-nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    border-left: 3.5px solid transparent;
+    border-radius: 10px;
+    color: #475569;
+    font-size: 13.5px;
+    font-weight: 600;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.luft-nav-wrapper > .luft-nav-link:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.luft-nav-wrapper > .luft-nav-link i:first-child {
+    font-size: 18px;
+    color: #64748b;
+    transition: color 0.18s ease;
+}
+
+.luft-nav-wrapper > .luft-nav-link:hover i:first-child {
+    color: var(--luft-brand, #1d63d8);
+}
+
+.luft-nav-wrapper > .luft-nav-link .luft-caret {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(-90deg); /* Fechado: aponta para a DIREITA */
+    transform-origin: center center;
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.18s ease;
+    font-size: 13px !important;
+    color: #94a3b8;
+    margin-left: auto;
+}
+
+.luft-nav-wrapper > .luft-nav-link:hover .luft-caret {
+    color: #64748b;
+}
+
+/* Quando o agrupador está aberto (ativo) */
+.luft-nav-wrapper > .luft-nav-link.ativo {
+    background: #f4f8fd;
+    border-left: 3.5px solid var(--luft-brand, #1d63d8);
+    color: var(--luft-brand, #1d63d8);
+    font-weight: 700;
+}
+
+.luft-nav-wrapper > .luft-nav-link.ativo i:first-child {
+    color: var(--luft-brand, #1d63d8);
+}
+
+.luft-nav-wrapper > .luft-nav-link.ativo .luft-caret {
+    transform: rotate(0deg); /* Aberto: aponta para BAIXO */
+    color: var(--luft-brand, #1d63d8);
+}
+
+/* Árvore de subitens com ramificações */
+.luft-nav-submenu {
+    border-left: 1.5px solid #e2e8f0;
+    margin-left: 20px;
+    padding-left: 8px;
+    margin-top: 4px;
+    margin-bottom: 6px;
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.luft-nav-submenu.aberto {
+    display: flex;
+}
+
+.luft-nav-submenu .luft-nav-link {
+    position: relative;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #334155;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-decoration: none;
+    transition: background 0.16s ease, color 0.16s ease;
+    transform: none !important;
+}
+
+.luft-nav-submenu .luft-nav-link::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    width: 8px;
+    height: 1.5px;
+    background: #e2e8f0;
+    transition: background 0.16s ease;
+}
+
+.luft-nav-submenu .luft-nav-link:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    transform: none !important;
+}
+
+.luft-nav-submenu .luft-nav-link:hover::before {
+    background: #94a3b8;
+}
+
+.luft-nav-submenu .luft-nav-link.ativo {
+    background: var(--luft-brand-soft, #eaf2fd);
+    color: var(--luft-brand, #1d63d8);
+    font-weight: 700;
+    border-left: 3.5px solid var(--luft-brand, #1d63d8);
+    border-radius: 8px;
+    transform: none !important;
+}
+
+.luft-nav-submenu .luft-nav-link.ativo i:first-child {
+    color: var(--luft-brand, #1d63d8);
+}
+
+.luft-nav-submenu .luft-nav-link.ativo::before {
+    display: none !important;
+}
+
+/* Badges nos links */
+.luft-nav-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #edf2f7;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: auto;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
+}
+
+/* Card do Usuário */
+.luft-user {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 12px;
+    transition: all 0.16s ease;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.luft-user:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.luft-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--luft-brand-tint, #dbeafe);
+    color: var(--luft-brand, #1d63d8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 800;
+    font-size: 14.5px;
+}
+
+.luft-user-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+}
+
+.luft-user-name {
+    font-weight: 700;
+    font-size: 13px;
+    color: #0f172a;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    line-height: 1.2;
+}
+
+.luft-user-role {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: var(--luft-brand, #1d63d8);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+    line-height: 1.2;
+}
+
+.luft-user-chevron {
+    color: #94a3b8;
+    font-size: 14px;
+    margin-left: auto;
+}
+
+/* Grade de 3 Ações Rápidas */
+.luft-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.luft-btn-action {
+    height: 38px;
+    min-height: 38px;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 8px;
+    color: #64748b;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.16s ease;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.luft-btn-action i {
+    font-size: 16px;
+    color: #475569;
+    flex-shrink: 0;
+    transition: color 0.16s ease;
+}
+
+.luft-btn-action span {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1;
+}
+
+.luft-btn-action:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.06);
+}
+
+.luft-btn-action:hover i {
+    color: #1e293b;
+}
+
+.luft-btn-action.text-danger i,
+.luft-btn-action i.ph-power {
+    color: #dc2626 !important;
+}
+
+.luft-btn-action.text-danger:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+}
+
+.luft-btn-action.text-danger:hover span {
+    color: #dc2626;
+}
+
+/* Tema Escuro da Sidebar */
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-sidebar,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-sidebar-footer,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-user,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-btn-action {
+    background: var(--luft-dk-surface, #1e293b);
+    border-color: var(--luft-dk-line, #334155);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-wrapper > .luft-nav-link {
+    background: transparent;
+    color: #94a3b8;
+    border-left: 3.5px solid transparent;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-wrapper > .luft-nav-link i:first-child,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-wrapper > .luft-nav-link .luft-caret {
+    color: #64748b;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-wrapper > .luft-nav-link:hover {
+    background: var(--luft-dk-surface, #1e293b);
+    color: #f8fafc;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-wrapper > .luft-nav-link:hover i:first-child,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-wrapper > .luft-nav-link:hover .luft-caret {
+    color: var(--luft-brand-dk, #60a5fa);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-wrapper > .luft-nav-link.ativo {
+    background: var(--luft-brand-dk-bg, #1e3a8a);
+    color: var(--luft-brand-dk-soft, #93c5fd);
+    border-left-color: var(--luft-brand-dk-line, #3b82f6);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-wrapper > .luft-nav-link.ativo i:first-child,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-wrapper > .luft-nav-link.ativo .luft-caret {
+    color: var(--luft-brand-dk-soft, #93c5fd);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-submenu {
+    border-left-color: var(--luft-dk-line, #334155);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-submenu .luft-nav-link {
+    color: #cbd5e1;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-submenu .luft-nav-link:hover {
+    background: var(--luft-dk-deep, #0f172a);
+    color: #f1f5f9;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-submenu .luft-nav-link.ativo {
+    background: var(--luft-brand-dk-bg-deep, #172554);
+    color: var(--luft-brand-dk, #60a5fa);
+    border-left-color: var(--luft-brand-dk-line, #3b82f6);
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-nav-badge {
+    background: var(--luft-dk-line, #334155);
+    color: #94a3b8;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-user-name {
+    color: #f1f5f9;
+}
+
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-btn-action i,
+:is([data-theme='dark'], [data-luft-mode='escuro']) .luft-btn-action span {
+    color: #94a3b8;
+}
+
+/* Botao de modo (claro/escuro) bloqueado: o tema ativo oferece apenas um modo.
+   Continua visivel e informativo, mas sem o feedback de clique. */
+.luft-btn-action.luft-btn-action--bloqueado,
+.luft-btn-action[aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(0.5);
+}
+
+.luft-btn-action.luft-btn-action--bloqueado:hover,
+.luft-btn-action[aria-disabled="true"]:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Marca da sidebar (macro ui.sidebar_brand) */
+.luft-logo-img { width: 40px; height: 40px; object-fit: contain; }
+.luft-logo-text { display: flex; flex-direction: column; justify-content: center; }
+.luft-logo-titulo {
+    color: var(--luft-text-main, #0f172a);
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.15;
+}
+.luft-logo-subtitulo {
+    margin-top: 2px;
+    color: var(--luft-brand, #1d63d8);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}

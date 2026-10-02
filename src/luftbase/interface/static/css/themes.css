@@ -1,0 +1,270 @@
+/* ==========================================================================
+   LUFTBASE - THEME SYSTEM & COMPREHENSIVE COLOR PALETTE
+   ========================================================================== */
+
+:root {
+    /* --- PALETA BASE: PRIMARY (Azul Luft) --- */
+    --luft-primary-50:  #eff6ff;
+    --luft-primary-100: #dbeafe;
+    --luft-primary-200: #bfdbfe;
+    --luft-primary-300: #93c5fd;
+    --luft-primary-400: #60a5fa;
+    --luft-primary-500: #3b82f6;
+    --luft-primary-600: #2563eb;
+    --luft-primary-700: #1d4ed8;
+    --luft-primary-800: #1e40af;
+    --luft-primary-900: #1e3a8a;
+    --luft-primary-950: #172554;
+
+    /* --- PALETA: SECONDARY (Indigo Escuro) --- */
+    --luft-secondary-50:  #eef2ff;
+    --luft-secondary-100: #e0e7ff;
+    --luft-secondary-200: #c7d2fe;
+    --luft-secondary-300: #a5b4fc;
+    --luft-secondary-400: #818cf8;
+    --luft-secondary-500: #6366f1;
+    --luft-secondary-600: #4f46e5;
+    --luft-secondary-700: #4338ca;
+    --luft-secondary-800: #3730a3;
+    --luft-secondary-900: #312e81;
+
+    /* --- PALETA: GRAY (Cinza Neutro) --- */
+    --luft-gray-50:  #f9fafb;
+    --luft-gray-100: #f3f4f6;
+    --luft-gray-200: #e5e7eb;
+    --luft-gray-300: #d1d5db;
+    --luft-gray-400: #9ca3af;
+    --luft-gray-500: #6b7280;
+    --luft-gray-600: #4b5563;
+    --luft-gray-700: #374151;
+    --luft-gray-800: #1f2937;
+    --luft-gray-900: #111827;
+    --luft-gray-950: #030712;
+
+    /* --- PALETA: SLATE (Cinza Azulado) --- */
+    --luft-slate-50:  #f8fafc;
+    --luft-slate-100: #f1f5f9;
+    --luft-slate-200: #e2e8f0;
+    --luft-slate-300: #cbd5e1;
+    --luft-slate-400: #94a3b8;
+    --luft-slate-500: #64748b;
+    --luft-slate-600: #475569;
+    --luft-slate-700: #334155;
+    --luft-slate-800: #1e293b;
+    --luft-slate-900: #0f172a;
+
+    /* --- PALETA: SUCCESS / GREEN --- */
+    --luft-success-50:  #f0fdf4;
+    --luft-success-100: #dcfce7;
+    --luft-success-200: #bbf7d0;
+    --luft-success-300: #86efac;
+    --luft-success-400: #4ade80;
+    --luft-success-500: #22c55e;
+    --luft-success-600: #16a34a;
+    --luft-success-700: #15803d;
+    --luft-success-800: #166534;
+    --luft-success-900: #14532d;
+
+    /* --- PALETA: DANGER / RED --- */
+    --luft-danger-50:  #fef2f2;
+    --luft-danger-100: #fee2e2;
+    --luft-danger-200: #fecaca;
+    --luft-danger-300: #fca5a5;
+    --luft-danger-400: #f87171;
+    --luft-danger-500: #ef4444;
+    --luft-danger-600: #dc2626;
+    --luft-danger-700: #b91c1c;
+    --luft-danger-800: #991b1b;
+    --luft-danger-900: #7f1d1d;
+
+    /* --- PALETA: WARNING / AMBER --- */
+    --luft-warning-50:  #fffbeb;
+    --luft-warning-100: #fef3c7;
+    --luft-warning-200: #fde68a;
+    --luft-warning-300: #fcd34d;
+    --luft-warning-400: #fbbf24;
+    --luft-warning-500: #f59e0b;
+    --luft-warning-600: #d97706;
+    --luft-warning-700: #b45309;
+    --luft-warning-800: #92400e;
+    --luft-warning-900: #78350f;
+
+    /* --- PALETA: INFO / CYAN --- */
+    --luft-info-50:  #ecfeff;
+    --luft-info-100: #cffafe;
+    --luft-info-200: #a5f3fc;
+    --luft-info-300: #67e8f9;
+    --luft-info-400: #22d3ee;
+    --luft-info-500: #06b6d4;
+    --luft-info-600: #0891b2;
+    --luft-info-700: #0e7490;
+    --luft-info-800: #155e75;
+    --luft-info-900: #164e63;
+
+    /* --- PALETA: PURPLE --- */
+    --luft-purple-50:  #faf5ff;
+    --luft-purple-100: #f3e8ff;
+    --luft-purple-200: #e9d5ff;
+    --luft-purple-300: #d8b4fe;
+    --luft-purple-400: #c084fc;
+    --luft-purple-500: #a855f7;
+    --luft-purple-600: #9333ea;
+    --luft-purple-700: #7e22ce;
+    --luft-purple-800: #6b21a8;
+    --luft-purple-900: #581c87;
+
+    /* --- PALETA: TEAL --- */
+    --luft-teal-50:  #f0fdfa;
+    --luft-teal-100: #ccfbf1;
+    --luft-teal-200: #99f6e4;
+    --luft-teal-300: #5eead4;
+    --luft-teal-400: #2dd4bf;
+    --luft-teal-500: #14b8a6;
+    --luft-teal-600: #0d9488;
+    --luft-teal-700: #0f766e;
+    --luft-teal-800: #115e59;
+    --luft-teal-900: #134e4a;
+
+    /* --- VARIÁVEIS DE ESTRUTURA (Light Mode por Padrão) --- */
+    --luft-bg-app:     var(--luft-slate-50);
+    --luft-bg-panel:   #ffffff;
+    --luft-bg-panel-hover: var(--luft-slate-50);
+    
+    --luft-text-main:  var(--luft-slate-800);
+    --luft-text-muted: var(--luft-slate-500);
+    --luft-text-light: var(--luft-slate-400);
+    
+    --luft-border:       var(--luft-slate-200);
+    --luft-border-light: var(--luft-slate-100);
+    --luft-border-dark:  var(--luft-slate-300);
+
+    /* --- GLASSMORPHISM --- */
+    --luft-glass-bg:        rgba(255, 255, 255, 0.75);
+    --luft-glass-border:    rgba(255, 255, 255, 0.3);
+    --luft-glass-shadow:    0 8px 32px 0 rgba(31, 38, 135, 0.07);
+
+    /* --- SOMBRAS (SHADOWS) --- */
+    --luft-shadow-sm:  0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --luft-shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --luft-shadow-lg:  0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --luft-shadow-xl:  0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --luft-shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --luft-shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+    --luft-shadow-none: 0 0 #0000;
+    
+    --luft-shadow-primary: 0 4px 14px 0 rgba(37, 99, 235, 0.39);
+    --luft-shadow-success: 0 4px 14px 0 rgba(34, 197, 94, 0.39);
+    --luft-shadow-danger:  0 4px 14px 0 rgba(239, 68, 68, 0.39);
+
+    /* --- ARREDONDAMENTOS (BORDER RADIUS) --- */
+    --luft-radius-none: 0px;
+    --luft-radius-sm:   0.125rem; /* 2px */
+    --luft-radius-md:   0.375rem; /* 6px */
+    --luft-radius-lg:   0.5rem;   /* 8px */
+    --luft-radius-xl:   0.75rem;  /* 12px */
+    --luft-radius-2xl:  1rem;     /* 16px */
+    --luft-radius-3xl:  1.5rem;   /* 24px */
+    --luft-radius-full: 9999px;
+
+    /* --- ESPAÇAMENTOS (SPACING) - Base 4px --- */
+    --luft-space-0:   0px;
+    --luft-space-1:   0.25rem;  /* 4px */
+    --luft-space-2:   0.5rem;   /* 8px */
+    --luft-space-3:   0.75rem;  /* 12px */
+    --luft-space-4:   1rem;     /* 16px */
+    --luft-space-5:   1.25rem;  /* 20px */
+    --luft-space-6:   1.5rem;   /* 24px */
+    --luft-space-8:   2rem;     /* 32px */
+    --luft-space-10:  2.5rem;   /* 40px */
+    --luft-space-12:  3rem;     /* 48px */
+    --luft-space-16:  4rem;     /* 64px */
+    --luft-space-20:  5rem;     /* 80px */
+    --luft-space-24:  6rem;     /* 96px */
+    --luft-space-32:  8rem;     /* 128px */
+    --luft-space-40:  10rem;    /* 160px */
+    --luft-space-48:  12rem;    /* 192px */
+    --luft-space-64:  16rem;    /* 256px */
+
+    /* --- TIPOGRAFIA (FONT SIZES) --- */
+    --luft-text-xs:   0.75rem;  /* 12px */
+    --luft-text-sm:   0.875rem; /* 14px */
+    --luft-text-base: 1rem;     /* 16px */
+    --luft-text-lg:   1.125rem; /* 18px */
+    --luft-text-xl:   1.25rem;  /* 20px */
+    --luft-text-2xl:  1.5rem;   /* 24px */
+    --luft-text-3xl:  1.875rem; /* 30px */
+    --luft-text-4xl:  2.25rem;  /* 36px */
+    --luft-text-5xl:  3rem;     /* 48px */
+    --luft-text-6xl:  3.75rem;  /* 60px */
+
+    /* --- Z-INDEX --- */
+    --luft-z-hide: -1;
+    --luft-z-base: 0;
+    --luft-z-docked: 10;
+    --luft-z-dropdown: 1000;
+    --luft-z-sticky: 1020;
+    --luft-z-fixed: 1030;
+    --luft-z-modal-backdrop: 1040;
+    --luft-z-modal: 1050;
+    --luft-z-popover: 1060;
+    --luft-z-tooltip: 1070;
+    --luft-z-toast: 9999;
+}
+
+/* ==========================================================================
+   DARK THEME (Modo Escuro Global)
+   ========================================================================== */
+[data-theme="dark"] {
+    --luft-bg-app:     var(--luft-slate-900);
+    --luft-bg-panel:   var(--luft-slate-800);
+    --luft-bg-panel-hover: var(--luft-slate-700);
+    
+    --luft-text-main:  var(--luft-slate-50);
+    --luft-text-muted: var(--luft-slate-400);
+    --luft-text-light: var(--luft-slate-500);
+    
+    --luft-border:       var(--luft-slate-700);
+    --luft-border-light: var(--luft-slate-600);
+    --luft-border-dark:  var(--luft-slate-800);
+
+    --luft-glass-bg:     rgba(30, 41, 59, 0.85);
+    --luft-glass-border: rgba(255, 255, 255, 0.1);
+}
+/* ==========================================================================
+   TOKENS DE MARCA (contrato com os temas)
+   Valores padrao = identidade Luft (azul). Cada tema em css/temas/*.css redefine
+   estes tokens para trocar a marca sem tocar nos componentes. Os componentes
+   tambem carregam o mesmo valor como fallback de var(), entao a ausencia de um
+   token nunca quebra a tela.
+   ========================================================================== */
+:root {
+    --luft-brand:            #1d63d8;      /* cor de acao: links ativos, botoes, destaque */
+    --luft-brand-rgb:        29, 99, 216;  /* mesma cor em RGB, para sombras e translucidos */
+    --luft-brand-soft:       #eaf2fd;      /* fundo de item ativo (menu) */
+    --luft-brand-soft-2:     #f0f7ff;      /* fundo de controles discretos */
+    --luft-brand-border:     #d0e1fd;
+    --luft-brand-tint:       #dbeafe;      /* avatar, selos */
+    --luft-focus-rgb:        59, 130, 246; /* anel de foco dos campos */
+    --luft-primary-hover:    var(--luft-primary-700); /* hover de botao preenchido */
+
+    /* Marca sobre superficies escuras */
+    --luft-brand-dk:         #60a5fa;
+    --luft-brand-dk-soft:    #93c5fd;
+    --luft-brand-dk-bg:      #1e3a8a;
+    --luft-brand-dk-bg-deep: #172554;
+    --luft-brand-dk-line:    #3b82f6;
+    --luft-brand-dk-line-rgb: 59, 130, 246;
+
+    /* Superficies neutras do modo escuro (sidebar, drawer de perfil) */
+    --luft-dk-surface:       #1e293b;
+    --luft-dk-deep:          #0f172a;
+    --luft-dk-line:          #334155;
+
+    /* Banner/hero de portais (gradiente escuro + textos sobre ele) */
+    --luft-hero-1:       #091a30;
+    --luft-hero-2:       #0d2545;
+    --luft-hero-3:       #123460;
+    --luft-hero-rgb:     9, 26, 48;
+    --luft-hero-accent:  #8bb3f0;
+    --luft-hero-soft:    #b7cde8;
+}

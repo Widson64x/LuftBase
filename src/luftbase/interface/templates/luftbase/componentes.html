@@ -1,0 +1,29 @@
+{% macro botao(texto, tipo='button', variante='primario', atributos='') -%}
+  <button type="{{ tipo }}" class="luft-botao luft-botao-{{ variante }}" {{ atributos|safe }}>{{ texto }}</button>
+{%- endmacro %}
+
+{% macro cartao(titulo, descricao=None) -%}
+  <section class="luft-cartao" aria-labelledby="{{ titulo|lower|replace(' ', '-') }}-titulo">
+    <h2 id="{{ titulo|lower|replace(' ', '-') }}-titulo">{{ titulo }}</h2>
+    {% if descricao %}<p class="luft-texto-suave">{{ descricao }}</p>{% endif %}
+    <div class="luft-cartao-conteudo">{{ caller() }}</div>
+  </section>
+{%- endmacro %}
+
+{% macro alerta(mensagem, variante='informacao') -%}
+  <div class="luft-alerta luft-alerta-{{ variante }}" role="{{ 'alert' if variante == 'perigo' else 'status' }}">
+    {{ mensagem }}
+  </div>
+{%- endmacro %}
+
+{% macro campo(nome, rotulo, tipo='text', valor='', obrigatorio=False, ajuda=None) -%}
+  <div class="luft-campo">
+    <label for="{{ nome }}">{{ rotulo }}{% if obrigatorio %}<span aria-hidden="true"> *</span>{% endif %}</label>
+    <input id="{{ nome }}" name="{{ nome }}" type="{{ tipo }}" value="{{ valor }}"{% if obrigatorio %} required aria-required="true"{% endif %}{% if ajuda %} aria-describedby="{{ nome }}-ajuda"{% endif %}>
+    {% if ajuda %}<small id="{{ nome }}-ajuda" class="luft-texto-suave">{{ ajuda }}</small>{% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro distintivo(texto, variante='neutro') -%}
+  <span class="luft-distintivo luft-distintivo-{{ variante }}">{{ texto }}</span>
+{%- endmacro %}

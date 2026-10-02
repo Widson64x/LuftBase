@@ -1,0 +1,68 @@
+
+{# ================================================================
+   DRAWER DE NOTIFICAÇÕES — LuftBase
+   Inclua este template no base.html quando notificações estiverem ativas.
+   ================================================================ #}
+
+<!-- Configuração do módulo de notificações -->
+<script id="luftbase-notif-config" type="application/json">
+    {{ {
+        'endpoint': luft_endpoint_notificacoes | default(request.script_root ~ '/_luftbase/notificacoes', true),
+        'polling_ms': luft_notificacoes_polling_ms | default(30000, true),
+    } | tojson }}
+</script>
+
+<!-- Backdrop -->
+<div id="luft-notif-backdrop" class="luft-notif-backdrop"></div>
+
+<!-- Drawer Panel -->
+<div id="luft-notif-drawer" class="luft-notif-drawer">
+
+    <!-- Header -->
+    <div class="luft-notif-header">
+        <div class="luft-notif-header-left">
+            <h3 class="luft-notif-header-title">Notificações</h3>
+            <span class="luft-notif-header-badge" data-count="0">0</span>
+        </div>
+        <div class="luft-notif-header-actions">
+            <button id="luft-notif-mark-all-btn" class="luft-notif-action-btn" title="Marcar todas como lidas">
+                <i class="ph-bold ph-checks"></i>
+                <span>Ler todas</span>
+            </button>
+            <button id="luft-notif-close-btn" class="luft-notif-close-btn" title="Fechar">
+                <i class="ph-bold ph-x"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="luft-notif-tabs">
+        <button class="luft-notif-tab ativo" data-filtro="todas">
+            Todas
+        </button>
+        <button class="luft-notif-tab" data-filtro="nao_lidas">
+            Não lidas
+            <span class="luft-notif-tab-count">0</span>
+        </button>
+    </div>
+
+    <!-- Lista de notificações -->
+    <div id="luft-notif-list" class="luft-notif-list">
+        <!-- Conteúdo será renderizado via JavaScript -->
+        <div class="luft-notif-empty">
+            <div class="luft-notif-empty-icon">
+                <i class="ph-thin ph-bell-slash"></i>
+            </div>
+            <h4 class="luft-notif-empty-title">Nenhuma notificação</h4>
+            <p class="luft-notif-empty-text">Quando houver atividade no sistema, as notificações aparecerão aqui.</p>
+        </div>
+    </div>
+
+    <!-- Footer: Carregar mais -->
+    <div id="luft-notif-load-more" class="luft-notif-load-more" style="display: none;">
+        <button id="luft-notif-load-more-btn" class="luft-notif-load-more-btn">
+            <i class="ph-bold ph-arrow-down"></i>
+            Carregar mais
+        </button>
+    </div>
+</div>

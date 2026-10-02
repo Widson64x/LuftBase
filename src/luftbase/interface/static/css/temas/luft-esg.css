@@ -1,0 +1,159 @@
+/* ==========================================================================
+   LUFT ESG - tema verde (ambiental, social e governanca)
+   Modos: claro e escuro. O modo e escolhido pelo usuario (ou fixado pelo manifesto).
+   Seletores: html[data-luft-theme="luft-esg"] (claro) e, adicionalmente,
+   [data-theme="dark"] para o escuro. O escuro tambem mira o <body> porque
+   themes.css redefine tokens em qualquer [data-theme="dark"], inclusive no body,
+   e esses valores neutros precisam ser vencidos.
+   ========================================================================== */
+
+/* -------------------------------- CLARO -------------------------------- */
+html[data-luft-theme="luft-esg"] {
+  color-scheme: light;
+
+  /* Vocabulario novo (--luft-cor-*) */
+  --luft-cor-fundo: #f3f7f2;
+  --luft-cor-superficie: #ffffff;
+  --luft-cor-superficie-elevada: #e7f0e6;
+  --luft-cor-texto: #14261c;
+  --luft-cor-texto-suave: #4d6356;
+  --luft-cor-texto-inverso: #ffffff;
+  --luft-cor-borda: #cfe0d1;
+  --luft-cor-destaque: #17803a;
+  --luft-cor-foco: #b45309;
+  --luft-cor-sucesso: #15803d;
+  --luft-cor-alerta: #92400e;
+  --luft-cor-perigo: #b42318;
+  --luft-sombra-media: 0 0.5rem 1.5rem rgb(20 38 28 / 0.09);
+
+  /* Paleta primaria: verde floresta */
+  --luft-primary-50:  #effaf1;
+  --luft-primary-100: #d7f3dc;
+  --luft-primary-200: #b1e6bd;
+  --luft-primary-300: #7fd295;
+  --luft-primary-400: #47b866;
+  --luft-primary-500: #239a48;
+  --luft-primary-600: #17803a;
+  --luft-primary-700: #14672f;
+  --luft-primary-800: #14502a;
+  --luft-primary-900: #124225;
+  --luft-primary-950: #08250f;
+  --luft-primary-hover: #14672f;
+
+  /* Paleta secundaria: verde-agua */
+  --luft-secondary-50:  #edfaf7;
+  --luft-secondary-100: #d0f2ec;
+  --luft-secondary-200: #a4e5db;
+  --luft-secondary-300: #6dd0c3;
+  --luft-secondary-400: #3bb5a8;
+  --luft-secondary-500: #1f998d;
+  --luft-secondary-600: #187b72;
+  --luft-secondary-700: #17625c;
+  --luft-secondary-800: #164f4b;
+  --luft-secondary-900: #153f3d;
+
+  /* Estrutura */
+  --luft-bg-app: #f3f7f2;
+  --luft-bg-panel: #ffffff;
+  --luft-bg-panel-hover: #eaf3ea;
+  --luft-text-main: #14261c;
+  --luft-text-muted: #4d6356;
+  --luft-text-light: #7a8f82;
+  --luft-border: #d5e3d6;
+  --luft-border-light: #e7f0e7;
+  --luft-border-dark: #b9cfbc;
+  --luft-glass-bg: rgba(255, 255, 255, 0.78);
+  --luft-glass-border: rgba(255, 255, 255, 0.35);
+  --luft-glass-shadow: 0 8px 32px 0 rgba(23, 80, 45, 0.08);
+  --luft-shadow-primary: 0 4px 14px 0 rgba(23, 128, 58, 0.35);
+
+  /* Marca */
+  --luft-brand: #17803a;
+  --luft-brand-rgb: 23, 128, 58;
+  --luft-brand-soft: #e4f4e8;
+  --luft-brand-soft-2: #eff9f1;
+  --luft-brand-border: #bfe3c8;
+  --luft-brand-tint: #d7f3dc;
+  --luft-focus-rgb: 34, 164, 90;
+}
+
+/* -------------------------------- ESCURO ------------------------------- */
+html[data-luft-theme="luft-esg"][data-theme="dark"],
+html[data-luft-theme="luft-esg"][data-theme="dark"] body {
+  color-scheme: dark;
+
+  --luft-cor-fundo: #0b1510;
+  --luft-cor-superficie: #12211a;
+  --luft-cor-superficie-elevada: #1a2e23;
+  --luft-cor-texto: #eaf5ec;
+  --luft-cor-texto-suave: #9bb5a3;
+  --luft-cor-texto-inverso: #08150d;
+  --luft-cor-borda: #28402f;
+  --luft-cor-destaque: #5fd68a;
+  --luft-cor-foco: #fbbf24;
+  --luft-cor-sucesso: #5fd68a;
+  --luft-cor-alerta: #fcd34d;
+  --luft-cor-perigo: #ff8c85;
+  --luft-sombra-media: 0 0.5rem 1.5rem rgb(0 0 0 / 0.35);
+
+  /* Em fundo escuro as faixas 50-200 viram tons escuros (fundos de selo/aviso)
+     e 700-900 viram tons claros (texto sobre esses fundos). O hover de botao
+     preenchido usa --luft-primary-hover, que segue escuro. */
+  --luft-primary-50:  #0f2619;
+  --luft-primary-100: #133121;
+  --luft-primary-200: #1a4a2f;
+  --luft-primary-300: #23653f;
+  --luft-primary-400: #2f9457;
+  --luft-primary-500: #2bb05a;
+  --luft-primary-600: #1f9a4a;
+  --luft-primary-700: #5fd68a;
+  --luft-primary-800: #86e3a6;
+  --luft-primary-900: #b6f0cb;
+  --luft-primary-950: #dcf8e6;
+  --luft-primary-hover: #187f3c;
+
+  --luft-bg-app: #0b1510;
+  --luft-bg-panel: #12211a;
+  --luft-bg-panel-hover: #1a2e23;
+  --luft-text-main: #eaf5ec;
+  --luft-text-muted: #9bb5a3;
+  --luft-text-light: #6f8a78;
+  --luft-border: #28402f;
+  --luft-border-light: #34523f;
+  --luft-border-dark: #12211a;
+  --luft-glass-bg: rgba(18, 33, 26, 0.85);
+  --luft-glass-border: rgba(255, 255, 255, 0.08);
+  --luft-glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+  --luft-shadow-primary: 0 4px 14px 0 rgba(47, 191, 106, 0.3);
+
+  --luft-brand: #2bb05a;
+  --luft-brand-rgb: 43, 176, 90;
+  --luft-brand-soft: #14502a;
+  --luft-brand-soft-2: #12291c;
+  --luft-brand-border: #1f5a36;
+  --luft-brand-tint: #1a4a2f;
+  --luft-focus-rgb: 47, 191, 106;
+
+  --luft-brand-dk: #5fd68a;
+  --luft-brand-dk-soft: #a6efc0;
+  --luft-brand-dk-bg: #14502a;
+  --luft-brand-dk-bg-deep: #0f3a1e;
+  --luft-brand-dk-line: #2fbf6a;
+  --luft-brand-dk-line-rgb: 47, 191, 106;
+
+  --luft-dk-surface: #12211a;
+  --luft-dk-deep: #0b1510;
+  --luft-dk-line: #28402f;
+}
+
+/* Banner/hero: o mesmo tom escuro nos dois modos (texto claro sobre foto), em verde-floresta. */
+html[data-luft-theme="luft-esg"],
+html[data-luft-theme="luft-esg"][data-theme="dark"],
+html[data-luft-theme="luft-esg"][data-theme="dark"] body {
+  --luft-hero-1: #05160c;
+  --luft-hero-2: #0a2615;
+  --luft-hero-3: #0f3a20;
+  --luft-hero-rgb: 5, 22, 12;
+  --luft-hero-accent: #86e3a6;
+  --luft-hero-soft: #b9dcc4;
+}
