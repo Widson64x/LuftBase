@@ -189,10 +189,45 @@ def test_substituir_grava_nova_versao_sem_cas() -> None:
     assert all(opcoes == {} for _, _, opcoes in kv2.escritas)
 
 
+PRIVILEGIOS_ORIGEM: dict[str, dict[str, list[tuple[Any, ...]]]] = {
+    "luft_workspace_app": {
+        "schema": [("workspace", "USAGE", False)],
+        "relacao": [
+            ("workspace", "tb_a", "r", "SELECT", False),
+            ("workspace", "seq_a", "S", "USAGE", False),
+        ],
+        "funcao": [("workspace", "fn_x", "integer", "f", "EXECUTE", False)],
+        "padrao": [
+            ("dba_teste", "workspace", "r", "SELECT", False),
+            ("outro_dono", "workspace", "r", "INSERT", False),
+        ],
+    },
+    "luft_connectair_app": {
+        "schema": [("connectair", "USAGE", True)],
+        "relacao": [("connectair", "tb_b", "r", "SELECT", False)],
+        "funcao": [],
+        "padrao": [],
+    },
+}
+
+
 class CursorFalso:
-    def __init__(self, resultados: list[list[tuple[Any, ...]]] | None = None) -> None:
+    """Responde por consulta, como o catalogo faria. `resultados` forca uma fila simples."""
+
+    def __init__(
+        self,
+        resultados: list[list[tuple[Any, ...]]] | None = None,
+        *,
+        existentes: tuple[str, ...] = (),
+        pode_criar: bool = True,
+        efetivo: bool = True,
+    ) -> None:
         self.comandos: list[str] = []
-        self._resultados = list(resultados or [])
+        self._fila = list(resultados) if resultados is not None else None
+        self._existentes = existentes
+        self._pode_criar = pode_criar
+        self._efetivo = efetivo
+        self._atual: list[tuple[Any, ...]] = []
 
     def __enter__(self) -> CursorFalso:
         return self
@@ -202,13 +237,46 @@ class CursorFalso:
 
     def execute(self, consulta: Any, parametros: Any = None) -> None:
         texto = consulta.as_string(None) if hasattr(consulta, "as_string") else str(consulta)
-        self.comandos.append(" ".join(texto.split()))
+        texto = " ".join(texto.split())
+        self.comandos.append(texto)
+        self._atual = [] if self._fila is not None else self._responder(texto, parametros)
+
+    def _responder(self, texto: str, parametros: Any) -> list[tuple[Any, ...]]:
+        if "pg_auth_members" in texto:
+            return [("luft_workspace_app", "luft_workspace_rw")]
+        if "FROM pg_catalog.pg_roles WHERE rolname = ANY" in texto:
+            return [(nome,) for nome in self._existentes]
+        if texto == "SELECT current_user":
+            return [("dba_teste",)]
+        if "rolsuper OR rolcreaterole" in texto:
+            return [(self._pode_criar,)]
+        if "has_database_privilege" in texto:
+            return [(True,)]
+        if "aclexplode" in texto and parametros:
+            role = str(parametros[0])
+            origem = role.replace("_hml_app", "_app")
+            if role != origem and not self._efetivo:
+                return []
+            dados = PRIVILEGIOS_ORIGEM.get(origem)
+            if dados is None:
+                return []
+            for chave, marca in (
+                ("schema", "n.nspacl"),
+                ("relacao", "c.relacl"),
+                ("funcao", "p.proacl"),
+                ("padrao", "pg_default_acl"),
+            ):
+                if marca in texto:
+                    return list(dados[chave])
+        return []
 
     def fetchall(self) -> list[tuple[Any, ...]]:
-        return self._resultados.pop(0) if self._resultados else []
+        if self._fila is not None:
+            return self._fila.pop(0) if self._fila else []
+        return list(self._atual)
 
     def fetchone(self) -> tuple[Any, ...] | None:
-        lista = self._resultados.pop(0) if self._resultados else []
+        lista = self.fetchall()
         return lista[0] if lista else None
 
 
@@ -227,6 +295,12 @@ class ConexaoFalsa:
 
     def cursor(self) -> CursorFalso:
         return self.cursor_falso
+
+    def __enter__(self) -> ConexaoFalsa:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        return None
 
 
 def test_cria_somente_roles_de_destino_com_grupos_e_connect() -> None:
@@ -277,40 +351,32 @@ def test_isolamento_aponta_roles_que_ainda_conectam_na_origem() -> None:
 
 
 class PsycopgFalso:
-    def __init__(self, existentes: list[str]) -> None:
-        self.existentes = existentes
-        self.cursor_falso = CursorFalso()
+    def __init__(
+        self, existentes: tuple[str, ...], pode_criar: bool = True, efetivo: bool = True
+    ) -> None:
+        self.cursor_falso = CursorFalso(
+            existentes=existentes, pode_criar=pode_criar, efetivo=efetivo
+        )
 
     def connect(self, **opcoes: Any) -> ConexaoFalsa:
         self.opcoes = opcoes
-        return _ConexaoCtx(self)
+        return ConexaoFalsa(self.cursor_falso)
 
 
-class _ConexaoCtx(ConexaoFalsa):
-    def __init__(self, base: PsycopgFalso) -> None:
-        super().__init__(base.cursor_falso)
-        self.base = base
-        base.cursor_falso._resultados = [
-            [("luft_workspace_app", "luft_workspace_rw")],
-            [(r,) for r in base.existentes],
-            [(True,)],
-            [(True,)],
-        ]
-
-    def __enter__(self) -> _ConexaoCtx:
-        return self
-
-    def __exit__(self, *_: object) -> None:
-        return None
-
-
-def _preparar(monkeypatch, kv2: Kv2Falso, existentes: list[str] | None = None) -> PsycopgFalso:  # type: ignore[no-untyped-def]
+def _preparar(  # type: ignore[no-untyped-def]
+    monkeypatch,
+    kv2: Kv2Falso,
+    existentes: list[str] | None = None,
+    *,
+    pode_criar: bool = True,
+    efetivo: bool = True,
+) -> PsycopgFalso:
     import psycopg
 
     modulo = sys.modules["luftbase.cli.vault"]
     monkeypatch.setattr(modulo, "_solicitar_segredo", lambda rotulo: "segredo")
     monkeypatch.setattr(modulo, "_criar_cliente_hvac_operador", lambda *a: ClienteFalso(kv2))
-    falso = PsycopgFalso(existentes or [])
+    falso = PsycopgFalso(tuple(existentes or ()), pode_criar, efetivo)
     monkeypatch.setattr(psycopg, "connect", falso.connect)
     return falso
 
@@ -413,3 +479,166 @@ def test_cli_usa_o_usuario_informado_sem_perguntar(monkeypatch) -> None:  # type
     assert resultado.exit_code == 0, resultado.output
     assert "Usuario administrativo do PostgreSQL" not in resultado.output
     assert falso.opcoes["user"] == "dba_teste"
+
+
+# ---- Privilegios diretos ------------------------------------------------------
+
+
+def _privilegios_destino() -> dict[str, list[Any]]:
+    from luftbase.infraestrutura.cofre import privilegios
+
+    cursor = CursorFalso()
+    return {
+        "luft_workspace_hml_app": list(
+            privilegios.consultar_privilegios(cursor, "luft_workspace_app")
+        ),
+        "luft_connectair_hml_app": list(
+            privilegios.consultar_privilegios(cursor, "luft_connectair_app")
+        ),
+    }
+
+
+def test_le_privilegios_diretos_de_schema_tabela_sequence_funcao_e_padrao() -> None:
+    from luftbase.infraestrutura.cofre import privilegios
+
+    lidos = privilegios.consultar_privilegios(CursorFalso(), "luft_workspace_app")
+
+    assert {p.categoria for p in lidos} == {"SCHEMA", "TABLE", "SEQUENCE", "FUNCTION", "DEFAULT"}
+    assert privilegios.resumo_por_categoria(lidos) == {
+        "DEFAULT": 2,
+        "FUNCTION": 1,
+        "SCHEMA": 1,
+        "SEQUENCE": 1,
+        "TABLE": 1,
+    }
+
+
+def test_padroes_de_outro_dono_nao_sao_aplicaveis() -> None:
+    from luftbase.infraestrutura.cofre import privilegios
+
+    lidos = privilegios.consultar_privilegios(CursorFalso(), "luft_workspace_app")
+    aplicaveis, ignorados = privilegios.separar_padroes(lidos, "dba_teste")
+
+    assert [p.objeto[0] for p in ignorados] == ["outro_dono"]
+    assert all(p.categoria != "DEFAULT" or p.objeto[0] == "dba_teste" for p in aplicaveis)
+
+
+def test_comando_grant_para_cada_categoria() -> None:
+    from luftbase.infraestrutura.cofre.privilegios import Privilegio, comando_grant
+
+    def texto(item: Privilegio) -> str:
+        return " ".join(comando_grant(item, "nova").as_string(None).split())
+
+    assert texto(Privilegio("SCHEMA", ("s",), "USAGE", True)) == (
+        'GRANT USAGE ON SCHEMA "s" TO "nova" WITH GRANT OPTION'
+    )
+    assert texto(Privilegio("TABLE", ("s", "t"), "SELECT")) == (
+        'GRANT SELECT ON TABLE "s"."t" TO "nova"'
+    )
+    assert texto(Privilegio("SEQUENCE", ("s", "q"), "USAGE")) == (
+        'GRANT USAGE ON SEQUENCE "s"."q" TO "nova"'
+    )
+    assert texto(Privilegio("FUNCTION", ("s", "f", "integer, text"), "EXECUTE")) == (
+        'GRANT EXECUTE ON FUNCTION "s"."f"(integer, text) TO "nova"'
+    )
+    assert texto(Privilegio("PROCEDURE", ("s", "p", ""), "EXECUTE")) == (
+        'GRANT EXECUTE ON PROCEDURE "s"."p"() TO "nova"'
+    )
+    assert texto(Privilegio("DEFAULT", ("dono", "s", "r"), "SELECT")) == (
+        'ALTER DEFAULT PRIVILEGES FOR ROLE "dono" IN SCHEMA "s" GRANT SELECT ON TABLES TO "nova"'
+    )
+    assert texto(Privilegio("DEFAULT", ("dono", "", "S"), "USAGE")) == (
+        'ALTER DEFAULT PRIVILEGES FOR ROLE "dono" GRANT USAGE ON SEQUENCES TO "nova"'
+    )
+
+
+def test_comando_grant_rejeita_privilegio_suspeito() -> None:
+    from luftbase.infraestrutura.cofre.privilegios import Privilegio, comando_grant
+
+    with pytest.raises(ErroConfiguracao, match="inesperado"):
+        comando_grant(Privilegio("TABLE", ("s", "t"), "SELECT; DROP TABLE x"), "nova")
+
+
+def test_criar_roles_replica_privilegios_diretos_na_role_nova_e_nunca_na_origem() -> None:
+    plano = _plano()
+    cursor = CursorFalso()
+
+    nao_concedidos = clonagem.criar_roles(
+        ConexaoFalsa(cursor), plano, clonagem.gerar_senhas(plano), _privilegios_destino()
+    )
+
+    comandos = cursor.comandos
+    assert nao_concedidos == {}
+    assert 'GRANT USAGE ON SCHEMA "workspace" TO "luft_workspace_hml_app"' in comandos
+    assert 'GRANT SELECT ON TABLE "workspace"."tb_a" TO "luft_workspace_hml_app"' in comandos
+    assert 'GRANT USAGE ON SEQUENCE "workspace"."seq_a" TO "luft_workspace_hml_app"' in comandos
+    assert (
+        'GRANT EXECUTE ON FUNCTION "workspace"."fn_x"(integer) TO "luft_workspace_hml_app"'
+        in comandos
+    )
+    assert (
+        'ALTER DEFAULT PRIVILEGES FOR ROLE "dba_teste" IN SCHEMA "workspace" '
+        'GRANT SELECT ON TABLES TO "luft_workspace_hml_app"'
+    ) in comandos
+    assert 'GRANT USAGE ON SCHEMA "connectair" TO "luft_connectair_hml_app" WITH GRANT OPTION' in (
+        comandos
+    )
+    # O padrao de outro dono nao pode ser aplicado por quem nao e esse dono.
+    assert not any("outro_dono" in c and c.startswith("ALTER DEFAULT") for c in comandos)
+    # Nada e concedido a (ou revogado de) roles da origem.
+    assert not any(
+        c.startswith("GRANT") and c.endswith('TO "luft_workspace_app"') for c in comandos
+    )
+    assert not any("REVOKE" in c for c in comandos)
+
+
+def test_criar_roles_informa_privilegios_que_nao_foram_concedidos() -> None:
+    plano = _plano()
+    cursor = CursorFalso(efetivo=False)
+
+    nao_concedidos = clonagem.criar_roles(
+        ConexaoFalsa(cursor), plano, clonagem.gerar_senhas(plano), _privilegios_destino()
+    )
+
+    assert set(nao_concedidos) == {"luft_workspace_hml_app", "luft_connectair_hml_app"}
+    assert len(nao_concedidos["luft_workspace_hml_app"]) == 5
+
+
+def test_cli_mostra_privilegios_diretos_e_avisa_sobre_padroes_de_outro_dono(  # type: ignore[no-untyped-def]
+    monkeypatch,
+) -> None:
+    _preparar(monkeypatch, _vault_producao())
+
+    resultado = CliRunner().invoke(cli, _ARGS)
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "privilegios diretos a copiar: 2 DEFAULT, 1 FUNCTION, 1 SCHEMA" in resultado.output
+    assert "pertencem a outro dono e nao serao copiados" in resultado.output
+    assert "administrador=dba_teste pode_criar_roles=sim" in resultado.output
+
+
+def test_cli_recusa_executar_sem_permissao_para_criar_roles(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    kv2 = _vault_producao()
+    falso = _preparar(monkeypatch, kv2, pode_criar=False)
+
+    simulacao = CliRunner().invoke(cli, _ARGS)
+    execucao = CliRunner().invoke(cli, [*_ARGS, "--executar"], input="x\n")
+
+    assert simulacao.exit_code == 0, simulacao.output
+    assert "pode_criar_roles=nao" in simulacao.output
+    assert execucao.exit_code != 0
+    assert "CREATEROLE" in execucao.output
+    assert not [e for e in kv2.escritas if e[0].startswith("luft/homologacao")]
+    assert not any(c.startswith("CREATE ROLE") for c in falso.cursor_falso.comandos)
+
+
+def test_cli_avisa_quando_a_role_nova_nao_recebe_todos_os_privilegios(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    _preparar(monkeypatch, _vault_producao(), efetivo=False)
+
+    resultado = CliRunner().invoke(
+        cli, [*_ARGS, "--executar"], input="CLONAR-PRODUCAO-HOMOLOGACAO\n"
+    )
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "nao recebeu 5 privilegio(s)" in resultado.output
+    assert "Repita esses GRANTs com o dono dos objetos" in resultado.output

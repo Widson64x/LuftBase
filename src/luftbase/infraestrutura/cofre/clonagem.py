@@ -23,6 +23,14 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from luftbase.configuracao.ambientes import normalizar_ambiente
+from luftbase.infraestrutura.cofre.privilegios import (
+    Privilegio,
+    comando_grant,
+    consultar_privilegios,
+    faltantes,
+    separar_padroes,
+    usuario_atual,
+)
 from luftbase.nucleo.excecoes import ErroConfiguracao
 
 _SUFIXOS_AMBIENTE = {"desenvolvimento": "dev", "homologacao": "hml", "producao": "prd"}
@@ -306,15 +314,28 @@ def consultar_roles_existentes(cursor: Any, roles: Iterable[str]) -> set[str]:
     return {linha[0] for linha in cursor.fetchall()}
 
 
-def criar_roles(conexao: Any, plano: PlanoClonagem, senhas: Mapping[str, str]) -> None:
-    """Cria as roles de destino, replica pertencas e libera o banco, em uma transacao.
+def criar_roles(
+    conexao: Any,
+    plano: PlanoClonagem,
+    senhas: Mapping[str, str],
+    privilegios: Mapping[str, Iterable[Privilegio]] | None = None,
+) -> dict[str, list[Privilegio]]:
+    """Cria as roles de destino, replica pertencas e privilegios e libera o banco.
 
-    Nunca altera uma role existente: quem chama ja garantiu que elas nao existem.
+    Tudo em uma transacao: se qualquer comando falhar, nenhuma role e criada. Nunca altera
+    uma role existente: quem chama ja garantiu que elas nao existem. `privilegios` mapeia a
+    role de DESTINO para os privilegios diretos copiados da role de origem.
+
+    Devolve, por role, os privilegios que a role nova nao recebeu (normalmente porque o
+    usuario administrativo nao e dono do objeto e nao tem GRANT OPTION).
     """
 
     from psycopg import sql
 
+    privilegios = privilegios or {}
+    nao_concedidos: dict[str, list[Privilegio]] = {}
     with conexao.transaction(), conexao.cursor() as cursor:
+        dono_atual = usuario_atual(cursor)
         for role in plano.roles_destino:
             verificador = conexao.pgconn.encrypt_password(
                 senhas[role].encode(), role.encode(), b"scram-sha-256"
@@ -333,6 +354,13 @@ def criar_roles(conexao: Any, plano: PlanoClonagem, senhas: Mapping[str, str]) -
                     sql.Identifier(plano.banco_destino), sql.Identifier(role)
                 )
             )
+            aplicaveis, _ignorados = separar_padroes(privilegios.get(role, ()), dono_atual)
+            for item in aplicaveis:
+                cursor.execute(comando_grant(item, role))
+            ausentes = faltantes(aplicaveis, consultar_privilegios(cursor, role))
+            if ausentes:
+                nao_concedidos[role] = ausentes
+    return nao_concedidos
 
 
 def roles_que_alcancam_a_origem(cursor: Any, plano: PlanoClonagem) -> list[str]:

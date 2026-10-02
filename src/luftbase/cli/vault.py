@@ -747,7 +747,7 @@ def postgresql_clonar_ambiente(
 
     import psycopg
 
-    from luftbase.infraestrutura.cofre import clonagem
+    from luftbase.infraestrutura.cofre import clonagem, privilegios
 
     token_operador = _solicitar_segredo("Token de operador do Vault")
     cliente = _criar_cliente_hvac_operador(vault_url, token_operador, vault_mount)
@@ -791,6 +791,12 @@ def postgresql_clonar_ambiente(
         with conexao.cursor() as cursor:
             grupos = clonagem.consultar_grupos(cursor, [s.usuario_origem for s in plano.sistemas])
             ja_existem = clonagem.consultar_roles_existentes(cursor, plano.roles_destino)
+            admin_efetivo = privilegios.usuario_atual(cursor)
+            pode_criar = privilegios.pode_criar_roles(cursor)
+            copiados = {
+                s.usuario_destino: privilegios.consultar_privilegios(cursor, s.usuario_origem)
+                for s in plano.sistemas
+            }
         plano = plano.com_grupos(grupos)
         segredos_existentes = clonagem.caminhos_existentes(
             cliente, vault_mount, plano.caminhos_destino, _segredo_existe
@@ -802,11 +808,24 @@ def postgresql_clonar_ambiente(
         click.echo(f"conexao: {plano.caminho_conexao_destino}")
         for s in plano.sistemas:
             membro = ", ".join(plano.grupos.get(s.usuario_destino, ())) or "(nenhuma)"
-            click.echo(
-                f"  sistema {s.sistema_id}: {s.usuario_origem} -> {s.usuario_destino} "
-                f"(roles funcionais: {membro})"
-            )
+            click.echo(f"  sistema {s.sistema_id}: {s.usuario_origem} -> {s.usuario_destino}")
             click.echo(f"    segredo: {s.caminho_destino}")
+            click.echo(f"    pertence a: {membro}")
+            diretos = privilegios.resumo_por_categoria(copiados.get(s.usuario_destino, ()))
+            resumo = ", ".join(f"{n} {c}" for c, n in diretos.items()) or "(nenhum)"
+            click.echo(f"    privilegios diretos a copiar: {resumo}")
+        for s in plano.sistemas:
+            _, de_outro_dono = privilegios.separar_padroes(
+                copiados.get(s.usuario_destino, ()), admin_efetivo
+            )
+            if de_outro_dono:
+                click.echo(
+                    f"ATENCAO: {len(de_outro_dono)} privilegio(s) padrao de {s.usuario_origem} "
+                    f"pertencem a outro dono e nao serao copiados (so o dono pode concede-los)."
+                )
+        click.echo(
+            f"administrador={admin_efetivo} pode_criar_roles={'sim' if pode_criar else 'nao'}"
+        )
 
         if ja_existem:
             raise click.ClickException(
@@ -822,6 +841,11 @@ def postgresql_clonar_ambiente(
             )
         if segredos_existentes:
             click.echo(f"Segredos do destino que ganharao nova versao: {len(segredos_existentes)}")
+        if executar and not pode_criar:
+            raise click.ClickException(
+                f"O usuario {admin_efetivo} nao tem permissao para criar roles (CREATEROLE ou "
+                "superuser). Rode com um usuario administrativo que tenha."
+            )
 
         if not executar:
             click.echo("Simulacao concluida: nada foi alterado. Use --executar para aplicar.")
@@ -842,7 +866,7 @@ def postgresql_clonar_ambiente(
         click.echo("Segredos gravados no Vault do destino.")
 
         try:
-            clonagem.criar_roles(conexao, plano, senhas)
+            nao_concedidos = clonagem.criar_roles(conexao, plano, senhas, copiados)
         except Exception as erro:
             click.echo(
                 "FALHA ao criar as roles; nenhuma role foi criada. Os segredos ficaram no Vault: "
@@ -851,14 +875,29 @@ def postgresql_clonar_ambiente(
             )
             raise click.ClickException(str(erro)) from erro
         click.echo(f"Roles criadas: {', '.join(plano.roles_destino)}")
+        for role, ausentes in sorted(nao_concedidos.items()):
+            click.echo(
+                f"ATENCAO: {role} nao recebeu {len(ausentes)} privilegio(s) (o administrador nao "
+                "e dono do objeto ou nao tem GRANT OPTION). Exemplos:"
+            )
+            for item in ausentes[:5]:
+                click.echo(f"  {item.privilegio} em {item.categoria} {'.'.join(item.objeto)}")
+            click.echo(
+                "Repita esses GRANTs com o dono dos objetos (ex.: o usuario dono do schema)."
+            )
 
         with conexao.cursor() as cursor:
             alcancam = clonagem.roles_que_alcancam_a_origem(cursor, plano)
         if alcancam:
             click.echo(
                 f"ATENCAO: {', '.join(alcancam)} ainda conseguem conectar em "
-                f"{plano.banco_origem} (CONNECT herdado de PUBLIC) e, pelas roles funcionais, "
-                "poderiam usar os mesmos privilegios la. Para isolar, execute como administrador:"
+                f"{plano.banco_origem} (CONNECT herdado de PUBLIC)"
+                + (
+                    " e herdam privilegios das roles funcionais."
+                    if any(plano.grupos.values())
+                    else ", embora sem privilegios sobre os dados de la."
+                )
+                + " Para fechar o acesso, execute como administrador:"
             )
             usuarios_origem = ", ".join(sorted({s.usuario_origem for s in plano.sistemas}))
             click.echo(f"  REVOKE CONNECT ON DATABASE {plano.banco_origem} FROM PUBLIC;")
