@@ -162,3 +162,42 @@ def test_rejeita_configuracao_de_identidade_invalida(
 ) -> None:
     with pytest.raises(ErroConfiguracao, match=mensagem):
         _configuracao_inicializavel(**{campo: valor})
+
+
+def test_producao_permite_cookie_sem_secure_somente_com_excecao_explicita() -> None:
+    padrao = _configuracao_inicializavel()
+    ignorado = _configuracao_inicializavel(LUFT_SESSAO_COOKIE_SEGURO="false")
+    permitido = _configuracao_inicializavel(LUFT_PERMITIR_COOKIE_INSEGURO="true")
+
+    # Sem a excecao, producao continua exigindo cookie Secure (inclusive com SEGURO=false).
+    assert padrao.sessao.cookie_seguro is True
+    assert ignorado.sessao.cookie_seguro is True
+    assert padrao.sessao.cookie_inseguro_permitido is False
+    # Com a excecao declarada, o cookie deixa de ser Secure e a decisao fica registrada.
+    assert permitido.sessao.cookie_seguro is False
+    assert permitido.sessao.cookie_inseguro_permitido is True
+
+
+def test_excecao_de_cookie_inseguro_nao_vence_cookie_seguro_explicito() -> None:
+    configuracao = _configuracao_inicializavel(
+        LUFT_PERMITIR_COOKIE_INSEGURO="true",
+        LUFT_SESSAO_COOKIE_SEGURO="true",
+    )
+
+    assert configuracao.sessao.cookie_seguro is True
+    assert configuracao.sessao.cookie_inseguro_permitido is False
+
+
+def test_excecao_de_cookie_inseguro_e_irrelevante_fora_de_producao() -> None:
+    configuracao = _configuracao_inicializavel(
+        LUFT_AMBIENTE="desenvolvimento",
+        LUFT_PERMITIR_COOKIE_INSEGURO="true",
+    )
+
+    assert configuracao.sessao.cookie_seguro is False
+    assert configuracao.sessao.cookie_inseguro_permitido is False
+
+
+def test_excecao_de_cookie_inseguro_rejeita_valor_invalido() -> None:
+    with pytest.raises(ErroConfiguracao, match="true ou false"):
+        _configuracao_inicializavel(LUFT_PERMITIR_COOKIE_INSEGURO="talvez")

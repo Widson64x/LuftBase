@@ -630,6 +630,11 @@ class PlataformaLuft:
         """Instala cookie, sessao compartilhada e Flask-Login por aplicacao."""
 
         politica = configuracao.sessao
+        if politica.cookie_inseguro_permitido:
+            logging.getLogger(__name__).warning(
+                "Cookie de sessao SEM a flag Secure em producao (LUFT_PERMITIR_COOKIE_INSEGURO). "
+                "Use somente em rede interna sem TLS e remova ao habilitar HTTPS."
+            )
         chave_assinatura = infraestrutura.chave_assinatura_sessao.revelar()
         app.config.update(
             SESSION_COOKIE_NAME=politica.nome_cookie,

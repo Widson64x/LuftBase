@@ -126,6 +126,9 @@ class ConfiguracaoSessao:
     same_site: Literal["Lax", "Strict", "None"] = "Lax"
     ttl_minutos: int = 10
     cookie_seguro: bool = False
+    # Excecao explicita ao cookie Secure em producao, para ambientes servidos por HTTP
+    # (ex.: homologacao sem TLS). So informa a decisao; quem decide e cookie_seguro.
+    cookie_inseguro_permitido: bool = False
 
     def __post_init__(self) -> None:
         if not self.nome_cookie.strip() or any(
@@ -314,7 +317,16 @@ class ConfiguracaoLuftBase:
             "LUFT_SESSAO_COOKIE_SEGURO",
             padrao=False,
         )
-        cookie_seguro = ambiente is Ambiente.PRODUCAO or cookie_seguro_configurado
+        # Producao exige cookie Secure. Quem serve por HTTP (sem TLS) precisa declarar a
+        # excecao de forma explicita; LUFT_SESSAO_COOKIE_SEGURO=true ainda prevalece.
+        cookie_inseguro_permitido = _booleano(
+            _primeiro_valor(dados, "LUFT_PERMITIR_COOKIE_INSEGURO"),
+            "LUFT_PERMITIR_COOKIE_INSEGURO",
+            padrao=False,
+        )
+        cookie_seguro = cookie_seguro_configurado or (
+            ambiente is Ambiente.PRODUCAO and not cookie_inseguro_permitido
+        )
         ttl_minutos = _inteiro_intervalo(
             _primeiro_valor(dados, "LUFT_SESSAO_TTL_MINUTOS") or 10,
             "LUFT_SESSAO_TTL_MINUTOS",
@@ -372,6 +384,11 @@ class ConfiguracaoLuftBase:
                 ),
                 ttl_minutos=ttl_minutos,
                 cookie_seguro=cookie_seguro,
+                cookie_inseguro_permitido=(
+                    cookie_inseguro_permitido
+                    and ambiente is Ambiente.PRODUCAO
+                    and not cookie_seguro
+                ),
             ),
             autorizacao=ConfiguracaoAutorizacao(
                 ttl_resultado_segundos=ttl_autorizacao,
