@@ -663,3 +663,175 @@ def postgresql_remover_sistemas(
             raise click.ClickException(f"Falha ao remover {raiz}/{alvo}: {erro}") from erro
         click.echo(f"  REMOVIDO {raiz}/{alvo}")
     click.echo("Concluido. Roles, schemas e o core nao foram alterados.")
+
+
+@vault_postgresql.command("clonar-ambiente")
+@click.option("--origem", required=True, help="Ambiente de origem (ex.: producao).")
+@click.option("--destino", required=True, help="Ambiente de destino (ex.: homologacao).")
+@click.option(
+    "--banco-destino",
+    required=True,
+    help="Banco ja criado para o destino (ex.: luft_web_hml, via CREATE DATABASE ... TEMPLATE).",
+)
+@click.option("--host-destino", default=None, help="Servidor do destino, se diferente da origem.")
+@click.option("--conexao", "alias", default=None, help="Alias da conexao, se houver mais de uma.")
+@click.option(
+    "--sufixo-role",
+    default=None,
+    help="Sufixo das roles de destino (padrao: dev, hml ou prd conforme o ambiente).",
+)
+@click.option(
+    "--executar",
+    is_flag=True,
+    help="Aplica a clonagem. Sem esta opcao apenas simula e nao altera nada.",
+)
+@click.option(
+    "--substituir-segredos",
+    is_flag=True,
+    help="Grava nova versao em segredos do destino que ja existem (o KV v2 guarda as antigas).",
+)
+@click.option("--vault-url", default="http://172.16.200.80:8200", help="URL do Vault.")
+@click.option("--vault-mount", default="secret", help="Mount point do Vault KV v2.")
+@click.option("--namespace", default="luft", help="Namespace raiz dos segredos.")
+@click.option("--postgres-admin", default="admin", help="Usuario administrativo do PostgreSQL.")
+def postgresql_clonar_ambiente(
+    origem: str,
+    destino: str,
+    banco_destino: str,
+    host_destino: str | None,
+    alias: str | None,
+    sufixo_role: str | None,
+    executar: bool,
+    substituir_segredos: bool,
+    vault_url: str,
+    vault_mount: str,
+    namespace: str,
+    postgres_admin: str,
+) -> None:
+    """Clona segredos e roles de um ambiente para outro, com roles proprias no destino.
+
+    Le os segredos de PostgreSQL da origem, aponta a conexao para o banco do destino e cria,
+    no destino, roles dedicadas (ex.: luft_workspace_hml_app) com senha aleatoria que so existe
+    no Vault do destino. As roles da origem nunca sao alteradas. Por padrao e uma simulacao.
+    """
+
+    import psycopg
+
+    from luftbase.infraestrutura.cofre import clonagem
+
+    token_operador = _solicitar_segredo("Token de operador do Vault")
+    cliente = _criar_cliente_hvac_operador(vault_url, token_operador, vault_mount)
+    try:
+        conexoes, sistemas = clonagem.ler_segredos_postgresql(
+            cliente, vault_mount, origem, namespace
+        )
+        plano = clonagem.montar_plano(
+            conexoes,
+            sistemas,
+            ambiente_origem=origem,
+            ambiente_destino=destino,
+            banco_destino=banco_destino,
+            namespace=namespace,
+            host_destino=host_destino,
+            alias=alias,
+            sufixo_role=sufixo_role,
+        )
+    except ErroConfiguracao as erro:
+        raise click.ClickException(str(erro)) from erro
+
+    senha_admin = _solicitar_segredo(f"Senha PostgreSQL do usuario {postgres_admin}")
+    try:
+        conexao = psycopg.connect(
+            host=plano.host,
+            port=int(plano.campos_conexao.get("porta") or 5432),
+            dbname=plano.banco_destino,
+            user=postgres_admin,
+            password=senha_admin,
+            sslmode=plano.campos_conexao.get("sslmode") or "prefer",
+            connect_timeout=10,
+        )
+    except Exception as erro:
+        raise click.ClickException(
+            f"Nao foi possivel conectar em {plano.host}/{plano.banco_destino} "
+            f"(o banco de destino precisa existir): {erro}"
+        ) from erro
+
+    with conexao:
+        with conexao.cursor() as cursor:
+            grupos = clonagem.consultar_grupos(cursor, [s.usuario_origem for s in plano.sistemas])
+            ja_existem = clonagem.consultar_roles_existentes(cursor, plano.roles_destino)
+        plano = plano.com_grupos(grupos)
+        segredos_existentes = clonagem.caminhos_existentes(
+            cliente, vault_mount, plano.caminhos_destino, _segredo_existe
+        )
+
+        click.echo(f"origem={plano.ambiente_origem} destino={plano.ambiente_destino}")
+        click.echo(f"servidor={plano.host} banco_origem={plano.banco_origem}")
+        click.echo(f"banco_destino={plano.banco_destino}")
+        click.echo(f"conexao: {plano.caminho_conexao_destino}")
+        for s in plano.sistemas:
+            membro = ", ".join(plano.grupos.get(s.usuario_destino, ())) or "(nenhuma)"
+            click.echo(
+                f"  sistema {s.sistema_id}: {s.usuario_origem} -> {s.usuario_destino} "
+                f"(roles funcionais: {membro})"
+            )
+            click.echo(f"    segredo: {s.caminho_destino}")
+
+        if ja_existem:
+            raise click.ClickException(
+                "Roles de destino ja existem e nao serao alteradas: "
+                + ", ".join(sorted(ja_existem))
+                + ". Remova-as ou use outro --sufixo-role."
+            )
+        if segredos_existentes and not substituir_segredos:
+            raise click.ClickException(
+                "Ja existem segredos no destino: "
+                + ", ".join(segredos_existentes)
+                + ". Use --substituir-segredos para gravar uma nova versao."
+            )
+        if segredos_existentes:
+            click.echo(f"Segredos do destino que ganharao nova versao: {len(segredos_existentes)}")
+
+        if not executar:
+            click.echo("Simulacao concluida: nada foi alterado. Use --executar para aplicar.")
+            return
+
+        confirmacao = f"CLONAR-{plano.ambiente_origem.upper()}-{plano.ambiente_destino.upper()}"
+        recebido = click.prompt(f"Digite {confirmacao} para confirmar", type=str).strip()
+        if recebido != confirmacao:
+            raise click.ClickException("Confirmacao recusada; nenhuma alteracao realizada.")
+
+        senhas = clonagem.gerar_senhas(plano)
+        try:
+            clonagem.gravar_segredos_destino(
+                cliente, vault_mount, plano, senhas, substituir=substituir_segredos
+            )
+        except Exception as erro:
+            raise click.ClickException(f"Falha ao gravar segredos no Vault: {erro}") from erro
+        click.echo("Segredos gravados no Vault do destino.")
+
+        try:
+            clonagem.criar_roles(conexao, plano, senhas)
+        except Exception as erro:
+            click.echo(
+                "FALHA ao criar as roles; nenhuma role foi criada. Os segredos ficaram no Vault: "
+                "corrija a causa e repita com --substituir-segredos (gera novas senhas).",
+                err=True,
+            )
+            raise click.ClickException(str(erro)) from erro
+        click.echo(f"Roles criadas: {', '.join(plano.roles_destino)}")
+
+        with conexao.cursor() as cursor:
+            alcancam = clonagem.roles_que_alcancam_a_origem(cursor, plano)
+        if alcancam:
+            click.echo(
+                f"ATENCAO: {', '.join(alcancam)} ainda conseguem conectar em "
+                f"{plano.banco_origem} (CONNECT herdado de PUBLIC) e, pelas roles funcionais, "
+                "poderiam usar os mesmos privilegios la. Para isolar, execute como administrador:"
+            )
+            usuarios_origem = ", ".join(sorted({s.usuario_origem for s in plano.sistemas}))
+            click.echo(f"  REVOKE CONNECT ON DATABASE {plano.banco_origem} FROM PUBLIC;")
+            click.echo(f"  GRANT CONNECT ON DATABASE {plano.banco_origem} TO {usuarios_origem};")
+            click.echo("(nao executado: altera permissoes do banco de origem.)")
+
+    click.echo("Clonagem concluida sem expor valores secretos.")
