@@ -97,3 +97,44 @@ def test_engine_aplicacao_recebe_schema_translate_map() -> None:
 def test_rejeita_configuracao_invalida_de_pool(argumentos: dict[str, int], mensagem: str) -> None:
     with pytest.raises(ValueError, match=mensagem):
         ConfiguracaoPool(**argumentos)
+
+
+def test_vigia_fecha_conexoes_ociosas_e_preserva_as_em_uso(tmp_path: Any) -> None:
+    import time
+
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'ocioso.db'}")
+    thread = conexoes.vigiar_ociosidade(engine, 0.3, intervalo_segundos=0.05)
+    assert thread is not None and thread.daemon
+
+    def esperar(condicao: Any, limite: float = 5.0) -> bool:
+        fim = time.monotonic() + limite
+        while time.monotonic() < fim:
+            if condicao():
+                return True
+            time.sleep(0.05)
+        return False
+
+    with engine.connect() as conexao:
+        conexao.execute(text("SELECT 1"))
+    assert engine.pool.checkedin() == 1
+
+    # Ociosa e sem emprestimos: o pool e descartado e a conexao fecha no banco.
+    assert esperar(lambda: engine.pool.checkedin() == 0)
+
+    # Conexao emprestada por mais tempo que a ociosidade nunca e derrubada.
+    with engine.connect() as conexao:
+        time.sleep(0.8)
+        assert engine.pool.checkedout() == 1
+        assert conexao.execute(text("SELECT 2")).scalar() == 2
+
+    # Depois de devolvida, volta a ser considerada ociosa.
+    assert esperar(lambda: engine.pool.checkedin() == 0)
+
+
+def test_vigia_desligado_ou_sem_engine_real_nao_cria_thread() -> None:
+    assert conexoes.vigiar_ociosidade(object(), 120) is None  # type: ignore[arg-type]
+    assert ConfiguracaoPool(ociosidade_segundos=0).ociosidade_segundos == 0
+    with pytest.raises(ValueError, match="ociosidade"):
+        ConfiguracaoPool(ociosidade_segundos=-1)
