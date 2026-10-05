@@ -897,11 +897,14 @@ def postgresql_clonar_ambiente(
                     if any(plano.grupos.values())
                     else ", embora sem privilegios sobre os dados de la."
                 )
-                + " Para fechar o acesso, execute como administrador:"
+                + " Sem privilegios sobre os dados, o risco e baixo."
             )
-            usuarios_origem = ", ".join(sorted({s.usuario_origem for s in plano.sistemas}))
-            click.echo(f"  REVOKE CONNECT ON DATABASE {plano.banco_origem} FROM PUBLIC;")
-            click.echo(f"  GRANT CONNECT ON DATABASE {plano.banco_origem} TO {usuarios_origem};")
-            click.echo("(nao executado: altera permissoes do banco de origem.)")
+            click.echo(
+                f"Para fechar por completo seria preciso REVOKE CONNECT ON DATABASE "
+                f"{plano.banco_origem} FROM PUBLIC e um GRANT CONNECT a TODAS as roles que usam "
+                f"esse banco (todos os apps, o dono, backup e monitoramento), nao so as de "
+                f"{', '.join(sorted({s.usuario_origem for s in plano.sistemas}))}. "
+                "Nao foi executado: mudar isso sem listar todas as roles derruba quem ficar de fora."
+            )
 
     click.echo("Clonagem concluida sem expor valores secretos.")

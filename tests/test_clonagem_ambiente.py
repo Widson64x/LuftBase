@@ -446,7 +446,10 @@ def test_cli_executa_com_confirmacao_e_nao_imprime_senhas(monkeypatch) -> None: 
     assert senha not in resultado.output
     assert senha not in " ".join(falso.cursor_falso.comandos)
     assert "Roles criadas: luft_connectair_hml_app, luft_workspace_hml_app" in resultado.output
-    assert "REVOKE CONNECT ON DATABASE luft_web FROM PUBLIC" in resultado.output
+    assert "Sem privilegios sobre os dados, o risco e baixo" in resultado.output
+    assert "TODAS as roles que usam esse banco" in resultado.output
+    # O comando nunca deve sugerir um GRANT pronto que deixe roles de fora.
+    assert "GRANT CONNECT ON DATABASE luft_web TO" not in resultado.output
     assert 'CREATE ROLE "luft_workspace_hml_app"' in " ".join(falso.cursor_falso.comandos)
 
 
