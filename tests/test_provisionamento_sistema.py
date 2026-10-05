@@ -52,9 +52,9 @@ class Kv2Falso:
         return {"data": {}}
 
     def create_or_update_secret(
-        self, path: str, mount_point: str, cas: int, secret: dict[str, object]
+        self, path: str, mount_point: str, secret: dict[str, object], cas: int | None = None
     ) -> None:
-        self.gravados.append((path, cas, secret))
+        self.gravados.append((path, cas, secret))  # type: ignore[arg-type]
 
     def delete_metadata_and_all_versions(self, path: str, mount_point: str) -> None:
         self.removidos.append(path)
@@ -191,3 +191,188 @@ def test_painel_lista_so_parametros_permitidos_e_ignora_rota_inexistente(monkeyp
 
     assert [p["titulo"] for p in visiveis] == ["Cias", "Livre"]
     assert visiveis[0]["url"] == "/cias"
+
+
+# ---- Role por ambiente (a role e do cluster, nao do banco) ------------------------------------
+
+
+def test_role_de_producao_nao_leva_sufixo_e_a_dos_demais_ambientes_leva() -> None:
+    from luftbase.infraestrutura.provisionamento_sistema import nome_da_role
+
+    assert nome_da_role("integrador", "producao") == "luft_integrador_app"
+    assert nome_da_role("integrador", "homologacao") == "luft_integrador_hml_app"
+    assert nome_da_role("integrador", "desenvolvimento") == "luft_integrador_dev_app"
+    assert derivar_plano(3, "Luft-Integrador", "integrador", "homologacao").role == (
+        "luft_integrador_hml_app"
+    )
+    # Sem ambiente informado o comportamento antigo (producao) e preservado.
+    assert derivar_plano(3, "Luft-Integrador", "integrador").role == "luft_integrador_app"
+
+
+def test_destino_informa_o_sufixo_da_role_para_a_tela() -> None:
+    from dataclasses import replace
+
+    assert replace(DESTINO, ambiente="homologacao").como_dict()["sufixo_role"] == "hml"
+    assert replace(DESTINO, ambiente="producao").como_dict()["sufixo_role"] == ""
+
+
+def test_provisionar_recusa_plano_de_outro_ambiente_antes_de_tocar_no_banco() -> None:
+    provisionador = _provisionador(Kv2Falso({}))
+    plano_producao = derivar_plano(3, "Luft-Integrador", "integrador", "producao")
+
+    # O destino do teste e "desenvolvimento": um plano de producao nao pode ser aplicado nele.
+    with pytest.raises(ErroProvisionamento, match="ambiente"):
+        provisionador.provisionar_banco(plano_producao)
+
+
+def test_provisionar_recusa_role_sem_o_sufixo_do_ambiente() -> None:
+    from dataclasses import replace
+
+    plano = replace(
+        derivar_plano(3, "Luft-Integrador", "integrador", "desenvolvimento"),
+        role="luft_integrador_app",
+    )
+
+    with pytest.raises(ErroProvisionamento, match="nao segue o nome"):
+        _provisionador(Kv2Falso({})).provisionar_banco(plano)
+
+
+def test_substituir_grava_nova_versao_sem_cas() -> None:
+    kv2 = Kv2Falso({})
+    plano = derivar_plano(3, "Luft-Integrador", "integrador", "desenvolvimento")
+
+    _provisionador(kv2).gravar_segredo(plano, "luft-web", Segredo("x"), substituir=True)
+
+    assert kv2.gravados[-1][1] is None
+    assert kv2.gravados[-1][2]["usuario"] == "luft_integrador_dev_app"
+
+
+# ---- Comando reprovisionar-sistema ----------------------------------------------------------
+
+
+class ProvisionadorFalso:
+    """Substitui o provisionador real: registra o que o comando pediria ao banco e ao Vault."""
+
+    ultimo: ProvisionadorFalso | None = None
+
+    def __init__(self, destino: DestinoProvisionamento, credenciais: object) -> None:
+        self.destino = destino
+        self.chamadas: list[str] = []
+        self.gravado: dict[str, object] = {}
+        ProvisionadorFalso.ultimo = self
+
+    def verificar(self) -> None:
+        self.chamadas.append("verificar")
+
+    def segredo_existe(self, sistema_id: int) -> bool:
+        return True
+
+    def provisionar_banco(self, plano: PlanoSistema) -> tuple[Segredo, bool]:
+        self.chamadas.append(f"provisionar:{plano.role}")
+        return Segredo("senha-gerada-no-teste"), True
+
+    def gravar_segredo(
+        self, plano: PlanoSistema, alias: str, senha: Segredo, *, substituir: bool = False
+    ) -> str:
+        self.gravado = {"role": plano.role, "alias": alias, "substituir": substituir}
+        return f"{self.destino.raiz_sistemas}/{plano.sistema_id}"
+
+    def encerrar(self) -> None:
+        self.chamadas.append("encerrar")
+
+
+def _preparar_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+
+    modulo = sys.modules["luftbase.cli.vault"]
+    kv2 = Kv2Falso(
+        {
+            "luft/homologacao/bancos/postgresql/sistemas/0": {"conexao": "luft-web"},
+            "luft/homologacao/bancos/postgresql/conexoes/luft-web": {
+                "host": "db.interno",
+                "porta": "5432",
+                "nome_banco": "luft_web_hml",
+            },
+        }
+    )
+    cliente = type("C", (), {"secrets": type("S", (), {"kv": type("K", (), {"v2": kv2})()})()})()
+    monkeypatch.setattr(modulo, "_solicitar_segredo", lambda rotulo: "segredo")
+    monkeypatch.setattr(modulo, "_criar_cliente_hvac_operador", lambda *a: cliente)
+    monkeypatch.setattr(
+        "luftbase.infraestrutura.provisionamento_sistema.ProvisionadorSistema",
+        ProvisionadorFalso,
+    )
+
+
+_ARGS_REPROVISIONAR = [
+    "vault",
+    "postgresql",
+    "reprovisionar-sistema",
+    "--ambiente",
+    "homologacao",
+    "--sistema-id",
+    "3",
+    "--nome",
+    "Luft-Integrador",
+    "--esquema",
+    "integrador",
+    "--postgres-admin",
+    "dba_teste",
+]
+
+
+def test_cli_reprovisionar_simula_por_padrao(monkeypatch: pytest.MonkeyPatch) -> None:
+    from click.testing import CliRunner
+
+    from luftbase.cli import cli
+
+    _preparar_cli(monkeypatch)
+
+    resultado = CliRunner().invoke(cli, _ARGS_REPROVISIONAR)
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "role=luft_integrador_hml_app" in resultado.output
+    assert "banco=luft_web_hml" in resultado.output
+    assert "Simulacao concluida" in resultado.output
+    assert ProvisionadorFalso.ultimo is not None
+    assert not any(c.startswith("provisionar") for c in ProvisionadorFalso.ultimo.chamadas)
+
+
+def test_cli_reprovisionar_executa_com_a_role_do_ambiente_e_nova_versao(  # type: ignore[no-untyped-def]
+    monkeypatch,
+) -> None:
+    from click.testing import CliRunner
+
+    from luftbase.cli import cli
+
+    _preparar_cli(monkeypatch)
+
+    resultado = CliRunner().invoke(
+        cli, [*_ARGS_REPROVISIONAR, "--executar"], input="REPROVISIONAR-HOMOLOGACAO-3\n"
+    )
+
+    assert resultado.exit_code == 0, resultado.output
+    falso = ProvisionadorFalso.ultimo
+    assert falso is not None
+    assert "provisionar:luft_integrador_hml_app" in falso.chamadas
+    assert falso.gravado == {
+        "role": "luft_integrador_hml_app",
+        "alias": "luft-web",
+        "substituir": True,
+    }
+    assert "senha-gerada-no-teste" not in resultado.output
+
+
+def test_cli_reprovisionar_confirmacao_errada_nao_altera_nada(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from click.testing import CliRunner
+
+    from luftbase.cli import cli
+
+    _preparar_cli(monkeypatch)
+
+    resultado = CliRunner().invoke(cli, [*_ARGS_REPROVISIONAR, "--executar"], input="sim\n")
+
+    assert resultado.exit_code != 0
+    assert ProvisionadorFalso.ultimo is not None
+    assert not any(c.startswith("provisionar") for c in ProvisionadorFalso.ultimo.chamadas)
+    assert ProvisionadorFalso.ultimo.gravado == {}

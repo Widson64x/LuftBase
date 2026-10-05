@@ -16,7 +16,9 @@ from typing import Any
 
 from sqlalchemy import URL, Engine, create_engine, text
 
+from luftbase.configuracao.ambientes import Ambiente, normalizar_ambiente
 from luftbase.configuracao.identificadores import validar_identificador_tecnico
+from luftbase.infraestrutura.cofre.clonagem import sufixo_do_ambiente
 from luftbase.infraestrutura.cofre.credenciais import Segredo
 from luftbase.nucleo.excecoes import ErroConfiguracao
 
@@ -60,8 +62,11 @@ class DestinoProvisionamento:
         return f"{self.namespace}/{self.ambiente}/bancos/postgresql/sistemas"
 
     def como_dict(self) -> dict[str, object]:
+        producao = normalizar_ambiente(self.ambiente) is Ambiente.PRODUCAO
         return {
             "ambiente": self.ambiente,
+            # Sufixo das roles (vazio em producao): a tela mostra o nome real da role.
+            "sufixo_role": "" if producao else sufixo_do_ambiente(self.ambiente),
             "vault": self.vault_url,
             "banco": f"{self.host}:{self.porta}/{self.banco}",
             "pasta_segredos": self.raiz_sistemas,
@@ -76,10 +81,18 @@ class PlanoSistema:
     identificador: str
     esquema: str
     role: str
+    ambiente: str = "producao"
 
 
-def derivar_plano(sistema_id: int, nome: str, esquema: str) -> PlanoSistema:
-    """`Luft-ConnectAir` + `connectair` -> `luft-connectair` e `luft_connectair_app`."""
+def derivar_plano(
+    sistema_id: int, nome: str, esquema: str, ambiente: str = "producao"
+) -> PlanoSistema:
+    """`Luft-ConnectAir` + `connectair` -> `luft-connectair` e `luft_connectair_app`.
+
+    Roles pertencem ao cluster PostgreSQL inteiro, nao a um banco. Por isso fora da producao
+    a role leva o sufixo do ambiente (`luft_connectair_hml_app`): sem ele, cadastrar o sistema
+    em homologacao trocaria a senha da role de producao, que e a mesma.
+    """
 
     slug = re.sub(r"[^a-z0-9]+", "-", nome.lower()).strip("-")
     if slug and not slug[0].isalpha():
@@ -90,13 +103,22 @@ def derivar_plano(sistema_id: int, nome: str, esquema: str) -> PlanoSistema:
         raise ErroProvisionamento(
             f"Nao foi possivel derivar o identificador tecnico do nome: {erro}", "Nome"
         ) from erro
-    role = f"luft_{esquema}_app"
+    ambiente_canonico = normalizar_ambiente(ambiente).value
+    role = nome_da_role(esquema, ambiente_canonico)
     if not _PADRAO_ROLE.fullmatch(role):
         raise ErroProvisionamento(
             f"O schema gera a role '{role}', que passa de 63 caracteres. Use um schema menor.",
             "SchemaAplicacao",
         )
-    return PlanoSistema(sistema_id, identificador, esquema, role)
+    return PlanoSistema(sistema_id, identificador, esquema, role, ambiente_canonico)
+
+
+def nome_da_role(esquema: str, ambiente: str) -> str:
+    """`connectair` em producao -> `luft_connectair_app`; em homologacao -> `..._hml_app`."""
+
+    if normalizar_ambiente(ambiente) is Ambiente.PRODUCAO:
+        return f"luft_{esquema}_app"
+    return f"luft_{esquema}_{sufixo_do_ambiente(ambiente)}_app"
 
 
 def destino_do_estado(estado: Any) -> DestinoProvisionamento:
@@ -140,6 +162,12 @@ class ProvisionadorSistema:
         )
         self._vault: Any = None
         self._engine: Engine | None = None
+
+    @property
+    def ambiente(self) -> str:
+        """Ambiente do destino; as roles levam o sufixo dele fora da producao."""
+
+        return self._destino.ambiente
 
     # --- Verificacoes antes de qualquer escrita -------------------------------------------
 
@@ -227,6 +255,17 @@ class ProvisionadorSistema:
         )
         from luftbase.cli.manifesto import AplicacaoManifesto
 
+        if plano.ambiente != self._destino.ambiente:
+            raise ErroProvisionamento(
+                f"O plano e do ambiente '{plano.ambiente}', mas o destino e "
+                f"'{self._destino.ambiente}'."
+            )
+        if plano.role != nome_da_role(plano.esquema, plano.ambiente):
+            # Fora da producao so se mexe em roles com o sufixo do ambiente; assim a senha de
+            # uma role de producao nunca e trocada por engano.
+            raise ErroProvisionamento(
+                f"A role '{plano.role}' nao segue o nome do ambiente '{plano.ambiente}'."
+            )
         senha = secrets.token_urlsafe(32)
         with self._engine_admin().connect() as conexao:
             conexao = conexao.execution_options(isolation_level="AUTOCOMMIT")
@@ -262,14 +301,21 @@ class ProvisionadorSistema:
             )
         return Segredo(senha), criado
 
-    def gravar_segredo(self, plano: PlanoSistema, alias: str, senha: Segredo) -> str:
-        """Grava `sistemas/{id}` com CAS 0: nunca sobrescreve um segredo existente."""
+    def gravar_segredo(
+        self, plano: PlanoSistema, alias: str, senha: Segredo, *, substituir: bool = False
+    ) -> str:
+        """Grava `sistemas/{id}` com CAS 0: nunca sobrescreve um segredo existente.
+
+        Com `substituir` cria uma nova versao (o KV v2 preserva as anteriores); so o comando
+        de reprovisionamento usa isso, com confirmacao do operador.
+        """
 
         caminho = f"{self._destino.raiz_sistemas}/{plano.sistema_id}"
+        opcoes: dict[str, Any] = {} if substituir else {"cas": 0}
         self._cliente_vault().secrets.kv.v2.create_or_update_secret(
             path=caminho,
             mount_point=self._destino.mount,
-            cas=0,
+            **opcoes,
             secret={
                 "sistema_id": plano.sistema_id,
                 "identificador": plano.identificador,
@@ -333,4 +379,5 @@ __all__ = [
     "ProvisionadorSistema",
     "derivar_plano",
     "destino_do_estado",
+    "nome_da_role",
 ]

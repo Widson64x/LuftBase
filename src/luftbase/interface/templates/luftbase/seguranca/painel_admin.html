@@ -1666,6 +1666,7 @@
                 `Vault <code>${escaparHtmlSistema(resp.vault)}</code> ` +
                 `(<code>${escaparHtmlSistema(resp.pasta_segredos)}</code>)`;
             alvo.dataset.pasta = resp.pasta_segredos || '';
+            alvo.dataset.sufixoRole = resp.sufixo_role || '';
             atualizarProvisionamentoSistema();
         } catch (erro) {
             alvo.textContent = 'Não foi possível carregar o destino do provisionamento.';
@@ -1686,7 +1687,9 @@
         const id = document.getElementById('novoSysId')?.value?.trim() || '<id>';
         const pasta = document.getElementById('novoSysDestino')?.dataset?.pasta || 'sistemas';
         const role = document.getElementById('novoSysPrevRole');
-        if (role) role.textContent = schema ? `luft_${schema}_app` : 'luft_<schema>_app';
+        const sufixoRole = document.getElementById('novoSysDestino')?.dataset?.sufixoRole || '';
+        const meio = sufixoRole ? `_${sufixoRole}` : '';
+        if (role) role.textContent = schema ? `luft_${schema}${meio}_app` : `luft_<schema>${meio}_app`;
         const segredo = document.getElementById('novoSysPrevSegredo');
         if (segredo) segredo.textContent = `${pasta}/${id}`;
         const etapaRole = document.getElementById('etapaCadastroRole');

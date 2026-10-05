@@ -935,7 +935,12 @@ def api_sistema_criar():  # type: ignore[no-untyped-def]
                             409,
                         )
                     try:
-                        plano = derivar_plano(id_gerado, nome, str(schema_aplicacao))
+                        plano = derivar_plano(
+                            id_gerado,
+                            nome,
+                            str(schema_aplicacao),
+                            provisionador.ambiente,
+                        )
                         senha_role, schema_criado = provisionador.provisionar_banco(plano)
                     except ErroProvisionamento as falha:
                         raise FalhaCadastroSistema(

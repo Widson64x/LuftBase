@@ -938,3 +938,135 @@ def postgresql_clonar_ambiente(
             )
 
     click.echo("Clonagem concluida sem expor valores secretos.")
+
+
+@vault_postgresql.command("reprovisionar-sistema")
+@click.option(
+    "--ambiente", required=True, help="Ambiente (desenvolvimento, homologacao, producao)."
+)
+@click.option("--sistema-id", required=True, type=int, help="ID do sistema ja cadastrado no core.")
+@click.option("--nome", required=True, help="Nome do sistema (ex.: Luft-Integrador).")
+@click.option("--esquema", required=True, help="Schema do sistema no PostgreSQL (ex.: integrador).")
+@click.option(
+    "--sistema-referencia",
+    default=0,
+    show_default=True,
+    type=int,
+    help="Sistema cujo segredo indica a conexao compartilhada (o Workspace).",
+)
+@click.option("--executar", is_flag=True, help="Aplica. Sem esta opcao apenas simula.")
+@click.option("--vault-url", default="http://172.16.200.80:8200", help="URL do Vault.")
+@click.option("--vault-mount", default="secret", help="Mount point do Vault KV v2.")
+@click.option("--namespace", default="luft", help="Namespace raiz dos segredos.")
+@click.option(
+    "--postgres-admin",
+    default=None,
+    help="Usuario administrativo do PostgreSQL (se omitido, e perguntado na execucao).",
+)
+def postgresql_reprovisionar_sistema(
+    ambiente: str,
+    sistema_id: int,
+    nome: str,
+    esquema: str,
+    sistema_referencia: int,
+    executar: bool,
+    vault_url: str,
+    vault_mount: str,
+    namespace: str,
+    postgres_admin: str | None,
+) -> None:
+    """Recria schema, role DO AMBIENTE e segredo de um sistema que ja existe no core.
+
+    Para sistemas cadastrados antes de a role levar o sufixo do ambiente (ou cujo cadastro nao
+    provisionou a role certa). Fora da producao a role e `luft_<schema>_<hml|dev>_app`; as roles
+    de producao nunca sao tocadas. O segredo `sistemas/<id>` ganha uma nova versao (o KV v2
+    guarda as anteriores). Por padrao e uma simulacao.
+    """
+
+    from luftbase.configuracao.ambientes import normalizar_ambiente
+    from luftbase.infraestrutura.provisionamento_sistema import (
+        CredenciaisOperador,
+        DestinoProvisionamento,
+        ErroProvisionamento,
+        ProvisionadorSistema,
+        derivar_plano,
+    )
+
+    try:
+        ambiente_canonico = normalizar_ambiente(ambiente).value
+    except ErroConfiguracao as erro:
+        raise click.ClickException(str(erro)) from erro
+
+    token_operador = _solicitar_segredo("Token de operador do Vault")
+    cliente = _criar_cliente_hvac_operador(vault_url, token_operador, vault_mount)
+    raiz = f"{namespace}/{ambiente_canonico}/bancos/postgresql"
+
+    def ler(caminho: str) -> dict[str, Any]:
+        try:
+            return dict(
+                cliente.secrets.kv.v2.read_secret_version(
+                    path=caminho, mount_point=vault_mount, raise_on_deleted_version=True
+                )["data"]["data"]
+            )
+        except Exception as erro:
+            raise click.ClickException(f"Nao foi possivel ler {caminho}: {erro}") from erro
+
+    alias = str(ler(f"{raiz}/sistemas/{sistema_referencia}").get("conexao") or "").strip()
+    if not alias:
+        raise click.ClickException(
+            f"O segredo {raiz}/sistemas/{sistema_referencia} nao informa a conexao ('conexao')."
+        )
+    conexao_dados = ler(f"{raiz}/conexoes/{alias}")
+    try:
+        destino = DestinoProvisionamento(
+            ambiente=ambiente_canonico,
+            namespace=namespace,
+            vault_url=vault_url,
+            host=str(conexao_dados["host"]),
+            porta=int(conexao_dados.get("porta") or 5432),
+            banco=str(conexao_dados["nome_banco"]),
+            sistema_referencia=sistema_referencia,
+            mount=vault_mount,
+        )
+        plano = derivar_plano(sistema_id, nome, esquema, ambiente_canonico)
+    except (KeyError, ValueError, ErroProvisionamento) as erro:
+        raise click.ClickException(f"Dados invalidos: {getattr(erro, 'mensagem', erro)}") from erro
+
+    admin = _usuario_administrativo(postgres_admin)
+    senha_admin = _solicitar_segredo(f"Senha PostgreSQL do usuario {admin}")
+    provisionador = ProvisionadorSistema(
+        destino, CredenciaisOperador(admin, Segredo(token_operador), Segredo(senha_admin))
+    )
+    try:
+        provisionador.verificar()
+        existe_segredo = provisionador.segredo_existe(sistema_id)
+
+        click.echo(f"ambiente={plano.ambiente} servidor={destino.host} banco={destino.banco}")
+        click.echo(f"sistema {plano.sistema_id}: schema={plano.esquema} role={plano.role}")
+        click.echo(f"segredo: {destino.raiz_sistemas}/{sistema_id}")
+        if existe_segredo:
+            click.echo(
+                "O segredo ja existe: ganhara uma nova versao (as anteriores ficam no KV v2)."
+            )
+        if not executar:
+            click.echo("Simulacao concluida: nada foi alterado. Use --executar para aplicar.")
+            return
+
+        confirmacao = f"REPROVISIONAR-{ambiente_canonico.upper()}-{sistema_id}"
+        recebido = click.prompt(f"Digite {confirmacao} para confirmar", type=str).strip()
+        if recebido != confirmacao:
+            raise click.ClickException("Confirmacao recusada; nenhuma alteracao realizada.")
+
+        senha_role, schema_criado = provisionador.provisionar_banco(plano)
+        click.echo(
+            f"Schema {'criado' if schema_criado else 'reaproveitado'}; role {plano.role} com "
+            "senha nova e privilegios no core."
+        )
+        caminho = provisionador.gravar_segredo(plano, alias, senha_role, substituir=True)
+        click.echo(f"Segredo gravado em {caminho}.")
+    except ErroProvisionamento as erro:
+        raise click.ClickException(erro.mensagem) from erro
+    finally:
+        provisionador.encerrar()
+
+    click.echo("Concluido sem expor valores secretos. Reinicie o sistema para usar a nova senha.")

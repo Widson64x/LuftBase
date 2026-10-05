@@ -2,6 +2,22 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a56] - 2026-10-05
+
+### Corrigido
+
+- O cadastro de um sistema em homologacao (ou desenvolvimento) criava a role `luft_<schema>_app`,
+  a MESMA da producao (roles pertencem ao cluster, nao ao banco), e trocava a senha dela. Agora a
+  role leva o sufixo do ambiente (`luft_<schema>_hml_app`, `luft_<schema>_dev_app`) e a de
+  producao continua `luft_<schema>_app`. O provisionador recusa alterar uma role fora do padrao
+  do ambiente e o modal mostra o nome real da role.
+
+### Adicionado
+
+- `luftbase vault postgresql reprovisionar-sistema`: recria schema, role do ambiente e o segredo
+  `sistemas/<id>` de um sistema ja cadastrado (simulacao por padrao; nova versao no KV v2).
+- Suporte a Oracle (`TipoBanco.ORACLE`, `oracle+oracledb`).
+
 ## [0.1.0a49] - 2026-10-01
 
 ### Corrigido
