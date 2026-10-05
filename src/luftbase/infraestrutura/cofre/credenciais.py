@@ -37,6 +37,7 @@ class TipoBanco(StrEnum):
 
     POSTGRESQL = "postgresql"
     SQLSERVER = "sqlserver"
+    ORACLE = "oracle"
 
 
 @dataclass(frozen=True, slots=True)

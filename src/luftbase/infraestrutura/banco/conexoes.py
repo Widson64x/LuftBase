@@ -118,6 +118,17 @@ class ConstrutorEngines:
                     "TrustServerCertificate": "yes",
                 },
             )
+        if credencial.tipo is TipoBanco.ORACLE:
+            # Mesmo formato do legado: o nome do banco (SID/servico) vai no caminho da URL.
+            # O driver (python-oracledb) e dependencia de quem usa Oracle, nao do LuftBase.
+            return URL.create(
+                drivername=f"oracle+{credencial.driver or 'oracledb'}",
+                username=credencial.usuario,
+                password=credencial.senha.revelar(),
+                host=credencial.host,
+                port=credencial.porta,
+                database=credencial.nome_banco,
+            )
         raise ErroConexaoBanco("O tipo de banco nao possui um adaptador registrado.")
 
     def criar(self, credencial: CredencialBanco) -> Engine:

@@ -41,6 +41,36 @@ def test_url_sqlserver_define_driver_seguro() -> None:
     assert url.query["Encrypt"] == "yes"
 
 
+def test_url_oracle_usa_oracledb_e_nome_do_banco_no_caminho() -> None:
+    url = ConstrutorEngines().criar_url(_credencial(TipoBanco.ORACLE, None))
+
+    assert url.drivername == "oracle+oracledb"
+    assert url.database == "intec"
+    assert "p@ss:/?#[]" not in str(url)
+
+
+def test_segredo_oracle_e_aceito_pelo_carregador() -> None:
+    from luftbase.infraestrutura.cofre.servico import CarregadorCredenciais
+
+    class Provedor:
+        def ler_segredo(self, caminho: str) -> dict[str, str]:
+            return {
+                "tipo_banco": "oracle",
+                "host": "silt.interno",
+                "porta": "1521",
+                "nome_banco": "SILT",
+                "usuario": "consulta_silt",
+                "senha": "x",
+            }
+
+    credencial = CarregadorCredenciais(Provedor()).carregar_banco(
+        "luft/producao/bancos/oracle/conexoes/silt", TipoBanco.ORACLE
+    )
+
+    assert credencial.tipo is TipoBanco.ORACLE
+    assert credencial.porta == 1521
+
+
 def test_engine_usa_pool_limitado_e_pre_ping(monkeypatch: pytest.MonkeyPatch) -> None:
     argumentos: dict[str, Any] = {}
 
