@@ -2,6 +2,26 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a57] - 2026-10-05
+
+### Adicionado
+
+- Aba **Integracoes** no Painel de Controle (antes desabilitada): cartoes por componente (Vault,
+  PostgreSQL, SQL Server, sessoes, e-mail/Gmail, login corporativo, LuftBase, componentes e a
+  propria aplicacao) com estado de saude, filtro por categoria e modal de detalhes.
+- O modal do Vault mostra os caminhos de segredo em uso no ambiente atual (ex.:
+  `luft/homologacao/bancos/sqlserver/conexoes/consulta`), a versao de cada segredo, a data da
+  ultima alteracao e os NOMES dos campos. Senhas, tokens e chaves nunca saem do servidor: so
+  `host`, `porta`, `banco`, `usuario` e similares (lista fixa) tem o valor exibido.
+- Verificador de versao do LuftBase contra as tags do GitHub (cache de 15 min; falha nao derruba
+  o painel). Repositorio privado ou rede restrita: defina `LUFT_GITHUB_TOKEN`; o repositorio pode
+  ser trocado com `LUFT_BASE_REPOSITORIO`.
+- `PlataformaLuft(integracoes=[IntegracaoAplicacao(...)])`: a aplicacao declara as integracoes
+  proprias (ex.: bancos de negocio) para aparecerem na aba.
+- `ClienteVaultHvac.ler_metadados` e `versao_servidor`.
+- Rotas `GET /configuracoes/api/configuracoes/integracoes` e `.../integracoes/versao-luftbase`,
+  protegidas por `AMBIENTE.SERVICOS.VISUALIZAR`.
+
 ## [0.1.0a56] - 2026-10-05
 
 ### Corrigido

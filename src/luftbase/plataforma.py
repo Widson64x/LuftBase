@@ -50,6 +50,7 @@ from luftbase.infraestrutura.fabrica import (
     FabricaInfraestruturaPadrao,
     RecursosInfraestrutura,
 )
+from luftbase.integracoes.diagnostico import IntegracaoAplicacao
 from luftbase.integracoes.email import ResultadoEnvio, ServicoEmail
 from luftbase.interface.busca import ProvedorBusca
 from luftbase.interface.parametros import ParametroAplicacao
@@ -95,6 +96,7 @@ class EstadoPlataforma:
     email: ServicoEmail
     parametros: tuple[ParametroAplicacao, ...] = ()
     buscas: tuple[ProvedorBusca, ...] = ()
+    integracoes: tuple[IntegracaoAplicacao, ...] = ()
 
     @property
     def bancos(self) -> CatalogoBancos:
@@ -124,12 +126,14 @@ class PlataformaLuft:
         catalogo: CatalogoAplicacao | None = None,
         parametros: Iterable[ParametroAplicacao] = (),
         buscas: Iterable[ProvedorBusca] = (),
+        integracoes: Iterable[IntegracaoAplicacao] = (),
     ) -> None:
         self._fabrica = fabrica_infraestrutura or FabricaInfraestruturaPadrao()
         self._modelos = tuple(modelos)
         self._catalogo = catalogo
         self._parametros = tuple(parametros)
         self._buscas = tuple(buscas)
+        self._integracoes = tuple(integracoes)
 
     def inicializar(
         self,
@@ -245,6 +249,7 @@ class PlataformaLuft:
             email=email,
             parametros=self._parametros,
             buscas=self._buscas,
+            integracoes=self._integracoes,
         )
 
         # O objeto por aplicacao impede vazamento de estado entre factories e testes Flask.

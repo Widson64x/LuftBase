@@ -12,6 +12,7 @@
 {% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{{ url_for('luftbase.static', filename='css/integracoes.css') }}">
 {% set aba_inicial = 'tab-seguranca' if pode_ver_seguranca else ('tab-ambiente' if pode_ver_ambiente else ('tab-publicacoes' if (pode_ver_comunicados or pode_ver_atualizacoes) else ('tab-auditoria' if pode_ver_auditoria else ('tab-configuracoes' if pode_ver_configuracoes else '')))) %}
 
 <style>
@@ -488,9 +489,9 @@
 
         {% block extra_tabs %}{% endblock %}
 
-        <button class="luft-tab-btn" disabled type="button" style="opacity: 0.45; cursor: not-allowed;" title="Módulo em desenvolvimento">
-            <i class="ph-bold ph-plugs-connected"></i> Integrações
-        </button>
+        {% if pode_ver_servicos %}
+            {{ ui.tab_btn('tab-integracoes', 'Integrações', 'ph-bold ph-plugs-connected', aba_inicial == 'tab-integracoes') }}
+        {% endif %}
     {% endcall %}
 
     {# ====================================================================== #}
@@ -1306,6 +1307,40 @@
             {# Ponto de extensão adicional para blocos customizados de cada aplicação #}
             {% block config_custom %}{% endblock %}
         </div>
+    {% endcall %}
+    {% endif %}
+
+    {# ====================================================================== #}
+    {# ── 6. ABA DE INTEGRAÇÕES (somente leitura) ── #}
+    {# ====================================================================== #}
+    {% if pode_ver_servicos %}
+    {% call ui.tab_panel('tab-integracoes', aba_inicial == 'tab-integracoes') %}
+        <div id="integRaiz"
+             data-url-dados="{{ url_for('Configuracoes.api_integracoes') }}"
+             data-url-versao="{{ url_for('Configuracoes.api_integracoes_versao_luftbase') }}">
+            <div class="integ-hero">
+                <div>
+                    <h3>Integrações da plataforma</h3>
+                    <p id="integResumo">Consultando o Vault e os serviços…</p>
+                </div>
+                <div class="integ-hero-acoes">
+                    <span id="integAmbiente" class="integ-chip"></span>
+                    <span id="integVersaoSelo"></span>
+                    <button type="button" class="btn btn-outline btn-sm" id="integBtnVersao" title="Compara a versão do LuftBase com o GitHub">
+                        <i class="ph-bold ph-github-logo"></i> Verificar versão
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm" id="integBtnAtualizar">
+                        <i class="ph-bold ph-arrows-clockwise"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+            <div class="integ-filtros" id="integFiltros"></div>
+            <div class="integ-grid" id="integGrade"></div>
+        </div>
+
+        {% call ui.modal('integModal', 'Integração', 'lg', 'ph-bold ph-plugs-connected') %}
+            <div id="integModalCorpo"></div>
+        {% endcall %}
     {% endcall %}
     {% endif %}
 
@@ -2204,4 +2239,5 @@
         });
     });
 </script>
+<script src="{{ url_for('luftbase.static', filename='js/integracoes.js') }}"></script>
 {% endblock %}

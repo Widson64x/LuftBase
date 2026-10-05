@@ -1226,4 +1226,7 @@ def api_ambiente_servicos_acao():  # type: ignore[no-untyped-def]
     )
 
 
+from luftbase.web import integracoes as _integracoes  # noqa: E402,F401,I001
+
+
 __all__ = ["AdminBp", "ConfiguracoesBp", "visualizar_painel"]

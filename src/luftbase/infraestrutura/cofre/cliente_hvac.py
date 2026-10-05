@@ -89,3 +89,36 @@ class ClienteVaultHvac:
         if not isinstance(dados, Mapping):
             raise ErroCofre("O Vault devolveu dados de segredo em formato invalido.")
         return dados
+
+    def ler_metadados(self, caminho: str) -> Mapping[str, object]:
+        """Devolve versao atual e datas do segredo, sem ler os valores."""
+
+        caminho_valido = _validar_caminho(caminho)
+        self.validar_acesso()
+        try:
+            resposta = self._obter_cliente().secrets.kv.v2.read_secret_metadata(
+                path=caminho_valido, mount_point=self._montagem
+            )
+            dados = resposta["data"]
+        except (KeyError, TypeError) as erro:
+            raise ErroCofre("O Vault devolveu metadados de segredo invalidos.") from erro
+        except Exception as erro:
+            if erro.__class__.__name__ == "InvalidPath":
+                raise SegredoNaoEncontrado(
+                    f"O segredo solicitado nao existe no caminho {caminho_valido!r}."
+                ) from erro
+            raise ErroCofre("Nao foi possivel ler os metadados do segredo no Vault.") from erro
+        if not isinstance(dados, Mapping):
+            raise ErroCofre("O Vault devolveu metadados em formato invalido.")
+        return dados
+
+    def versao_servidor(self) -> str | None:
+        """Versao do servidor Vault, ou None quando o endpoint de saude nao responde."""
+
+        try:
+            saude = self._obter_cliente().sys.read_health_status(method="GET")
+            versao = saude.get("version") if isinstance(saude, Mapping) else None
+        except Exception:
+            return None
+        return str(versao) if versao else None
+
