@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from flask import Flask
+from sqlalchemy import select
 
 from luftbase import (
     CatalogoAplicacao,
@@ -151,9 +152,15 @@ def test_mensagens_de_flash_viram_toasts_do_luftbase() -> None:
 def _core_sqlite():  # type: ignore[no-untyped-def]
     from typing import cast
 
-    from sqlalchemy import CheckConstraint, MetaData, Table, create_engine
+    from sqlalchemy import CheckConstraint, Column, Integer, MetaData, Table, create_engine
 
-    from luftbase.persistencia.core.seguranca import Modulo, Permissao, Sistema
+    from luftbase.persistencia.core.seguranca import (
+        Modulo,
+        Permissao,
+        PermissaoGrupo,
+        PermissaoUsuario,
+        Sistema,
+    )
 
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
@@ -161,7 +168,7 @@ def _core_sqlite():  # type: ignore[no-untyped-def]
     )
     # Copias sem os CHECK com regex do PostgreSQL, que o SQLite nao interpreta.
     metadados = MetaData()
-    for modelo in (Sistema, Modulo, Permissao):
+    for modelo in (Sistema, Modulo, Permissao, PermissaoGrupo, PermissaoUsuario):
         tabela = cast(Table, modelo.__table__).to_metadata(metadados)
         for restricao in [c for c in tabela.constraints if isinstance(c, CheckConstraint)]:
             tabela.constraints.discard(restricao)
@@ -169,6 +176,10 @@ def _core_sqlite():  # type: ignore[no-untyped-def]
             i for i in tabela.indexes if i.dialect_options["postgresql"]["where"] is not None
         ]:
             tabela.indexes.discard(indice)
+    # Tabela minima so para a FK de tb_permissaousuario (o modelo real arrasta as sessoes).
+    Table(
+        "tb_usuario", metadados, Column("codigo_usuario", Integer, primary_key=True), schema="core"
+    )
     metadados.create_all(engine)
     return engine
 
@@ -274,3 +285,93 @@ def test_plataforma_recusa_catalogo_no_sistema_zero() -> None:
 
     with _pytest.raises(ErroInicializacao, match="sistema 0"):
         plataforma.inicializar(app)
+
+
+def _com_provisoria(conexao):  # type: ignore[no-untyped-def]
+    """Sistema 5 como o Workspace o cadastra: permissao base derivada do NOME, com vinculos."""
+
+    from sqlalchemy import insert
+
+    from luftbase.persistencia.core.seguranca import Permissao, PermissaoGrupo, PermissaoUsuario
+
+    pedido = PermissaoAplicacao("VENDAS.PEDIDOS.VISUALIZAR", "Ver.", pai=_RAIZ.chave)
+    catalogo = _catalogo(_RAIZ, _ACESSO, pedido)
+    _gravar(conexao, 5, catalogo)
+    modulo = conexao.execute(
+        select(Permissao.id_modulo).where(Permissao.chave_permissao == _ACESSO.chave)
+    ).scalar_one()
+    provisoria = conexao.execute(
+        insert(Permissao).values(
+            id_sistema=5,
+            id_modulo=modulo,
+            chave_permissao="LUFT_VENDAS.SISTEMA.ACESSAR",
+            recurso="SISTEMA",
+            acao="ACESSAR",
+            descricao_permissao="Permissao base de acesso ao sistema Luft Vendas.",
+            eh_acesso_sistema=False,
+            ordem_exibicao=0,
+        )
+    ).inserted_primary_key[0]
+    real = conexao.execute(
+        select(Permissao.id_permissao).where(Permissao.chave_permissao == _ACESSO.chave)
+    ).scalar_one()
+    conexao.execute(
+        insert(PermissaoGrupo),
+        [
+            {"codigo_usuariogrupo": 6, "id_permissao": provisoria, "conceder": True},
+            {"codigo_usuariogrupo": 8, "id_permissao": provisoria, "conceder": False},
+            {"codigo_usuariogrupo": 8, "id_permissao": real, "conceder": True},
+        ],
+    )
+    conexao.execute(
+        insert(PermissaoUsuario).values(codigo_usuario=77, id_permissao=provisoria, conceder=True)
+    )
+    return catalogo, provisoria, real
+
+
+def test_permissao_provisoria_do_cadastro_e_apontada_como_pendencia() -> None:
+    from luftbase.autorizacao.catalogo_aplicacao import pendencias_catalogo
+
+    engine = _core_sqlite()
+    with engine.begin() as conexao:
+        catalogo, _, _ = _com_provisoria(conexao)
+
+        assert pendencias_catalogo(conexao, 5, catalogo) == [
+            "permissao LUFT_VENDAS.SISTEMA.ACESSAR provisoria do cadastro (sera substituida)"
+        ]
+
+
+def test_adotar_provisoria_move_vinculos_sem_duplicar_e_remove_a_provisoria() -> None:
+    from luftbase.autorizacao.catalogo_aplicacao import (
+        _adotar_permissao_provisoria,
+        pendencias_catalogo,
+    )
+    from luftbase.persistencia.core.seguranca import Permissao, PermissaoGrupo, PermissaoUsuario
+
+    engine = _core_sqlite()
+    with engine.begin() as conexao:
+        catalogo, provisoria, real = _com_provisoria(conexao)
+
+        _adotar_permissao_provisoria(conexao, provisoria, "LUFT_VENDAS.SISTEMA.ACESSAR", real)
+
+        grupos = {
+            (g.codigo_usuariogrupo, g.conceder)
+            for g in conexao.execute(
+                select(PermissaoGrupo).where(PermissaoGrupo.id_permissao == real)
+            )
+        }
+        # O grupo 6 herda a concessao; o grupo 8 ja tinha regra no destino e ela prevalece.
+        assert grupos == {(6, True), (8, True)}
+        usuarios = (
+            conexao.execute(
+                select(PermissaoUsuario.codigo_usuario).where(PermissaoUsuario.id_permissao == real)
+            )
+            .scalars()
+            .all()
+        )
+        assert usuarios == [77]
+        assert (
+            conexao.execute(select(Permissao).where(Permissao.id_permissao == provisoria)).first()
+            is None
+        )
+        assert pendencias_catalogo(conexao, 5, catalogo) == []

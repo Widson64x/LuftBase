@@ -3,20 +3,32 @@
 Cada aplicacao descreve em Python seus modulos e a arvore de permissoes. O cadastro do
 sistema em `core.tb_sistema` pertence ao Workspace; na inicializacao o LuftBase compara o
 catalogo com o core e grava somente o que falta ou divergiu. A sincronizacao e aditiva e
-idempotente: nunca remove registros desconhecidos nem vinculos de grupos e usuarios.
+idempotente: nunca remove registros desconhecidos nem vinculos de grupos e usuarios. A unica
+excecao e a permissao base PROVISORIA criada pelo cadastro do sistema no Workspace (veja
+`permissoes_provisorias`), que e substituida pela permissao de acesso declarada aqui.
 """
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 
-from sqlalchemy import Connection, select, update
+from sqlalchemy import Connection, delete, exists, literal, select, update
+from sqlalchemy import insert as sa_insert
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.orm import aliased
 
 from luftbase.autorizacao.catalogo import AcaoPermissao, DefinicaoModulo
 from luftbase.persistencia.core.catalogo import ResultadoSincronizacaoCatalogo
-from luftbase.persistencia.core.seguranca import Modulo, Permissao, Sistema
+from luftbase.persistencia.core.seguranca import (
+    Modulo,
+    Permissao,
+    PermissaoGrupo,
+    PermissaoUsuario,
+    Sistema,
+)
 
 _PADRAO_CHAVE = re.compile(r"^[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*$")
 _CATEGORIAS = frozenset({"APLICACAO", "SERVICO"})
@@ -118,6 +130,85 @@ def _validar_id(id_sistema: int) -> None:
         raise ErroCatalogo("O sistema 0 e sincronizado pelo proprio LuftBase (bootstrap).")
 
 
+def permissoes_provisorias(
+    conexao: Connection, id_sistema: int, catalogo: CatalogoAplicacao
+) -> list[tuple[int, str]]:
+    """Permissoes `SISTEMA.ACESSAR` do sistema que o catalogo da aplicacao nao declara.
+
+    O cadastro do sistema no Workspace cria uma permissao base com a chave derivada do NOME
+    (ex.: `LUFT_CONNECTAIR.SISTEMA.ACESSAR`), antes de a aplicacao existir. A aplicacao declara a
+    sua (ex.: `CONNECTAIR.SISTEMA.ACESSAR`), que e a que o codigo realmente verifica; a
+    provisoria sobra sem efeito e confunde quem concede acessos.
+    """
+
+    declaradas = [p.chave for p in catalogo.permissoes]
+    linhas = conexao.execute(
+        select(Permissao.id_permissao, Permissao.chave_permissao).where(
+            Permissao.id_sistema == id_sistema,
+            Permissao.recurso == "SISTEMA",
+            Permissao.acao == "ACESSAR",
+            Permissao.chave_permissao.not_in(declaradas),
+        )
+    ).all()
+    return [(linha.id_permissao, linha.chave_permissao) for linha in linhas]
+
+
+def _adotar_permissao_provisoria(
+    conexao: Connection, id_provisoria: int, chave: str, id_destino: int
+) -> None:
+    """Leva os vinculos da provisoria para a permissao de acesso real e a retira de cena.
+
+    Cada passo roda em SAVEPOINT: a role da aplicacao pode nao ter INSERT/DELETE nessas tabelas
+    e a falta de privilegio nao pode impedir a aplicacao de subir.
+    """
+
+    log = logging.getLogger("luftbase")
+    try:
+        with conexao.begin_nested():
+            for tabela, coluna in (
+                (PermissaoGrupo, PermissaoGrupo.codigo_usuariogrupo),
+                (PermissaoUsuario, PermissaoUsuario.codigo_usuario),
+            ):
+                # Copia so o que o destino ainda nao tem (sem ON CONFLICT: vale em qualquer banco).
+                existente = aliased(tabela)
+                coluna_existente = getattr(existente, coluna.key)
+                origem = select(
+                    coluna, literal(id_destino), tabela.conceder, tabela.codigo_usuario_alteracao
+                ).where(
+                    tabela.id_permissao == id_provisoria,
+                    ~exists().where(
+                        existente.id_permissao == id_destino, coluna_existente == coluna
+                    ),
+                )
+                conexao.execute(
+                    sa_insert(tabela).from_select(
+                        [coluna.key, "id_permissao", "conceder", "codigo_usuario_alteracao"],
+                        origem,
+                    )
+                )
+    except DBAPIError:
+        log.warning(
+            "Vinculos da permissao provisoria %s nao puderam ser movidos (sem privilegio); "
+            "conceda a nova permissao de acesso manualmente.",
+            chave,
+        )
+    try:
+        with conexao.begin_nested():
+            conexao.execute(delete(Permissao).where(Permissao.id_permissao == id_provisoria))
+        return
+    except DBAPIError:
+        pass
+    try:
+        with conexao.begin_nested():
+            conexao.execute(
+                update(Permissao)
+                .where(Permissao.id_permissao == id_provisoria)
+                .values(ativo=False, eh_acesso_sistema=False)
+            )
+    except DBAPIError:
+        log.warning("Permissao provisoria %s nao pode ser desativada (sem privilegio).", chave)
+
+
 def pendencias_catalogo(
     conexao: Connection,
     id_sistema: int,
@@ -184,6 +275,8 @@ def pendencias_catalogo(
     for chave, linha in permissoes.items():
         if linha.eh_acesso_sistema and chave != chave_acesso:
             pendencias.append(f"permissao {chave} marcada como acesso")
+    for _, chave in permissoes_provisorias(conexao, id_sistema, catalogo):
+        pendencias.append(f"permissao {chave} provisoria do cadastro (sera substituida)")
     return pendencias
 
 
@@ -316,6 +409,9 @@ def sincronizar_catalogo_aplicacao(
         if id_permissao is None:
             raise RuntimeError(f"Permissao {permissao.chave} nao foi sincronizada.")
         ids_permissoes[permissao.chave] = id_permissao
+
+    for id_provisoria, chave in permissoes_provisorias(conexao, id_sistema, catalogo):
+        _adotar_permissao_provisoria(conexao, id_provisoria, chave, ids_permissoes[chave_acesso])
 
     return ResultadoSincronizacaoCatalogo(
         modulos=len(catalogo.modulos),

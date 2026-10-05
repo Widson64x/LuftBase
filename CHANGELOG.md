@@ -2,6 +2,18 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a59] - 2026-10-05
+
+### Corrigido
+
+- O cadastro de um sistema no Workspace cria a permissao base `<NOME>.SISTEMA.ACESSAR` (ex.:
+  `LUFT_CONNECTAIR.SISTEMA.ACESSAR`), mas a aplicacao declara no catalogo a sua propria (ex.:
+  `CONNECTAIR.SISTEMA.ACESSAR`), que e a que o codigo verifica. A provisoria ficava sobrando,
+  sem efeito, ao lado da real. Na primeira sincronizacao do catalogo a provisoria e substituida:
+  os vinculos de grupos e usuarios sao copiados para a permissao real (sem sobrescrever regra que
+  ja exista nela) e a provisoria e removida (ou desativada, se a role nao puder apagar).
+  Sistemas ja cadastrados sao corrigidos na proxima inicializacao.
+
 ## [0.1.0a58] - 2026-10-05
 
 ### Corrigido
