@@ -388,3 +388,55 @@ def test_template_do_painel_mostra_a_aba_so_com_permissao_de_servicos() -> None:
     assert 'id="tab-integracoes"' in com and "js/integracoes.js" in com
     assert "api/configuracoes/integracoes/versao-luftbase" in com
     assert 'id="tab-integracoes"' not in sem
+
+
+def test_painel_marca_global_como_somente_leitura_no_satelite() -> None:
+    from flask import render_template
+
+    app, _, _, _ = _app_com_painel()
+    base = {
+        "tipo_publicacao": "COMUNICADO",
+        "grupos_publicacao": [],
+        "sistemas_publicacao": [],
+        "pode_ver_comunicados": True,
+        "pode_ver_atualizacoes": True,
+        "pode_criar": True,
+        "pode_editar": True,
+        "pode_publicar": True,
+        "pode_arquivar": True,
+    }
+    item = {
+        "id": 7,
+        "id_publicacao": 7,
+        "id_sistema": 0,
+        "tipo": "COMUNICADO",
+        "status": "PUBLICADO",
+        "tipo_audiencia": "GERAL",
+        "ids_grupos": [],
+        "titulo": "Aviso global",
+        "resumo": "x",
+        "conteudo": "x",
+        "prioridade": "NORMAL",
+        "versao": None,
+        "notificar": False,
+        "fixado": False,
+        "criado_por": "Luft",
+        "fonte": "INTERNO",
+        "data_criacao": None,
+        "data_publicacao": None,
+        "exibir_a_partir_de": None,
+        "expira_em": None,
+        "itens_atualizacao": [],
+    }
+    with app.test_request_context("/publicacoes/painel/comunicados"):
+        no_satelite = render_template(
+            "luftbase/publicacoes/painel.html", publicacoes=[item], sistema_atual_id=3, **base
+        )
+        no_workspace = render_template(
+            "luftbase/publicacoes/painel.html", publicacoes=[item], sistema_atual_id=0, **base
+        )
+
+    assert "Gerenciado no Workspace" in no_satelite
+    assert "LuftPublicacoesPainel.arquivar(7)" not in no_satelite
+    assert "Gerenciado no Workspace" not in no_workspace
+    assert "LuftPublicacoesPainel.arquivar(7)" in no_workspace

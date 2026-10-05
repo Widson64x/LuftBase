@@ -2,6 +2,17 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a60] - 2026-10-05
+
+### Corrigido
+
+- Comunicados e notas globais (`id_sistema = 0`, criados no Workspace) apareciam no feed dos
+  usuarios de todos os sistemas, mas nao na tela de gestao de um sistema satelite, que listava
+  so as proprias publicacoes. A gestao de um satelite agora tambem lista as globais ja visiveis
+  (publicadas ou agendadas), marcadas "Gerenciado no Workspace" e sem botoes de editar, publicar
+  ou arquivar. Criar, editar e arquivar uma global continua exclusivo do Workspace (o backend
+  ja recusava a operacao em outro sistema). Rascunhos e arquivadas globais seguem so no Workspace.
+
 ## [0.1.0a59] - 2026-10-05
 
 ### Corrigido

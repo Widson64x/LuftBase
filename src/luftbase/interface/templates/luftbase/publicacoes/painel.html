@@ -120,7 +120,11 @@
                     {% if publicacao.notificar %}<span class="text-primary"><i class="ph ph-bell-ringing"></i> Notificação ativa</span>{% endif %}
                 </div>
             </div>
+            {% set somente_leitura = publicacao.id_sistema != sistema_atual_id and sistema_atual_id != 0 %}
             <div class="publicacao-actions">
+                {% if somente_leitura %}
+                <span class="publicacao-chip" title="Publicação global: criada, editada e arquivada no Luft-Workspace."><i class="ph-bold ph-lock-simple"></i> Gerenciado no Workspace</span>
+                {% else %}
                 {% if pode_editar and publicacao.status in ['RASCUNHO', 'AGENDADO'] %}
                 <button type="button" class="btn btn-outline btn-sm" onclick="LuftPublicacoesPainel.editar({{ publicacao.id }})" title="Editar">
                     <i class="ph-bold ph-pencil-simple"></i><span>Editar</span>
@@ -135,6 +139,7 @@
                 <button type="button" class="btn btn-outline btn-sm text-danger" onclick="LuftPublicacoesPainel.arquivar({{ publicacao.id }})" title="Arquivar">
                     <i class="ph-bold ph-archive"></i><span>Arquivar</span>
                 </button>
+                {% endif %}
                 {% endif %}
             </div>
         </article>

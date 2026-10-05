@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import (
     ColumnElement,
+    Select,
     and_,
     case,
     delete,
@@ -837,15 +838,20 @@ class RepositorioPublicacoes:
 
             return resultado is not None
 
-    def listar_administracao(
-        self,
-        *,
+    @staticmethod
+    def consulta_administracao(
         id_sistema: int,
-        tipo: TipoPublicacao | None = None,
-        limite: int = 50,
-        offset: int = 0,
-    ) -> list[Publicacao]:
-        """Lista publicacoes para gestao administrativa com seus relacionamentos."""
+        tipo: TipoPublicacao | None,
+        limite: int,
+        offset: int,
+    ) -> Select[tuple[Publicacao]]:
+        """Monta a consulta da gestao: o Workspace ve tudo; um sistema, as suas e as globais.
+
+        As globais (`id_sistema = 0`) aparecem para quem as recebe (feed), mas so as ja visiveis
+        (publicadas ou agendadas): rascunhos e arquivadas pertencem ao Workspace. A gestao delas
+        continua restrita ao proprio Workspace (`obter_administracao`, `atualizar_rascunho` e
+        `arquivar` filtram pelo sistema).
+        """
 
         consulta = (
             select(Publicacao)
@@ -856,12 +862,32 @@ class RepositorioPublicacoes:
             .order_by(Publicacao.id_publicacao.desc())
         )
         if id_sistema != 0:
-            consulta = consulta.where(Publicacao.id_sistema == id_sistema)
+            consulta = consulta.where(
+                or_(
+                    Publicacao.id_sistema == id_sistema,
+                    and_(
+                        Publicacao.id_sistema == 0,
+                        Publicacao.status_publicacao.in_(("PUBLICADO", "AGENDADO")),
+                    ),
+                )
+            )
         if tipo is not None:
             consulta = consulta.where(Publicacao.tipo_publicacao == tipo.value)
+        return consulta.limit(limite).offset(offset)
 
+    def listar_administracao(
+        self,
+        *,
+        id_sistema: int,
+        tipo: TipoPublicacao | None = None,
+        limite: int = 50,
+        offset: int = 0,
+    ) -> list[Publicacao]:
+        """Lista publicacoes para gestao administrativa com seus relacionamentos."""
+
+        consulta = self.consulta_administracao(id_sistema, tipo, limite, offset)
         with self._banco.leitura() as sessao:
-            return list(sessao.scalars(consulta.limit(limite).offset(offset)).all())
+            return list(sessao.scalars(consulta).all())
 
     def obter_administracao(
         self,
