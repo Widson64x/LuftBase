@@ -221,7 +221,13 @@ class CursorFalso:
         existentes: tuple[str, ...] = (),
         pode_criar: bool = True,
         efetivo: bool = True,
+        superusuario: bool = False,
+        proprios: bool = False,
+        bancos_do_dono: tuple[str, ...] = (),
     ) -> None:
+        self._superusuario = superusuario
+        self._proprios = proprios
+        self._bancos_do_dono = bancos_do_dono
         self.comandos: list[str] = []
         self._fila = list(resultados) if resultados is not None else None
         self._existentes = existentes
@@ -252,6 +258,12 @@ class CursorFalso:
             return [(self._pode_criar,)]
         if "has_database_privilege" in texto:
             return [(True,)]
+        if "SELECT rolsuper FROM" in texto:
+            return [(self._superusuario,)]
+        if "pg_catalog.pg_database d" in texto:
+            return [(nome,) for nome in self._bancos_do_dono]
+        if "c.relowner" in texto:
+            return [("RELACAO", 25 if self._proprios else 0), ("SCHEMA", 0), ("FUNCAO", 0)]
         if "aclexplode" in texto and parametros:
             role = str(parametros[0])
             origem = role.replace("_hml_app", "_app")
@@ -352,10 +364,14 @@ def test_isolamento_aponta_roles_que_ainda_conectam_na_origem() -> None:
 
 class PsycopgFalso:
     def __init__(
-        self, existentes: tuple[str, ...], pode_criar: bool = True, efetivo: bool = True
+        self,
+        existentes: tuple[str, ...],
+        pode_criar: bool = True,
+        efetivo: bool = True,
+        **opcoes: Any,
     ) -> None:
         self.cursor_falso = CursorFalso(
-            existentes=existentes, pode_criar=pode_criar, efetivo=efetivo
+            existentes=existentes, pode_criar=pode_criar, efetivo=efetivo, **opcoes
         )
 
     def connect(self, **opcoes: Any) -> ConexaoFalsa:
@@ -370,13 +386,14 @@ def _preparar(  # type: ignore[no-untyped-def]
     *,
     pode_criar: bool = True,
     efetivo: bool = True,
+    **opcoes: Any,
 ) -> PsycopgFalso:
     import psycopg
 
     modulo = sys.modules["luftbase.cli.vault"]
     monkeypatch.setattr(modulo, "_solicitar_segredo", lambda rotulo: "segredo")
     monkeypatch.setattr(modulo, "_criar_cliente_hvac_operador", lambda *a: ClienteFalso(kv2))
-    falso = PsycopgFalso(tuple(existentes or ()), pode_criar, efetivo)
+    falso = PsycopgFalso(tuple(existentes or ()), pode_criar, efetivo, **opcoes)
     monkeypatch.setattr(psycopg, "connect", falso.connect)
     return falso
 
@@ -645,3 +662,72 @@ def test_cli_avisa_quando_a_role_nova_nao_recebe_todos_os_privilegios(monkeypatc
     assert resultado.exit_code == 0, resultado.output
     assert "nao recebeu 5 privilegio(s)" in resultado.output
     assert "Repita esses GRANTs com o dono dos objetos" in resultado.output
+
+
+# ---- Posse dos objetos (dono implicito) ---------------------------------------
+
+
+def test_conta_objetos_cujo_dono_e_a_role() -> None:
+    from luftbase.infraestrutura.cofre import privilegios
+
+    assert privilegios.contar_objetos_do_dono(CursorFalso(proprios=True), "x") == {"RELACAO": 25}
+    assert privilegios.contar_objetos_do_dono(CursorFalso(), "x") == {}
+
+
+def test_cli_simulacao_mostra_objetos_de_propriedade_da_role_de_origem(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    _preparar(monkeypatch, _vault_producao(), proprios=True)
+
+    resultado = CliRunner().invoke(cli, _ARGS)
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "objetos de propriedade de luft_workspace_app: 25 RELACAO" in resultado.output
+
+
+def test_cli_nao_superusuario_recebe_o_roteiro_para_transferir_a_posse(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    falso = _preparar(monkeypatch, _vault_producao(), proprios=True, superusuario=False)
+
+    resultado = CliRunner().invoke(
+        cli, [*_ARGS, "--executar"], input="CLONAR-PRODUCAO-HOMOLOGACAO\n"
+    )
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "sao DONAS de objetos do banco clonado" in resultado.output
+    assert "dba_teste nao e superusuario" in resultado.output
+    assert 'REASSIGN OWNED BY "luft_workspace_app" TO "luft_workspace_hml_app";' in resultado.output
+    assert "conectado em luft_web_hml, como superusuario" in resultado.output
+    assert not any(c.startswith("REASSIGN OWNED") for c in falso.cursor_falso.comandos)
+
+
+def test_cli_superusuario_transfere_a_posse_so_no_banco_clonado(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    falso = _preparar(monkeypatch, _vault_producao(), proprios=True, superusuario=True)
+
+    resultado = CliRunner().invoke(
+        cli, [*_ARGS, "--executar"], input="CLONAR-PRODUCAO-HOMOLOGACAO\n"
+    )
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "Posse dos objetos transferida em luft_web_hml" in resultado.output
+    comandos = falso.cursor_falso.comandos
+    assert 'REASSIGN OWNED BY "luft_workspace_app" TO "luft_workspace_hml_app"' in comandos
+    assert 'REASSIGN OWNED BY "luft_connectair_app" TO "luft_connectair_hml_app"' in comandos
+    assert not any(
+        c.startswith("REASSIGN OWNED") and 'TO "luft_workspace_app"' in c for c in comandos
+    )
+
+
+def test_cli_nao_reatribui_se_a_role_de_origem_possui_bancos(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    falso = _preparar(
+        monkeypatch,
+        _vault_producao(),
+        proprios=True,
+        superusuario=True,
+        bancos_do_dono=("outro_banco",),
+    )
+
+    resultado = CliRunner().invoke(
+        cli, [*_ARGS, "--executar"], input="CLONAR-PRODUCAO-HOMOLOGACAO\n"
+    )
+
+    assert resultado.exit_code == 0, resultado.output
+    assert "possuem bancos (outro_banco)" in resultado.output
+    assert not any(c.startswith("REASSIGN OWNED") for c in falso.cursor_falso.comandos)

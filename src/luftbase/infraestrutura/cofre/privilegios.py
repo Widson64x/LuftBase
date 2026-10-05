@@ -125,6 +125,54 @@ def pode_criar_roles(cursor: Any) -> bool:
     return bool(linha and linha[0])
 
 
+def contar_objetos_do_dono(cursor: Any, role: str) -> dict[str, int]:
+    """Objetos do banco atual cujo DONO e a role (acesso implicito, sem GRANT no catalogo).
+
+    Uma role dona de uma tabela acessa-a sem nenhum privilegio registrado em `relacl`; por
+    isso a copia de privilegios nao os enxerga e uma role nova ficaria sem acesso.
+    """
+
+    dono = "(SELECT oid FROM pg_catalog.pg_roles WHERE rolname = %s)"
+    cursor.execute(
+        f"""
+        SELECT 'RELACAO', count(*) FROM pg_catalog.pg_class c
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relowner = {dono} AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S') AND {_FILTRO}
+        UNION ALL
+        SELECT 'SCHEMA', count(*) FROM pg_catalog.pg_namespace n
+        WHERE n.nspowner = {dono} AND {_FILTRO}
+        UNION ALL
+        SELECT 'FUNCAO', count(*) FROM pg_catalog.pg_proc p
+        JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+        WHERE p.proowner = {dono} AND {_FILTRO}
+        """,
+        (role, role, role),
+    )
+    return {categoria: int(total) for categoria, total in cursor.fetchall() if total}
+
+
+def eh_superusuario(cursor: Any) -> bool:
+    """Se o usuario da conexao e superuser (unico que transfere donos de qualquer role)."""
+
+    cursor.execute("SELECT rolsuper FROM pg_catalog.pg_roles WHERE rolname = current_user")
+    linha = cursor.fetchone()
+    return bool(linha and linha[0])
+
+
+def bancos_do_dono(cursor: Any, roles: Iterable[str]) -> list[str]:
+    """Bancos (objetos do cluster) pertencentes as roles; REASSIGN OWNED tambem os mudaria."""
+
+    cursor.execute(
+        """
+        SELECT d.datname FROM pg_catalog.pg_database d
+        JOIN pg_catalog.pg_roles r ON r.oid = d.datdba
+        WHERE r.rolname = ANY (%s)
+        """,
+        (list(roles),),
+    )
+    return sorted(str(linha[0]) for linha in cursor.fetchall())
+
+
 def separar_padroes(
     privilegios: Iterable[Privilegio], dono_atual: str
 ) -> tuple[list[Privilegio], list[Privilegio]]:
@@ -199,6 +247,9 @@ def faltantes(esperados: Iterable[Privilegio], efetivos: Iterable[Privilegio]) -
 
 __all__ = [
     "Privilegio",
+    "bancos_do_dono",
+    "contar_objetos_do_dono",
+    "eh_superusuario",
     "comando_grant",
     "consultar_privilegios",
     "faltantes",

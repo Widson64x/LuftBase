@@ -363,6 +363,45 @@ def criar_roles(
     return nao_concedidos
 
 
+def transferir_donos(conexao: Any, plano: PlanoClonagem) -> None:
+    """Passa para a role de destino a posse dos objetos que eram da role de origem.
+
+    Roda no banco da conexao (o clonado): a producao nao e afetada. Exige superuser, pois
+    o administrador comum nao pode assumir a posse de objetos de outra role. Antes, quem
+    chama deve garantir que a role de origem nao possui bancos nem tablespaces, que o
+    REASSIGN OWNED tambem transferiria.
+    """
+
+    from psycopg import sql
+
+    with conexao.transaction(), conexao.cursor() as cursor:
+        for sistema in plano.sistemas:
+            cursor.execute(
+                sql.SQL("REASSIGN OWNED BY {} TO {}").format(
+                    sql.Identifier(sistema.usuario_origem),
+                    sql.Identifier(sistema.usuario_destino),
+                )
+            )
+
+
+def sql_para_transferir_donos(plano: PlanoClonagem) -> list[str]:
+    """Roteiro para um superuser, conectado no banco clonado, quando o comando nao pode."""
+
+    origens = sorted({s.usuario_origem for s in plano.sistemas})
+    lista = ", ".join(f"'{origem}'" for origem in origens)
+    linhas = [
+        f"-- conectado em {plano.banco_destino}, como superusuario",
+        "-- 1) a consulta deve voltar vazia (REASSIGN OWNED tambem muda donos de bancos):",
+        "SELECT d.datname FROM pg_database d JOIN pg_roles r ON r.oid = d.datdba",
+        f"  WHERE r.rolname IN ({lista});",
+        "-- 2) transfere a posse so neste banco:",
+    ]
+    linhas.extend(
+        f'REASSIGN OWNED BY "{s.usuario_origem}" TO "{s.usuario_destino}";' for s in plano.sistemas
+    )
+    return linhas
+
+
 def roles_que_alcancam_a_origem(cursor: Any, plano: PlanoClonagem) -> list[str]:
     """Roles de destino que ainda conseguem conectar no banco de origem (isolamento)."""
 
@@ -392,5 +431,7 @@ __all__ = [
     "montar_plano",
     "raiz_bancos",
     "roles_que_alcancam_a_origem",
+    "sql_para_transferir_donos",
+    "transferir_donos",
     "sufixo_do_ambiente",
 ]

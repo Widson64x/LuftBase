@@ -797,6 +797,14 @@ def postgresql_clonar_ambiente(
                 s.usuario_destino: privilegios.consultar_privilegios(cursor, s.usuario_origem)
                 for s in plano.sistemas
             }
+            donos = {
+                s.usuario_origem: privilegios.contar_objetos_do_dono(cursor, s.usuario_origem)
+                for s in plano.sistemas
+            }
+            e_super = privilegios.eh_superusuario(cursor)
+            bancos_dos_donos = privilegios.bancos_do_dono(
+                cursor, [s.usuario_origem for s in plano.sistemas]
+            )
         plano = plano.com_grupos(grupos)
         segredos_existentes = clonagem.caminhos_existentes(
             cliente, vault_mount, plano.caminhos_destino, _segredo_existe
@@ -814,6 +822,10 @@ def postgresql_clonar_ambiente(
             diretos = privilegios.resumo_por_categoria(copiados.get(s.usuario_destino, ()))
             resumo = ", ".join(f"{n} {c}" for c, n in diretos.items()) or "(nenhum)"
             click.echo(f"    privilegios diretos a copiar: {resumo}")
+            proprios = ", ".join(f"{n} {c}" for c, n in donos.get(s.usuario_origem, {}).items())
+            click.echo(
+                f"    objetos de propriedade de {s.usuario_origem}: {proprios or '(nenhum)'}"
+            )
         for s in plano.sistemas:
             _, de_outro_dono = privilegios.separar_padroes(
                 copiados.get(s.usuario_destino, ()), admin_efetivo
@@ -875,6 +887,24 @@ def postgresql_clonar_ambiente(
             )
             raise click.ClickException(str(erro)) from erro
         click.echo(f"Roles criadas: {', '.join(plano.roles_destino)}")
+        if any(donos.values()):
+            if e_super and not bancos_dos_donos:
+                clonagem.transferir_donos(conexao, plano)
+                click.echo(f"Posse dos objetos transferida em {plano.banco_destino}.")
+            else:
+                motivo = (
+                    f"as roles de origem possuem bancos ({', '.join(bancos_dos_donos)})"
+                    if bancos_dos_donos
+                    else f"{admin_efetivo} nao e superusuario"
+                )
+                click.echo(
+                    "ATENCAO: as roles de origem sao DONAS de objetos do banco clonado (acesso "
+                    "implicito, sem GRANT). Sem ficar donas deles, as roles novas recebem "
+                    f"'permission denied'. Nao foi possivel transferir automaticamente: {motivo}."
+                )
+                click.echo("Peca a um superusuario para executar:")
+                for linha in clonagem.sql_para_transferir_donos(plano):
+                    click.echo(f"  {linha}")
         for role, ausentes in sorted(nao_concedidos.items()):
             click.echo(
                 f"ATENCAO: {role} nao recebeu {len(ausentes)} privilegio(s) (o administrador nao "
