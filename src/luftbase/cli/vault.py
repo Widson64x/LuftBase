@@ -904,7 +904,7 @@ def postgresql_clonar_ambiente(
                 f"{plano.banco_origem} FROM PUBLIC e um GRANT CONNECT a TODAS as roles que usam "
                 f"esse banco (todos os apps, o dono, backup e monitoramento), nao so as de "
                 f"{', '.join(sorted({s.usuario_origem for s in plano.sistemas}))}. "
-                "Nao foi executado: mudar isso sem listar todas as roles derruba quem ficar de fora."
+                "Nao foi executado: sem listar todas as roles, quem ficar de fora perde acesso."
             )
 
     click.echo("Clonagem concluida sem expor valores secretos.")
