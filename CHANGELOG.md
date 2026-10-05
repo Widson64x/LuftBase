@@ -2,6 +2,17 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a58] - 2026-10-05
+
+### Corrigido
+
+- Conexoes ociosas de SQL Server apareciam no monitor do banco como sessao "sleeping" com
+  transacao aberta (por minutos), por exemplo `user.services` no diretorio de usuarios. No modo
+  padrao o driver ODBC mantem uma transacao sempre aberta na conexao, mesmo depois do rollback.
+  `ConstrutorEngines.criar(credencial, somente_leitura=True)` liga o autocommit do driver em SQL
+  Server; o diretorio de usuarios passa a usar essa opcao e as aplicacoes podem usa-la nos bancos
+  de negocio somente leitura (ERP). PostgreSQL nao muda.
+
 ## [0.1.0a57] - 2026-10-05
 
 ### Adicionado

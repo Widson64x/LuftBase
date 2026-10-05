@@ -11,11 +11,15 @@ class ConstrutorFalso:
 
     def __init__(self) -> None:
         self.engines = []
+        self.somente_leitura: list[tuple[TipoBanco, bool]] = []
         self.esquema: str | None = None
 
-    def criar(self, credencial: CredencialBanco):  # type: ignore[no-untyped-def]
+    def criar(  # type: ignore[no-untyped-def]
+        self, credencial: CredencialBanco, *, somente_leitura: bool = False
+    ):
         engine = create_engine("sqlite+pysqlite:///:memory:")
         self.engines.append((credencial.tipo, engine))
+        self.somente_leitura.append((credencial.tipo, somente_leitura))
         return engine
 
     def para_aplicacao(self, engine, esquema: str):  # type: ignore[no-untyped-def]
@@ -48,3 +52,8 @@ def test_catalogo_separa_responsabilidades_e_compartilha_pool_postgresql() -> No
     assert catalogo.core.engine.pool is catalogo.aplicacao.engine.pool
     assert construtor.esquema == "luft_workspace"
     assert len(construtor.engines) == 2
+    # So o diretorio (SQL Server) e criado como somente leitura (autocommit); o PostgreSQL, nao.
+    assert construtor.somente_leitura == [
+        (TipoBanco.SQLSERVER, True),
+        (TipoBanco.POSTGRESQL, False),
+    ]

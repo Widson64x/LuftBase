@@ -168,3 +168,27 @@ def test_vigia_desligado_ou_sem_engine_real_nao_cria_thread() -> None:
     assert ConfiguracaoPool(ociosidade_segundos=0).ociosidade_segundos == 0
     with pytest.raises(ValueError, match="ociosidade"):
         ConfiguracaoPool(ociosidade_segundos=-1)
+
+
+@pytest.mark.parametrize(
+    ("tipo", "somente_leitura", "autocommit"),
+    [
+        (TipoBanco.SQLSERVER, True, True),
+        (TipoBanco.SQLSERVER, False, False),
+        (TipoBanco.POSTGRESQL, True, False),   # PostgreSQL nunca muda o modo
+        (TipoBanco.POSTGRESQL, False, False),
+    ],
+)
+def test_autocommit_so_para_sqlserver_somente_leitura(
+    monkeypatch: pytest.MonkeyPatch, tipo: TipoBanco, somente_leitura: bool, autocommit: bool
+) -> None:
+    capturado: dict[str, Any] = {}
+
+    def falso_create_engine(url: Any, **opcoes: Any) -> Any:
+        capturado.update(opcoes)
+        return object()
+
+    monkeypatch.setattr(conexoes, "create_engine", falso_create_engine)
+    monkeypatch.setattr(conexoes, "vigiar_ociosidade", lambda *_a, **_k: None)
+    ConstrutorEngines().criar(_credencial(tipo), somente_leitura=somente_leitura)
+    assert (capturado.get("isolation_level") == "AUTOCOMMIT") is autocommit

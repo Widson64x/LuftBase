@@ -64,7 +64,8 @@ class FabricaCatalogoBancos:
         if credencial_postgresql.esquema is None:
             raise ErroCredencial("A credencial PostgreSQL deve informar o schema da aplicacao.")
 
-        engine_diretorio = self._construtor.criar(credencial_diretorio)
+        # Diretorio so le: sem transacao aberta nas conexoes ociosas (ver ConstrutorEngines.criar).
+        engine_diretorio = self._construtor.criar(credencial_diretorio, somente_leitura=True)
         engine_postgresql = self._construtor.criar(credencial_postgresql)
         engine_aplicacao = self._construtor.para_aplicacao(
             engine_postgresql,

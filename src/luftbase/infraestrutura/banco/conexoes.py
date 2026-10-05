@@ -131,11 +131,21 @@ class ConstrutorEngines:
             )
         raise ErroConexaoBanco("O tipo de banco nao possui um adaptador registrado.")
 
-    def criar(self, credencial: CredencialBanco) -> Engine:
-        """Cria uma engine com verificacao de conexao e pool limitado."""
+    def criar(self, credencial: CredencialBanco, *, somente_leitura: bool = False) -> Engine:
+        """Cria uma engine com verificacao de conexao e pool limitado.
 
+        `somente_leitura=True` em SQL Server liga o autocommit do driver. No modo padrao o driver
+        ODBC mantem uma transacao SEMPRE aberta na conexao (inclusive ociosa no pool), que aparece
+        nos monitores como sessao "sleeping" com transacao aberta. Quem so le (diretorio de
+        usuarios, ERP) nao precisa de transacao, entao nenhuma fica aberta.
+        """
+
+        opcoes: dict[str, object] = {}
+        if somente_leitura and credencial.tipo is TipoBanco.SQLSERVER:
+            opcoes["isolation_level"] = "AUTOCOMMIT"
         engine = create_engine(
             self.criar_url(credencial),
+            **opcoes,
             pool_pre_ping=True,
             pool_size=self._pool.tamanho,
             max_overflow=self._pool.excedentes,
