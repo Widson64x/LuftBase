@@ -6,13 +6,14 @@ import contextlib
 from datetime import datetime
 from typing import Any
 
-from flask import Blueprint, abort, current_app, jsonify, render_template, request
+from flask import Blueprint, abort, current_app, jsonify, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import select
 from werkzeug.exceptions import HTTPException
 
 from luftbase.autorizacao.catalogo import PermissaoLuftBase
 from luftbase.autorizacao.web import consultar_permissoes, exigir_permissao
+from luftbase.conteudo.markdown_seguro import renderizar as renderizar_markdown
 from luftbase.conteudo.modelos import (
     ItemNotaAtualizacao,
     NovaPublicacao,
@@ -270,10 +271,12 @@ def visualizar_publicacao(id_publicacao: int):  # type: ignore[no-untyped-def]
             id_publicacao,
         )
 
-    return render_template(
-        "luftbase/publicacoes/detalhe.html",
-        publicacao=_publicacao_feed(item),
+    publicacao = _publicacao_feed(item)
+    publicacao["conteudo_html"] = renderizar_markdown(
+        item.conteudo,
+        lambda caminho: url_for("luftbase.static", filename=caminho),
     )
+    return render_template("luftbase/publicacoes/detalhe.html", publicacao=publicacao)
 
 
 def _data_payload(valor: Any, campo: str) -> datetime | None:

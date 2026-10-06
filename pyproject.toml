@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "luft-base"
-version = "0.1.0a74"
+version = "0.1.0a75"
 description = "Plataforma corporativa para aplicacoes Python da Luft."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -53,6 +53,7 @@ luftbase = [
     "interface/static/img/background/*.jpeg",
     "interface/static/img/background/*.png",
     "interface/static/img/email/*.png",
+    "interface/static/img/changelog/*.svg",
     "interface/static/js/*.js",
     "interface/static/video/*.json",
     "interface/templates/luftbase/*.html",

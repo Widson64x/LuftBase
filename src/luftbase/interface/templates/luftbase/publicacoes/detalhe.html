@@ -40,7 +40,7 @@
             <span><i class="ph ph-calendar-blank"></i> {{ (publicacao.data_publicacao or publicacao.data_criacao or '')[:16]|replace('T', ' ') }}</span>
             <span><i class="ph ph-users"></i> {{ 'Geral' if publicacao.tipo_audiencia == 'GERAL' else 'Grupo direcionado' }}</span>
         </div>
-        <div class="publicacao-detail-content">{{ publicacao.conteudo }}</div>
+        <div class="publicacao-detail-content md">{{ publicacao.conteudo_html }}</div>
 
         {% if publicacao.itens_atualizacao %}
         <section class="publicacao-changelog">

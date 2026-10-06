@@ -2,6 +2,16 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a75] - 2026-10-06
+
+### Adicionado
+
+- Conteudo rico nas publicacoes: o corpo de comunicados e notas de atualizacao aceita markdown seguro
+  (titulos, listas, negrito, links, imagens, destaques `:::sucesso|info|alerta|perigo` e `:::cards`).
+  Todo texto e escapado; imagens so por `https://` ou `luftbase:` (estaticos do LuftBase).
+- `luftbase.conteudo.changelog_plataforma`: nota global "Nova plataforma Luft" (mudanca para o LuftBase)
+  com banner e ilustracoes em SVG, publicada com notificacao e idempotente.
+
 ## [0.1.0a74] - 2026-10-06
 
 ### Corrigido
