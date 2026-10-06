@@ -2,6 +2,14 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a76] - 2026-10-06
+
+### Alterado
+
+- Nota global de lancamento reescrita como nota de atualizacao completa (~15 mil caracteres, 22 imagens
+  PNG em `img/changelog`, geradas por `tools/gerar_imagens_changelog.py`: ilustracoes e maquetes de tela com
+  dados ficticios). O texto fala apenas de Workspace, ConnectAir e Integrador.
+
 ## [0.1.0a75] - 2026-10-06
 
 ### Adicionado

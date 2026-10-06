@@ -27,14 +27,14 @@ def test_imagem_so_aceita_https_ou_estatico_do_luftbase() -> None:
     html = str(
         renderizar(
             "![a](javascript:alert(1)) ![b](http://x/y.png) ![c](luftbase:../segredo.svg) "
-            "![d](https://x/y.png) ![e](luftbase:img/changelog/banner-plataforma.svg)"
+            "![d](https://x/y.png) ![e](luftbase:img/changelog/banner.png)"
         )
     )
 
     assert html.count("<img") == 2
     fontes = re.findall(r'src="([^"]+)"', html)
     assert sorted(fontes) == [
-        "/_luftbase/static/img/changelog/banner-plataforma.svg",
+        "/_luftbase/static/img/changelog/banner.png",
         "https://x/y.png",
     ]
 
@@ -64,7 +64,7 @@ def test_todas_as_imagens_do_changelog_existem() -> None:
     assert usadas
     for nome in usadas:
         assert (IMAGENS / nome).is_file(), nome
-        assert (IMAGENS / nome).read_text(encoding="utf-8").lstrip().startswith("<svg")
+        assert (IMAGENS / nome).read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", nome
 
 
 def test_changelog_renderiza_sem_sobras_de_marcacao() -> None:
@@ -131,3 +131,9 @@ def test_sem_publicar_so_deixa_rascunho() -> None:
 @pytest.mark.parametrize("versao", ["2.0", "2026.10"])
 def test_versao_e_obrigatoria_para_nota_de_atualizacao(versao: str) -> None:
     assert changelog.nova_publicacao(versao=versao).versao == versao
+
+
+def test_a_nota_e_longa_e_tem_dezenas_de_imagens() -> None:
+    assert len(changelog.CONTEUDO) > 14000
+    assert changelog.CONTEUDO.count("luftbase:img/changelog/") >= 20
+    assert "Todos os sistemas" not in changelog.CONTEUDO and "Horário de Brasília" not in changelog.CONTEUDO
