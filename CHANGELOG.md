@@ -2,6 +2,12 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a73] - 2026-10-06
+
+### Alterado
+
+- Perfil: o "Historico de Acessos" mostra os 5 ultimos acessos.
+
 ## [0.1.0a72] - 2026-10-06
 
 ### Adicionado

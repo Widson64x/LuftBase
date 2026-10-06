@@ -402,7 +402,7 @@ def registrar_interface_web(app: Flask) -> None:
         from luftbase.plataforma import obter_luftbase
 
         repo = obter_luftbase().usuarios_core
-        itens = repo.listar_historico_sessoes(usuario.id_usuario, limite=30)
+        itens = repo.listar_historico_sessoes(usuario.id_usuario, limite=5)
         id_atual = id_sessao_atual()
         for s in itens:
             s.update(interpretar_agente(s.get("user_agent")))
