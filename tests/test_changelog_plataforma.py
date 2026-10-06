@@ -147,7 +147,9 @@ def test_versao_e_obrigatoria_para_nota_de_atualizacao(versao: str) -> None:
 def test_a_nota_fala_ao_usuario_e_nao_de_infraestrutura() -> None:
     texto = changelog.CONTEUDO
     assert changelog.CONTEUDO.count("luftbase:img/changelog/") >= 12
-    assert "Luft-Control" in texto and "sistemas web" in texto
+    assert "Luft-Control" in texto
+    for exagero in ("todos os sistemas", "sistemas web", "demais sistemas"):
+        assert exagero not in texto.lower(), exagero
     for proibido in ("Todos os sistemas Luft", "Horário de Brasília", "cofre", "Vault", "homologação", "auditoria"):
         assert proibido not in texto, proibido
 

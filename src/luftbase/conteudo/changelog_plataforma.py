@@ -17,38 +17,39 @@ from luftbase.conteudo.modelos import (
 )
 from luftbase.conteudo.servicos import ServicoPublicacoes
 
-TITULO = "Uma base nova para os sistemas web Luft"
+TITULO = "Uma base nova para o Workspace, o ConnectAir e o Integrador"
 RESUMO = (
-    "Os sistemas web da Luft estão ganhando uma base nova: login único, perfil renovado e avisos com "
-    "notificação. Workspace, ConnectAir e Integrador já estão nela, e os demais, como o Luft-Control, virão a seguir."
+    "O Luft-Workspace, o Luft-ConnectAir e o Luft-Integrador passaram a usar uma base nova: login único, "
+    "perfil renovado e avisos com notificação. O Luft-Control será o próximo a migrar."
 )
 
 # Titulos de versoes anteriores da mesma nota: a nota ja publicada e reconhecida e tem o texto corrigido.
 TITULOS_ANTERIORES = (
     "Nova plataforma Luft: o ecossistema agora roda no LuftBase",
     "Uma base nova para os sistemas Luft: conheça o LuftBase",
+    "Uma base nova para os sistemas web Luft",
 )
 
 _IMG = "luftbase:img/changelog/"
 
 CONTEUDO = f"""\
-![Uma base nova para os sistemas web Luft]({_IMG}banner.png)
+![Uma base nova para o Workspace, o ConnectAir e o Integrador]({_IMG}banner.png)
 
 :::sucesso
-**Os sistemas web da Luft estão ganhando uma base nova.** O **Luft-Workspace**, o **Luft-ConnectAir** e o
-**Luft-Integrador** já funcionam sobre ela, e os demais sistemas web, como o **Luft-Control**, seguirão o
-mesmo caminho. O resultado é uma experiência mais simples, mais parecida entre os sistemas e mais segura.
+**Uma base nova chegou ao Luft-Workspace, ao Luft-ConnectAir e ao Luft-Integrador.** O resultado é uma
+experiência mais simples, mais parecida entre esses sistemas e mais segura. O **Luft-Control** será o próximo
+a ser migrado.
 :::
 
 ## O que muda para você
 
 ![O que muda, em um olhar]({_IMG}antes-depois.png)
 
-- **Um login para tudo:** entre uma vez e use todos os sistemas web já adaptados.
+- **Um login para tudo:** entre uma vez e use o Workspace, o ConnectAir e o Integrador.
 - **Perfil renovado:** foto com recorte, dispositivos conectados e histórico dos seus acessos.
 - **Avisos que chegam até você:** comunicados e notas de atualização, com notificação.
 - **Busca e visual:** encontre telas rapidamente e escolha o tema que prefere.
-- **Mesmo jeito de usar:** menus, perfil e avisos funcionam de forma igual em todos os sistemas.
+- **Mesmo jeito de usar:** menus, perfil e avisos funcionam de forma igual nesses três sistemas.
 
 ---
 
@@ -57,8 +58,9 @@ mesmo caminho. O resultado é uma experiência mais simples, mais parecida entre
 ![Quais sistemas já estão na nova base]({_IMG}linha-do-tempo.png)
 
 A mudança está sendo feita **sistema por sistema**, sempre depois de testada. Hoje já estão adaptados o
-Workspace, o ConnectAir e o Integrador. O **Luft-Control** será o próximo, e **todos os sistemas web da Luft**
-vão seguir o mesmo padrão. Quando cada um for migrado, você será avisado por aqui.
+Workspace, o ConnectAir e o Integrador, e o **Luft-Control** será o próximo. Os outros sistemas da Luft,
+construídos com outras tecnologias, continuam como são hoje, com o próprio login e o próprio visual. Quando
+houver novidade, você será avisado por aqui.
 
 ---
 
@@ -66,7 +68,7 @@ vão seguir o mesmo padrão. Quando cada um for migrado, você será avisado por
 
 ![Um login para tudo]({_IMG}login-unico.png)
 
-Ao entrar em um dos sistemas adaptados, você já está autenticado nos outros. Vá de um sistema a outro pelo
+Ao entrar no Workspace, no ConnectAir ou no Integrador, você já está autenticado nos outros dois. Vá de um sistema a outro pelo
 menu, sem digitar a senha de novo. Quando você **sai**, a sessão é encerrada em todos eles.
 
 ![Tela de entrada]({_IMG}tela-login.png)
@@ -154,13 +156,14 @@ identidade ESG. A escolha fica salva na sua conta.
 Não. Use a mesma senha de sempre.
 
 **Por que me pediram para entrar de novo?**
-A sessão antiga foi criada antes da mudança. Depois do novo login, ela vale para todos os sistemas adaptados.
+A sessão antiga foi criada antes da mudança. Depois do novo login, ela vale para os três sistemas.
 
 **Perdi um acesso que eu tinha. E agora?**
 Peça ao seu gestor ou ao TI para liberar de novo, informando o sistema e a tela.
 
-**O sistema que eu uso ainda não mudou. Vai mudar?**
-Sim. Todos os sistemas web da Luft vão seguir o mesmo padrão, e o Luft-Control é o próximo. Você será avisado.
+**O sistema que eu uso não está nessa lista. Vai mudar?**
+Por enquanto a mudança vale para o Workspace, o ConnectAir e o Integrador, e o Luft-Control será o próximo.
+Os outros sistemas da Luft continuam como estão, e você será avisado de qualquer novidade.
 
 ## Precisa de ajuda?
 

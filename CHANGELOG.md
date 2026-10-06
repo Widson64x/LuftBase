@@ -2,6 +2,14 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a80] - 2026-10-06
+
+### Alterado
+
+- Nota de lancamento: deixa de falar em "todos os sistemas web". Cita o Workspace, o ConnectAir e o
+  Integrador (ja na nova base) e o Luft-Control como proximo; os demais sistemas da Luft, de outras
+  tecnologias, seguem como estao. O titulo mudou e a nota publicada com o titulo anterior e reconhecida.
+
 ## [0.1.0a79] - 2026-10-06
 
 ### Corrigido

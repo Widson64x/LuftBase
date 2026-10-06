@@ -1,4 +1,4 @@
-"""Gera as imagens da nota de atualização "Nova base dos sistemas web Luft" (PNG, via Chrome sem interface).
+"""Gera as imagens da nota de atualização "Uma base nova para o Workspace, o ConnectAir e o Integrador" (PNG, via Chrome sem interface).
 
     python tools/gerar_imagens_changelog.py            # gera tudo
     python tools/gerar_imagens_changelog.py perfil-sessoes banner   # só algumas
@@ -148,7 +148,7 @@ def shell(corpo: str, *, crumb: str = "Visão Geral", ativo: str = "Visão Geral
 <div class="side"><div class="marca"><img src="{LOGO}"><div><b>Luft Healthcare</b><small>LUFT-WORKSPACE</small></div></div>{itens}
 <div class="usuario"><div class="av">{iniciais}</div><div><b style="font-size:13px">{usuario}</b><div class="mudo" style="font-size:11px">GRUPO TI</div></div></div></div>
 <div class="main"><div class="topo"><div class="crumb">{i("house")}<span>Workspace</span>{i("caret-right")}<b>{crumb}</b></div>
-<div class="busca">{i("magnifying-glass")}Buscar em todos os sistemas...</div><div class="sino">{i("bell")}<em>3</em></div><div class="av">{iniciais}</div></div>
+<div class="busca">{i("magnifying-glass")}Buscar telas e funções...</div><div class="sino">{i("bell")}<em>3</em></div><div class="av">{iniciais}</div></div>
 <div class="corpo">{corpo}</div></div>{extra}</div>"""
 
 
@@ -167,8 +167,8 @@ def cartao_sistema(nome: str, desc: str, icone: str, cor: str, selo: str = "OPER
 def _():
     return f"""<div class="arte g1 aneis" style="height:420px;padding:70px 80px">
 <div class="lin" style="margin-bottom:34px"><div class="ic" style="width:64px;height:64px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:32px">{i("rocket-launch")}</div><div class="kicker">Nota de atualização</div></div>
-<h1>Uma base nova<br>para os sistemas web Luft</h1>
-<p class="sub" style="margin-top:20px;max-width:700px">Login único, perfil renovado e avisos com notificação: os sistemas web da Luft estão ganhando a mesma base.</p>
+<h1>Uma base nova<br>para o seu dia a dia</h1>
+<p class="sub" style="margin-top:20px;max-width:700px">Login único, perfil renovado e avisos com notificação no Workspace, no ConnectAir e no Integrador.</p>
 <div class="vidro" style="position:absolute;right:70px;bottom:60px;width:250px;padding:18px"><div class="chip" style="background:#22d3ee;color:#083344">LuftBase</div>
 <div style="height:10px;border-radius:5px;background:rgba(255,255,255,.7);margin:16px 0 8px;width:70%"></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.35);margin-bottom:8px"></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.35);width:80%"></div></div></div>"""
 
@@ -193,7 +193,7 @@ def _():
         for ic, n, t, c, ok in sistemas
     )
     return f"""<div style="padding:36px 40px;height:330px;background:#f8fafc"><div class="lin" style="justify-content:center;margin-bottom:6px"><h2>Quais sistemas já estão na nova base</h2></div>
-<div class="mudo" style="text-align:center;font-size:14px;margin-bottom:22px">Todos os sistemas web da Luft vão seguir o mesmo padrão</div><div class="grid g4c">{caixas}</div></div>"""
+<div class="mudo" style="text-align:center;font-size:14px;margin-bottom:22px">O Luft-Control será o próximo a migrar</div><div class="grid g4c">{caixas}</div></div>"""
 
 
 @imagem("login-unico", 1200, 420)
@@ -211,7 +211,7 @@ def _():
 
 @imagem("notificacoes-arte", 1200, 420)
 def _():
-    notas = [("rocket-launch", "Nova atualização disponível", "Veja o que mudou nos sistemas web", "b"), ("megaphone", "Comunicado do TI", "Manutenção programada no sábado", "a"), ("shield-check", "Novo acesso liberado", "Você já pode usar o ConnectAir", "v")]
+    notas = [("rocket-launch", "Nova atualização disponível", "Veja o que mudou no Workspace", "b"), ("megaphone", "Comunicado do TI", "Manutenção programada no sábado", "a"), ("shield-check", "Novo acesso liberado", "Você já pode usar o ConnectAir", "v")]
     cards = "".join(f'<div class="card p16 lin" style="width:520px;box-shadow:0 14px 34px rgba(15,23,42,.18)"><div class="ic {c}">{i(ic)}</div><div><b>{t}</b><div class="mudo" style="font-size:12.5px">{d}</div></div></div>' for ic, t, d, c in notas)
     return f"""<div class="arte g4 aneis" style="height:420px;padding:56px 80px"><div class="kicker" style="margin-bottom:10px">Fique por dentro</div><h2 style="margin-bottom:24px">Avisos que chegam até você</h2>
 <div class="col" style="gap:12px;position:absolute;right:80px;top:50px">{cards}</div><p class="sub" style="max-width:420px">Comunicados e notas de atualização aparecem no sino, no feed e na tela de detalhes.</p></div>"""
@@ -278,14 +278,14 @@ def _():
         return f"""<div class="card p20 col" style="gap:8px;{'border-left:5px solid #2563eb' if novo else ''}"><div class="lin"><span class="chip c-azul">CHANGELOG</span><span class="chip c-cinza">v{v}</span><span class="chip c-roxo">{i("globe")}Global</span>{'<span class="chip c-verde">NOVO</span>' if novo else ''}</div>
 <b style="font-size:17px">{t}</b><div class="mudo" style="font-size:13px">{r}</div></div>"""
 
-    corpo = '<div class="titulo">Notas de Atualização</div><div class="lede">Tudo o que mudou nos sistemas web da Luft</div><div class="col">' + nota("2.0", "Nova base dos sistemas web Luft", "Login único, permissões claras, perfil renovado e painel de controle completo.", "", True) + nota("1.9", "Melhorias de desempenho", "Telas mais rápidas e mensagens de erro mais claras.", "") + nota("1.8", "Ajustes de acessibilidade", "Contraste e navegação por teclado revisados.", "") + "</div>"
+    corpo = '<div class="titulo">Notas de Atualização</div><div class="lede">Tudo o que mudou nos seus sistemas</div><div class="col">' + nota("2.0", "Uma base nova para o Workspace, ConnectAir e Integrador", "Login único, permissões claras, perfil renovado e painel de controle completo.", "", True) + nota("1.9", "Melhorias de desempenho", "Telas mais rápidas e mensagens de erro mais claras.", "") + nota("1.8", "Ajustes de acessibilidade", "Contraste e navegação por teclado revisados.", "") + "</div>"
     return shell(corpo, crumb="Notas de Atualização", ativo="Notas")
 
 
 @imagem("tela-notificacoes", 1280, 700)
 def _():
     pop = f"""<div class="card" style="position:absolute;right:70px;top:62px;width:420px;box-shadow:0 24px 60px rgba(15,23,42,.3)"><div class="lin" style="padding:14px 16px;border-bottom:1px solid var(--linha);justify-content:space-between"><b>Notificações</b><span class="mudo" style="font-size:12px">Marcar todas como lidas</span></div>
-{''.join(f'<div class="lin" style="padding:13px 16px;border-bottom:1px solid #eef2f7;background:{"#eff6ff" if n else "#fff"}"><div class="ic {c}" style="width:36px;height:36px;font-size:18px">{i(ic)}</div><div style="flex:1"><b style="font-size:13px">{t}</b><div class="mudo" style="font-size:12px">{d}</div></div>{"<span style=width:9px;height:9px;border-radius:50%;background:#2563eb></span>" if n else ""}</div>' for ic,c,t,d,n in [("rocket-launch","b","Nova base dos sistemas web Luft","Veja o que mudou para você",True),("megaphone","a","Comunicado do TI","Janela de manutenção no sábado",True),("shield-check","v","Acesso liberado","Você já pode usar o ConnectAir",False)])}</div>"""
+{''.join(f'<div class="lin" style="padding:13px 16px;border-bottom:1px solid #eef2f7;background:{"#eff6ff" if n else "#fff"}"><div class="ic {c}" style="width:36px;height:36px;font-size:18px">{i(ic)}</div><div style="flex:1"><b style="font-size:13px">{t}</b><div class="mudo" style="font-size:12px">{d}</div></div>{"<span style=width:9px;height:9px;border-radius:50%;background:#2563eb></span>" if n else ""}</div>' for ic,c,t,d,n in [("rocket-launch","b","Uma base nova para os seus sistemas","Veja o que mudou para você",True),("megaphone","a","Comunicado do TI","Janela de manutenção no sábado",True),("shield-check","v","Acesso liberado","Você já pode usar o ConnectAir",False)])}</div>"""
     return shell('<div class="titulo">Hub de Sistemas</div><div class="grid g3c" style="margin-top:18px"><div class="card" style="height:180px"></div><div class="card" style="height:180px"></div><div class="card" style="height:180px"></div></div>', extra=pop)
 
 
@@ -308,7 +308,7 @@ def _():
 
 @imagem("tela-login", 1280, 700)
 def _():
-    return f"""<div style="display:flex;height:700px"><div class="arte g1 aneis" style="flex:1;padding:80px"><img src="{LOGO}" style="width:70px;filter:brightness(0) invert(1);margin-bottom:28px"><h1 style="font-size:46px">Bem-vindo ao<br>ecossistema Luft</h1><p class="sub" style="margin-top:18px;max-width:420px">Um acesso único para os sistemas web da Luft.</p></div>
+    return f"""<div style="display:flex;height:700px"><div class="arte g1 aneis" style="flex:1;padding:80px"><img src="{LOGO}" style="width:70px;filter:brightness(0) invert(1);margin-bottom:28px"><h1 style="font-size:46px">Bem-vindo ao<br>ecossistema Luft</h1><p class="sub" style="margin-top:18px;max-width:420px">Um acesso único para o Workspace, o ConnectAir e o Integrador.</p></div>
 <div style="width:520px;background:#fff;display:grid;place-items:center"><div style="width:360px" class="col"><div style="font-size:26px;font-weight:800">Entrar</div><div class="mudo" style="font-size:13px;margin-top:-6px">Use o seu usuário e senha corporativos</div>
 <div class="card p16 lin" style="box-shadow:none">{i("user","mudo")}<span class="mudo">Usuário</span></div><div class="card p16 lin" style="box-shadow:none">{i("lock","mudo")}<span class="mudo">Senha</span></div><div class="btn p" style="justify-content:center;padding:13px">Entrar</div></div></div></div>"""
 
