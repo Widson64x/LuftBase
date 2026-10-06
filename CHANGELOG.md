@@ -2,6 +2,15 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a66] - 2026-10-06
+
+### Adicionado
+
+- Erro 500 passa a deixar rastro no log fisico (`Logs/luftbase.log`): rota, metodo, cadeia de tipos
+  das excecoes e as ultimas linhas da pilha (arquivo, linha e funcao), inclusive de onde a causa
+  raiz nasceu. Em servico sem console (NSSM/systemd) o motivo do 500 se perdia. A mensagem e os
+  parametros da excecao NAO sao gravados (erros de banco carregam dados e credenciais).
+
 ## [0.1.0a65] - 2026-10-06
 
 ### Corrigido

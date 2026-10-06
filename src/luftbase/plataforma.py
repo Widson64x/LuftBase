@@ -64,7 +64,7 @@ from luftbase.observabilidade.metricas import RegistroMetricas
 from luftbase.observabilidade.modelos import EventoDominio, SeveridadeAuditoria
 from luftbase.observabilidade.repositorio import RepositorioAuditoria
 from luftbase.observabilidade.servico import ServicoAuditoria
-from luftbase.observabilidade.tecnico import LoggerTecnico
+from luftbase.observabilidade.tecnico import LoggerTecnico, resumir_excecao
 from luftbase.observabilidade.web import (
     IntegracaoObservabilidadeFlask,
     contexto_observabilidade,
@@ -205,15 +205,12 @@ class PlataformaLuft:
             buffer_temp=buffer_temp,
         )
         metricas = RegistroMetricas()
-        observabilidade = IntegracaoObservabilidadeFlask(
-            auditoria,
-            metricas,
-            LoggerTecnico(
-                app.logger,
-                logger_fisico=logger_fisico,
-                buffer_temp=buffer_temp,
-            ),
+        logger_tecnico = LoggerTecnico(
+            app.logger,
+            logger_fisico=logger_fisico,
+            buffer_temp=buffer_temp,
         )
+        observabilidade = IntegracaoObservabilidadeFlask(auditoria, metricas, logger_tecnico)
         gerenciador_login = self._instalar_identidade(
             app,
             configuracao_enriquecida,
@@ -371,8 +368,24 @@ class PlataformaLuft:
 
         @app.errorhandler(500)
         def _tratar_500(erro: Any) -> Any:
-            from flask import jsonify, render_template, request
+            from flask import g, jsonify, render_template, request
 
+            # Servico sem console (NSSM/systemd) perdia o motivo do 500: grava onde e de que tipo
+            # foi o erro no log fisico, sem mensagem nem valores.
+            original = getattr(erro, "original_exception", None) or erro
+            try:
+                logger_tecnico.erro(
+                    "erro_500",
+                    original,
+                    id_correlacao=getattr(g, "luftbase_id_correlacao", None),
+                    dados={
+                        "metodo": request.method,
+                        "rota": request.path,
+                        **resumir_excecao(original),
+                    },
+                )
+            except Exception:  # registrar o erro nunca pode causar outro erro
+                logging.getLogger("luftbase").exception("Falha ao registrar o erro 500")
             if (
                 request.is_json
                 or request.path.startswith(("/api/", "/_luftbase/"))

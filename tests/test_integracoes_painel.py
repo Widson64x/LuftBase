@@ -493,3 +493,43 @@ def test_formulario_de_login_mantem_o_prefixo_da_aplicacao() -> None:
                 continue
         assert 'action="/Luft-Integrador/login"' in html, modelo
         assert 'action="/login"' not in html
+
+
+def test_erro_500_registra_onde_e_o_tipo_mas_nunca_a_mensagem(caplog) -> None:  # type: ignore[no-untyped-def]
+    import logging
+
+    app, _, cliente, autenticar = _app_com_painel()
+    app.config["PROPAGATE_EXCEPTIONS"] = False
+    app.testing = False
+
+    @app.get("/quebra")
+    def quebra():  # type: ignore[no-untyped-def]
+        raise RuntimeError("senha=SEGREDO-123 host=banco.interno")
+
+    with caplog.at_level(logging.ERROR):
+        resposta = app.test_client().get("/quebra")
+
+    assert resposta.status_code == 500
+    texto = " ".join(r.getMessage() for r in caplog.records)
+    assert "erro_500" in texto and "RuntimeError" in texto and "quebra" in texto
+    assert "/quebra" in texto
+    assert "SEGREDO-123" not in texto and "banco.interno" not in texto
+
+
+def test_resumir_excecao_traz_a_cadeia_e_a_pilha_sem_valores() -> None:
+    from luftbase.observabilidade.tecnico import resumir_excecao
+
+    def interna() -> None:
+        raise ValueError("valor-secreto")
+
+    try:
+        try:
+            interna()
+        except ValueError as causa:
+            raise RuntimeError("outra-mensagem") from causa
+    except RuntimeError as erro:
+        resumo = resumir_excecao(erro)
+
+    assert resumo["cadeia"] == ["builtins.RuntimeError", "builtins.ValueError"]
+    assert any("interna" in linha for linha in resumo["origem"])  # type: ignore[union-attr]
+    assert "secreto" not in str(resumo) and "outra-mensagem" not in str(resumo)

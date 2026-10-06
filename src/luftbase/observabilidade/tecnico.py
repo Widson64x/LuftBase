@@ -3,10 +3,39 @@
 from __future__ import annotations
 
 import logging
+import os
+import traceback
 
 from luftbase.observabilidade.arquivo_fisico import LoggerFisicoAuditoria
 from luftbase.observabilidade.buffer_temp import BufferLogsTemporarios
 from luftbase.observabilidade.sanitizacao import serializar_dados_seguro
+
+
+def resumir_excecao(erro: BaseException, *, quadros: int = 8) -> dict[str, object]:
+    """Descreve ONDE e DE QUE TIPO foi uma excecao, sem nenhum valor (mensagem ou parametros).
+
+    Mensagens de erro de banco costumam carregar dados e credenciais, entao nunca entram. Fica a
+    cadeia de tipos (causa -> efeito) e as ultimas linhas da pilha (arquivo, linha e funcao),
+    o suficiente para localizar o defeito num servico sem console.
+    """
+
+    cadeia: list[str] = []
+    atual: BaseException | None = erro
+    raiz: BaseException = erro
+    while atual is not None and len(cadeia) < 6:
+        cadeia.append(f"{type(atual).__module__}.{type(atual).__qualname__}")
+        raiz = atual
+        atual = atual.__cause__ or (None if atual.__suppress_context__ else atual.__context__)
+
+    def linhas(excecao: BaseException) -> list[str]:
+        pilha = traceback.extract_tb(excecao.__traceback__)[-quadros:]
+        return [f"{os.path.basename(q.filename)}:{q.lineno} {q.name}" for q in pilha]
+
+    resumo: dict[str, object] = {"cadeia": cadeia, "pilha": linhas(erro)}
+    if raiz is not erro:
+        # Onde o erro NASCEU (ex.: o driver do banco), distinto de quem o embrulhou.
+        resumo["origem"] = linhas(raiz)
+    return resumo
 
 
 class LoggerTecnico:
