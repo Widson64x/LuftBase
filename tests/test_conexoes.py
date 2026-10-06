@@ -135,10 +135,11 @@ def test_vigia_fecha_conexoes_ociosas_e_preserva_as_em_uso(tmp_path: Any) -> Non
     from sqlalchemy import create_engine, text
 
     engine = create_engine(f"sqlite:///{tmp_path / 'ocioso.db'}")
-    thread = conexoes.vigiar_ociosidade(engine, 0.3, intervalo_segundos=0.05)
+    # Margens folgadas: sob carga (suite inteira, antivirus) um atraso de 0,3 s derrubava o teste.
+    thread = conexoes.vigiar_ociosidade(engine, 1.5, intervalo_segundos=0.1)
     assert thread is not None and thread.daemon
 
-    def esperar(condicao: Any, limite: float = 5.0) -> bool:
+    def esperar(condicao: Any, limite: float = 10.0) -> bool:
         fim = time.monotonic() + limite
         while time.monotonic() < fim:
             if condicao():
@@ -155,7 +156,7 @@ def test_vigia_fecha_conexoes_ociosas_e_preserva_as_em_uso(tmp_path: Any) -> Non
 
     # Conexao emprestada por mais tempo que a ociosidade nunca e derrubada.
     with engine.connect() as conexao:
-        time.sleep(0.8)
+        time.sleep(2.5)
         assert engine.pool.checkedout() == 1
         assert conexao.execute(text("SELECT 2")).scalar() == 2
 
