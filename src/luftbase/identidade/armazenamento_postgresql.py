@@ -90,15 +90,18 @@ class ArmazenamentoSessoesPostgreSQL:
                 return
 
             limite_atividade = agora - timedelta(minutes=10)
-            outras = sessao_db.execute(
-                select(func.count(Sessao.id_sessao)).where(
-                    Sessao.codigo_usuario == codigo_usuario,
-                    Sessao.status == "ATIVA",
-                    Sessao.id_sessao != id_sessao,
-                    Sessao.expira_em > agora,
-                    Sessao.ultima_atividade > limite_atividade,
-                )
-            ).scalar_one() or 0
+            outras = (
+                sessao_db.execute(
+                    select(func.count(Sessao.id_sessao)).where(
+                        Sessao.codigo_usuario == codigo_usuario,
+                        Sessao.status == "ATIVA",
+                        Sessao.id_sessao != id_sessao,
+                        Sessao.expira_em > agora,
+                        Sessao.ultima_atividade > limite_atividade,
+                    )
+                ).scalar_one()
+                or 0
+            )
             usuario = sessao_db.get(Usuario, codigo_usuario)
             if usuario is not None:
                 if outras == 0:
@@ -106,17 +109,25 @@ class ArmazenamentoSessoesPostgreSQL:
                     if usuario.id_sessao_atual == id_sessao:
                         usuario.id_sessao_atual = None
                 elif usuario.id_sessao_atual == id_sessao:
-                    proxima = sessao_db.execute(
-                        select(Sessao.id_sessao).where(
-                            Sessao.codigo_usuario == codigo_usuario,
-                            Sessao.status == "ATIVA",
-                            Sessao.id_sessao != id_sessao,
-                            Sessao.expira_em > agora,
-                        ).order_by(Sessao.ultima_atividade.desc())
-                    ).scalars().first()
+                    proxima = (
+                        sessao_db.execute(
+                            select(Sessao.id_sessao)
+                            .where(
+                                Sessao.codigo_usuario == codigo_usuario,
+                                Sessao.status == "ATIVA",
+                                Sessao.id_sessao != id_sessao,
+                                Sessao.expira_em > agora,
+                            )
+                            .order_by(Sessao.ultima_atividade.desc())
+                        )
+                        .scalars()
+                        .first()
+                    )
                     usuario.id_sessao_atual = proxima
         except Exception as erro:
-            logger.debug("Nao foi possivel atualizar status do usuario ao encerrar sessao: %s", erro)
+            logger.debug(
+                "Nao foi possivel atualizar status do usuario ao encerrar sessao: %s", erro
+            )
 
     def obter(self, chave: str) -> bytes | None:
         """Le o payload da sessao; se expirada, marca timeout e registra evento."""
@@ -233,11 +244,22 @@ class ArmazenamentoSessoesPostgreSQL:
                     select(Sessao).where(Sessao.id_sessao == id_sessao)
                 ).scalar_one_or_none()
 
+                if registro is not None and registro.status != "ATIVA":
+                    # Sessao ja encerrada (logout, expirada ou revogada): uma gravacao tardia de
+                    # outra aba/requisicao em segundo plano NAO pode reativa-la nem devolver o
+                    # usuario ao estado online. Um novo login rotaciona o id (sessao nova).
+                    logger.debug(
+                        "Gravacao ignorada: a sessao %s esta %s.", id_sessao, registro.status
+                    )
+                    return
+
                 if registro is not None:
                     # Se a sessao legada apontava para um usuario ausente em tb_usuario, sanitizar
                     if registro.codigo_usuario is not None:
                         try:
-                            reg_usuario_existe = sessao_db.get(Usuario, registro.codigo_usuario) is not None
+                            reg_usuario_existe = (
+                                sessao_db.get(Usuario, registro.codigo_usuario) is not None
+                            )
                         except Exception:
                             reg_usuario_existe = True
                         if not reg_usuario_existe:

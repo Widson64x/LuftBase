@@ -2,6 +2,22 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a68] - 2026-10-06
+
+### Corrigido
+
+- Usuario continuava ONLINE, com sessao ativa, depois de sair. O armazenamento de sessoes
+  reativava (`status = ATIVA`) qualquer sessao ja existente que recebesse uma gravacao tardia, por
+  exemplo uma requisicao em segundo plano de outra aba terminando depois do logout, e devolvia o
+  usuario ao estado online. Sessao encerrada (logout, expirada ou revogada) agora ignora gravacoes;
+  um novo login rotaciona o id e cria sessao nova, entao nada muda para quem entra.
+- A presenca (`atualizar_presenca`, chamada pelo polling de mensagens) agora so vale para uma
+  sessao ATIVA do proprio usuario e exige o id da sessao.
+- O id da sessao corrente era lido de `session["_id"]`, que nao existe (o id fica no objeto da
+  sessao): o resultado era sempre vazio. Isso fazia a lista de sessoes nao marcar nenhuma como
+  "atual" e o "revogar outras sessoes" tratar a propria sessao como outra. Novo helper
+  `id_sessao_atual()` em `luftbase.interface.web`.
+
 ## [0.1.0a67] - 2026-10-06
 
 ### Corrigido

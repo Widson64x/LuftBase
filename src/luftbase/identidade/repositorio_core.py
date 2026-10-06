@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, literal_column, select, update
+from sqlalchemy import exists, func, literal_column, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
@@ -309,10 +309,22 @@ class RepositorioUsuariosPostgreSQL:
             "ultimo_acesso": literal_column("(CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')"),
             "atualizado_em": literal_column("(CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')"),
         }
+        if not id_sessao:
+            return  # sem a sessao nao ha como saber se ela ainda esta ativa
+        condicoes = [Usuario.codigo_usuario == codigo_usuario]
         if id_sessao:
+            # Presenca so vale para uma sessao ATIVA: um poll que termina depois do logout (ou de
+            # a sessao ser revogada) nao pode marcar o usuario como online de novo.
+            condicoes.append(
+                exists().where(
+                    Sessao.id_sessao == id_sessao,
+                    Sessao.codigo_usuario == codigo_usuario,
+                    Sessao.status == "ATIVA",
+                )
+            )
             valores["id_sessao_atual"] = id_sessao
 
-        comando = update(Usuario).where(Usuario.codigo_usuario == codigo_usuario).values(**valores)
+        comando = update(Usuario).where(*condicoes).values(**valores)
         try:
             with self._banco.unidade_trabalho() as sessao:
                 sessao.execute(comando)

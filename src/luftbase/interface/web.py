@@ -20,6 +20,12 @@ _CHAVE_PREFERENCIA = "luftbase_preferencia_tema"
 _CHAVE_CSRF = "luftbase_csrf"
 
 
+def id_sessao_atual() -> str:
+    """Identificador da sessao corrente (fica no objeto da sessao, nao no dicionario de dados)."""
+
+    return str(getattr(session._get_current_object(), "identificador", "") or "")  # type: ignore[attr-defined]
+
+
 def _usuario_atual() -> UsuarioAutenticado | None:
     usuario = current_user._get_current_object()
     return usuario if isinstance(usuario, UsuarioAutenticado) else None
@@ -227,17 +233,25 @@ def registrar_interface_web(app: Flask) -> None:
         reg = repo.atualizar_perfil(
             codigo_usuario=usuario.id_usuario,
             nome_usuario=str(nome_usuario).strip() if nome_usuario is not None else None,
-            telefone_usuario=str(telefone_usuario).strip() if telefone_usuario is not None else None,
+            telefone_usuario=str(telefone_usuario).strip()
+            if telefone_usuario is not None
+            else None,
             celular_usuario=str(celular_usuario).strip() if celular_usuario is not None else None,
             cargo_usuario=str(cargo_usuario).strip() if cargo_usuario is not None else None,
-            departamento_usuario=str(departamento_usuario).strip() if departamento_usuario is not None else None,
+            departamento_usuario=str(departamento_usuario).strip()
+            if departamento_usuario is not None
+            else None,
             unidade_filial=str(unidade_filial).strip() if unidade_filial is not None else None,
             tema_preferido=str(tema_preferido).strip() if tema_preferido is not None else None,
             modo_tema=str(modo_tema).strip().upper() if modo_tema is not None else None,
             idioma=str(idioma).strip() if idioma is not None else None,
         )
 
-        novo_nome = reg.get("nome_usuario") if reg else (str(nome_usuario).strip() if nome_usuario else usuario.nome_completo)
+        novo_nome = (
+            reg.get("nome_usuario")
+            if reg
+            else (str(nome_usuario).strip() if nome_usuario else usuario.nome_completo)
+        )
         novo_usuario = UsuarioAutenticado(
             id_usuario=usuario.id_usuario,
             login=usuario.login,
@@ -363,10 +377,10 @@ def registrar_interface_web(app: Flask) -> None:
 
         repo = obter_luftbase().usuarios_core
         sessoes = repo.listar_sessoes_usuario(usuario.id_usuario)
-        id_atual = session.get("_id") or session.get("id_sessao") or ""
+        id_atual = id_sessao_atual()
 
         for s in sessoes:
-            s["is_atual"] = (s["id_sessao"] == id_atual)
+            s["is_atual"] = s["id_sessao"] == id_atual
             raw_id = s["id_sessao"]
             s["id_exibicao"] = f"sess_{raw_id[:6]}...{raw_id[-4:]}" if len(raw_id) > 12 else raw_id
 
@@ -384,7 +398,7 @@ def registrar_interface_web(app: Flask) -> None:
         if usuario is None:
             abort(401)
         validar_csrf_requisicao()
-        id_atual = session.get("_id") or session.get("id_sessao") or ""
+        id_atual = id_sessao_atual()
         from luftbase.plataforma import obter_luftbase
 
         repo = obter_luftbase().usuarios_core
@@ -409,7 +423,7 @@ def registrar_interface_web(app: Flask) -> None:
 
                     obter_luftbase().usuarios_core.atualizar_presenca(
                         usuario.id_usuario,
-                        id_sessao=session.get("_id") or session.get("id_sessao"),
+                        id_sessao=id_sessao_atual() or None,
                     )
             return jsonify(
                 {
@@ -557,7 +571,12 @@ def registrar_interface_web(app: Flask) -> None:
 
         usuario = _usuario_atual()
         usuario_foto = getattr(usuario, "foto_perfil", None) if usuario else None
-        if usuario and not usuario_foto and hasattr(estado, "usuarios_core") and estado.usuarios_core:
+        if (
+            usuario
+            and not usuario_foto
+            and hasattr(estado, "usuarios_core")
+            and estado.usuarios_core
+        ):
             with contextlib.suppress(Exception):
                 reg_usr = estado.usuarios_core.obter_por_codigo(usuario.id_usuario)
                 if reg_usr and reg_usr.foto_perfil:
