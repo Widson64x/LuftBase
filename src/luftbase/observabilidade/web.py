@@ -148,7 +148,7 @@ class IntegracaoObservabilidadeFlask:
         identidade = usuario if isinstance(usuario, UsuarioAutenticado) else None
         regra = request.url_rule.rule if request.url_rule is not None else request.path
         parametros = serializar_dados_seguro({"query": request.args.to_dict(flat=False)})
-        user_agent = request.user_agent.string if request.user_agent else None
+        user_agent = request.headers.get("User-Agent") or None
         return EventoAcessoHttp(
             rota=regra,
             metodo=request.method,
@@ -192,8 +192,8 @@ def registrar_evento_auditoria(
         usuario = current_user._get_current_object()
         identidade = usuario if isinstance(usuario, UsuarioAutenticado) else None
         ip_origem = request.remote_addr
-        if request.user_agent:
-            user_agent = request.user_agent.string[:500]
+        if request.headers.get("User-Agent"):
+            user_agent = request.headers["User-Agent"][:500]
         if id_log_contextual is None:
             id_log_contextual = getattr(g, "luftbase_id_log", getattr(g, "luftbase_id_log_acesso", None))
 

@@ -2,6 +2,14 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a74] - 2026-10-06
+
+### Corrigido
+
+- O navegador (User-Agent) nunca era gravado na sessao nem no usuario: `bool(request.user_agent)` e
+  sempre falso no Werkzeug. Passa a ler o cabecalho `User-Agent` direto (sessao, log de acesso e
+  log tecnico). Sessoes ativas se corrigem sozinhas na proxima requisicao.
+
 ## [0.1.0a73] - 2026-10-06
 
 ### Alterado

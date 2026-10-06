@@ -133,12 +133,16 @@ def test_a_sessao_grava_o_ip_resolvido_e_nao_o_cabecalho_cru() -> None:
     app.config["LUFT_SISTEMA_ID"] = 0
 
     with app.test_request_context(
-        "/", environ_base={"REMOTE_ADDR": "10.9.8.7"}, headers={"X-Forwarded-For": "6.6.6.6"}
+        "/",
+        environ_base={"REMOTE_ADDR": "10.9.8.7"},
+        headers={"X-Forwarded-For": "6.6.6.6", "User-Agent": "Mozilla/5.0 Chrome/126.0.0.0"},
     ):
         armazenamento.salvar("luft:sessao:s1", carga, 600)
 
     with banco.leitura() as db:
-        assert db.execute(select(Sessao)).scalar_one().ip_origem == "10.9.8.7"
+        registro = db.execute(select(Sessao)).scalar_one()
+        assert registro.ip_origem == "10.9.8.7"
+        assert registro.user_agent == "Mozilla/5.0 Chrome/126.0.0.0"  # bool(request.user_agent) e False
 
 
 # ---- Total de logins ----------------------------------------------------------------------

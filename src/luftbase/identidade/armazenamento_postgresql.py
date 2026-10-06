@@ -207,8 +207,8 @@ class ArmazenamentoSessoesPostgreSQL:
             # `remote_addr` ja traz o IP real quando o proxy e confiavel (Waitress/ProxyFix). Ler
             # X-Forwarded-For direto pegaria o 1o item, que o proprio cliente pode forjar.
             ip_origem = (request.remote_addr or "")[:50] or None
-            if request.user_agent and request.user_agent.string:
-                user_agent = request.user_agent.string[:500]
+            # `bool(request.user_agent)` e False no Werkzeug (so olha o navegador reconhecido).
+            user_agent = (request.headers.get("User-Agent") or "")[:500] or None
             with current_app.app_context():
                 id_sistema = current_app.config.get("LUFT_SISTEMA_ID")
 
