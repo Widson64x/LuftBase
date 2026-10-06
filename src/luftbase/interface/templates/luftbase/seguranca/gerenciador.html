@@ -1115,117 +1115,112 @@
 <!-- ==========================================================================
      MODAL: ESPELHAR PERMISSÕES
      ========================================================================== -->
-{% call ui.modal('modalEspelharPermissoes', 'Espelhar Permissões', 'md', 'ph-copy') %}
+{% call ui.modal('modalEspelharPermissoes', 'Copiar permissões', 'md', 'ph-copy') %}
+    <style>
+        .esp-passo { border: 1px solid var(--luft-border); border-radius: 12px; padding: 14px; background: var(--luft-bg-panel); }
+        .esp-passo + .esp-seta { display: flex; justify-content: center; padding: 6px 0; color: var(--luft-text-muted); }
+        .esp-titulo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: .85rem; color: var(--luft-text-main); margin-bottom: 10px; }
+        .esp-numero { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .72rem; color: #fff; background: var(--luft-primary-600, #2563eb); }
+        .esp-segmento { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+        .esp-segmento .btn { justify-content: center; }
+        .esp-lista { width: 100%; margin-top: 8px; border: 1px solid var(--luft-border); border-radius: 10px; background: var(--luft-bg-app); color: var(--luft-text-main); padding: 4px; font-size: .82rem; }
+        .esp-lista option { padding: 6px 8px; border-radius: 6px; }
+        .esp-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .esp-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: .72rem; font-weight: 600; border: 1px solid var(--luft-border); }
+        .esp-chip.ok { color: var(--luft-success-600, #16a34a); border-color: color-mix(in srgb, var(--luft-success-500, #22c55e) 45%, transparent); }
+        .esp-chip.no { color: var(--luft-danger-600, #dc2626); border-color: color-mix(in srgb, var(--luft-danger-500, #ef4444) 45%, transparent); }
+        .esp-nota { font-size: .76rem; color: var(--luft-text-muted); margin-top: 8px; }
+        .esp-nota.alerta { color: var(--luft-warning-700, #b45309); }
+        .esp-escolha { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--luft-border); border-radius: 10px; cursor: pointer; margin-top: 8px; }
+        .esp-escolha:has(input:checked) { border-color: var(--luft-primary-500, #3b82f6); background: color-mix(in srgb, var(--luft-primary-500, #3b82f6) 8%, transparent); }
+        .esp-escolha strong { display: block; font-size: .82rem; color: var(--luft-text-main); }
+        .esp-escolha span { font-size: .75rem; color: var(--luft-text-muted); }
+        .esp-resumo { margin-top: 14px; padding: 12px 14px; border-radius: 10px; font-size: .84rem; line-height: 1.5; color: var(--luft-text-main);
+            background: color-mix(in srgb, var(--luft-primary-500, #3b82f6) 8%, transparent); border: 1px solid color-mix(in srgb, var(--luft-primary-500, #3b82f6) 30%, transparent); }
+        .esp-resumo.pendente { color: var(--luft-text-muted); background: var(--luft-bg-app); border-color: var(--luft-border); }
+        .esp-erro { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: .82rem; color: var(--luft-danger-600, #dc2626);
+            background: color-mix(in srgb, var(--luft-danger-500, #ef4444) 10%, transparent); border: 1px solid color-mix(in srgb, var(--luft-danger-500, #ef4444) 35%, transparent); }
+    </style>
+
     <p class="text-xs text-muted mb-3">
-        Copie em lote todas as regras diretas (concessões e bloqueios) de uma entidade de origem para uma de destino, eliminando a configuração manual permissão por permissão.
+        Escolha <strong>de quem</strong> copiar as permissões e <strong>quem</strong> vai recebê-las. Útil para dar a vários usuários o mesmo perfil de acesso.
     </p>
 
     <form id="formEspelharPermissoes" onsubmit="SubmeterEspelhamento(event)">
         <input type="hidden" name="sistema_id" value="{{ SistemaIdSelecionado }}">
 
-        <!-- 1. DESTINO (Quem recebe as permissões) -->
-        <div class="card-espelho-alvo mb-3" id="cardDestinoEspelho">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="text-xs font-bold text-main d-flex align-items-center gap-1.5">
-                    <i class="ph-bold ph-arrow-down-right text-primary"></i> Destino (Quem receberá as permissões)
-                </span>
-                <span class="badge-status badge-status-allow" id="badgeDestinoTipo">Grupo</span>
+        <!-- 1. DE QUEM COPIAR -->
+        <div class="esp-passo">
+            <div class="esp-titulo"><span class="esp-numero">1</span> Copiar de quem?</div>
+            <div class="esp-segmento">
+                <button type="button" class="btn btn-xs btn-primary" id="btnOrigemTipoGrupo" onclick="SelecionarTipoOrigem('Grupo')">
+                    <i class="ph-bold ph-users-three"></i> Um grupo
+                </button>
+                <button type="button" class="btn btn-xs btn-outline" id="btnOrigemTipoUsuario" onclick="SelecionarTipoOrigem('Usuario')">
+                    <i class="ph-bold ph-user"></i> Uma pessoa
+                </button>
             </div>
-            
-            <div id="boxDestinoFixo" class="d-flex align-items-center justify-content-between">
+            <input type="search" id="buscaOrigem" class="form-control form-control-sm" placeholder="Digite para buscar pelo nome ou login..." oninput="FiltrarOrigem()" autocomplete="off">
+            <select id="selectOrigemAlvo" class="esp-lista" size="6" onchange="CarregarResumoOrigem()"></select>
+
+            <div id="resumoOrigemContainer" style="display: none;">
+                <div class="esp-nota" id="tituloRegrasOrigem"></div>
+                <div class="esp-chips" id="chipsOrigem"></div>
+            </div>
+            <div id="avisoOrigemVazia" class="esp-nota alerta d-none">
+                <i class="ph-bold ph-warning"></i> Esta origem não tem permissões próprias neste sistema, então não há o que copiar.
+            </div>
+        </div>
+
+        <div class="esp-seta"><i class="ph-bold ph-arrow-down" style="font-size: 1.2rem;"></i></div>
+
+        <!-- 2. QUEM RECEBE -->
+        <div class="esp-passo" id="cardDestinoEspelho">
+            <div class="esp-titulo"><span class="esp-numero">2</span> Quem vai receber?</div>
+
+            <div id="boxDestinoFixo" class="d-flex align-items-center justify-content-between gap-2">
                 <div>
-                    <div class="text-xs font-bold text-main" id="nomeDestinoFixo">Nenhum selecionado</div>
-                    <div class="text-muted" style="font-size: 0.72rem;" id="subtituloDestinoFixo">Selecione um alvo</div>
+                    <div class="text-sm font-bold text-main" id="nomeDestinoFixo">Ninguém selecionado</div>
+                    <div class="text-muted" style="font-size: 0.72rem;" id="subtituloDestinoFixo"></div>
                 </div>
-                <button type="button" class="btn btn-xs btn-outline" onclick="AlternarSelecaoDestino(true)" id="btnTrocarDestino">
-                    Alterar Destino
-                </button>
+                <button type="button" class="btn btn-xs btn-outline" onclick="AlternarSelecaoDestino(true)" id="btnTrocarDestino">Trocar</button>
             </div>
 
-            <div id="boxDestinoSeletor" class="d-none mt-2">
-                <div class="d-flex gap-2 mb-2">
-                    <button type="button" class="btn btn-xs btn-outline flex-1" id="btnDestinoTipoGrupo" onclick="SelecionarTipoDestino('Grupo')">
-                        <i class="ph-bold ph-users-three"></i> Grupo Corporativo
+            <div id="boxDestinoSeletor" class="d-none">
+                <div class="esp-segmento">
+                    <button type="button" class="btn btn-xs btn-outline" id="btnDestinoTipoGrupo" onclick="SelecionarTipoDestino('Grupo')">
+                        <i class="ph-bold ph-users-three"></i> Um grupo
                     </button>
-                    <button type="button" class="btn btn-xs btn-outline flex-1" id="btnDestinoTipoUsuario" onclick="SelecionarTipoDestino('Usuario')">
-                        <i class="ph-bold ph-user"></i> Usuário
+                    <button type="button" class="btn btn-xs btn-outline" id="btnDestinoTipoUsuario" onclick="SelecionarTipoDestino('Usuario')">
+                        <i class="ph-bold ph-user"></i> Uma pessoa
                     </button>
                 </div>
-                <select id="selectDestinoAlvo" class="form-control form-control-sm" onchange="AtualizarDestinoSelecionado()">
-                    <!-- Populado dinamicamente -->
-                </select>
+                <input type="search" id="buscaDestino" class="form-control form-control-sm" placeholder="Digite para buscar..." oninput="FiltrarDestino()" autocomplete="off">
+                <select id="selectDestinoAlvo" class="esp-lista" size="5" onchange="AtualizarDestinoSelecionado()"></select>
             </div>
+
+            <div class="esp-nota" id="notaDestinoHoje"></div>
         </div>
 
-        <!-- 2. ORIGEM (De onde copiar as permissões) -->
-        <div class="p-3 mb-3 rounded border" style="background: var(--luft-bg-panel);">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="text-xs font-bold text-main d-flex align-items-center gap-1.5">
-                    <i class="ph-bold ph-git-fork text-primary"></i> Origem (De quem copiar as permissões)
-                </span>
-            </div>
-
-            <!-- Abas compactas para tipo de origem -->
-            <div class="d-flex gap-2 mb-2">
-                <button type="button" class="btn btn-xs btn-primary flex-1" id="btnOrigemTipoGrupo" onclick="SelecionarTipoOrigem('Grupo')">
-                    <i class="ph-bold ph-users-three"></i> Grupo Corporativo
-                </button>
-                <button type="button" class="btn btn-xs btn-outline flex-1" id="btnOrigemTipoUsuario" onclick="SelecionarTipoOrigem('Usuario')">
-                    <i class="ph-bold ph-user"></i> Usuário
-                </button>
-            </div>
-
-            <!-- Seletor de Origem -->
-            <div class="form-group mb-2">
-                <select id="selectOrigemAlvo" class="form-control form-control-sm" onchange="CarregarResumoOrigem()" required>
-                    <option value="">Selecione a origem...</option>
-                </select>
-            </div>
-
-            <!-- Card de Prévia Dinâmica da Origem -->
-            <div id="resumoOrigemContainer" class="card-resumo-origem" style="display: none;">
-                <div class="d-flex align-items-center justify-content-between">
-                    <span class="text-xs font-semibold text-main d-flex align-items-center gap-1">
-                        <i class="ph-bold ph-info text-primary"></i> Regras encontradas na origem:
-                    </span>
-                    <span class="text-xs font-bold text-main" id="cntOrigemTotal">0 regras</span>
-                </div>
-                <div class="d-flex align-items-center gap-2 mt-1.5" style="font-size: 0.72rem;">
-                    <span class="badge-status badge-status-allow" id="cntOrigemPermitidas"><i class="ph-bold ph-check"></i> 0 concedidas</span>
-                    <span class="badge-status badge-status-deny" id="cntOrigemBloqueadas"><i class="ph-bold ph-prohibit"></i> 0 bloqueadas</span>
-                </div>
-            </div>
-            <div id="avisoOrigemVazia" class="p-2.5 rounded border d-none mt-2" style="background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3);">
-                <span class="text-xs text-amber-700 font-semibold d-flex align-items-center gap-1">
-                    <i class="ph-bold ph-warning"></i> Esta origem não possui regras diretas cadastradas neste sistema.
-                </span>
-            </div>
+        <!-- 3. COMO APLICAR -->
+        <div class="esp-passo mt-3">
+            <div class="esp-titulo"><span class="esp-numero">3</span> Como aplicar?</div>
+            <label class="esp-escolha">
+                <input type="radio" name="modo_espelho" value="substituir" checked onchange="AtualizarResumoEspelho()">
+                <div><strong>Deixar igual à origem</strong><span>Apaga as permissões próprias do destino e copia as da origem.</span></div>
+            </label>
+            <label class="esp-escolha">
+                <input type="radio" name="modo_espelho" value="mesclar" onchange="AtualizarResumoEspelho()">
+                <div><strong>Somar ao que já tem</strong><span>Mantém o que o destino já tem e acrescenta as da origem (se houver conflito, vale a da origem).</span></div>
+            </label>
         </div>
 
-        <!-- 3. MODO DE ESPELHAMENTO -->
-        <div class="form-group mb-3">
-            <label class="form-label font-bold text-xs mb-1.5">Estratégia de Cópia</label>
-            <div class="d-flex flex-col gap-2">
-                <label class="modo-espelho-opcao">
-                    <input type="radio" name="modo_espelho" value="substituir" checked class="mt-0.5">
-                    <div>
-                        <div class="text-xs font-bold text-main">Substituir todas as regras existentes (Recomendado)</div>
-                        <div class="text-muted" style="font-size: 0.72rem;">Remove as regras diretas que o destino já possui e aplica com precisão as da origem.</div>
-                    </div>
-                </label>
-                <label class="modo-espelho-opcao">
-                    <input type="radio" name="modo_espelho" value="mesclar" class="mt-0.5">
-                    <div>
-                        <div class="text-xs font-bold text-main">Mesclar com as regras existentes</div>
-                        <div class="text-muted" style="font-size: 0.72rem;">Mantém as regras atuais do destino e acrescenta/sobrescreve apenas as da origem.</div>
-                    </div>
-                </label>
-            </div>
-        </div>
+        <div class="esp-resumo pendente" id="resumoEspelho">Escolha de quem copiar e quem recebe para ver o resumo.</div>
+        <div class="esp-erro d-none" id="erroEspelho"></div>
 
-        <div class="d-flex gap-2">
-            <button type="submit" id="btnConfirmarEspelhar" class="btn btn-sm btn-primary w-full d-flex align-items-center justify-content-center gap-1.5">
-                <i class="ph-bold ph-copy"></i> Confirmar Espelhamento
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" id="btnConfirmarEspelhar" class="btn btn-sm btn-primary w-full d-flex align-items-center justify-content-center gap-1.5" disabled>
+                <i class="ph-bold ph-copy"></i> Copiar permissões
             </button>
             <button type="button" class="btn btn-sm btn-outline w-full" onclick="LuftBase.fecharModal('modalEspelharPermissoes')">Cancelar</button>
         </div>
@@ -1256,6 +1251,8 @@
     let TIPO_DESTINO_ESPELHO = 'Grupo';
     let NOME_DESTINO_ESPELHO = '';
     let TIPO_ORIGEM_ESPELHO = 'Grupo';
+    let REGRAS_ORIGEM_ESPELHO = null;
+    let REGRAS_DESTINO_ESPELHO = null;
 
     let MODO = 'Grupo'; 
     let ID_ATUAL = null;
@@ -1474,10 +1471,7 @@
             AbrirModalEspelharGlobal();
             return;
         }
-        DefinirDestinoEspelho(MODO, ID_ATUAL, NOME_ATUAL);
-        AlternarSelecaoDestino(false);
-        SelecionarTipoOrigem('Grupo');
-        LuftBase.abrirModal('modalEspelharPermissoes');
+        PrepararModalEspelho(MODO, ID_ATUAL, NOME_ATUAL);
     }
 
     function AbrirModalEspelharGlobal() {
@@ -1489,187 +1483,256 @@
             AbrirModalEspelhar();
             return;
         }
-        AlternarSelecaoDestino(true);
-        SelecionarTipoDestino('Grupo');
+        PrepararModalEspelho(null, null, null);
+    }
+
+    function PrepararModalEspelho(tipoDestino, idDestino, nomeDestino) {
+        EspelhoErro('');
+        ['buscaOrigem', 'buscaDestino'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        REGRAS_ORIGEM_ESPELHO = null;
+        REGRAS_DESTINO_ESPELHO = null;
+        if (idDestino) {
+            DefinirDestinoEspelho(tipoDestino, idDestino, nomeDestino);
+            AlternarSelecaoDestino(false);
+        } else {
+            ID_DESTINO_ESPELHO = null;
+            DefinirDestinoEspelho('Grupo', null, null);
+            AlternarSelecaoDestino(true);
+            SelecionarTipoDestino('Grupo');
+        }
         SelecionarTipoOrigem('Grupo');
+        document.querySelector('input[name="modo_espelho"][value="substituir"]').checked = true;
+        AtualizarResumoEspelho();
         LuftBase.abrirModal('modalEspelharPermissoes');
     }
 
+    function EspelhoErro(texto) {
+        const caixa = document.getElementById('erroEspelho');
+        if (!caixa) return;
+        caixa.textContent = texto || '';
+        caixa.classList.toggle('d-none', !texto);
+    }
+
+    function RotuloEntidade(tipo, item) {
+        return tipo === 'Grupo' ? `${item.sigla} - ${item.nome}` : `${item.nome} (${item.login})`;
+    }
+
+    function PreencherLista(select, tipo, termo, excluirId) {
+        const lista = tipo === 'Grupo' ? LISTA_GRUPOS : LISTA_USUARIOS;
+        const busca = (termo || '').trim().toLowerCase();
+        const valorAtual = select.value;
+        select.innerHTML = '';
+        lista.forEach(item => {
+            if (excluirId && String(item.id) === String(excluirId)) return;
+            const rotulo = RotuloEntidade(tipo, item);
+            if (busca && !rotulo.toLowerCase().includes(busca)) return;
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = rotulo;
+            if (String(item.id) === String(valorAtual)) opt.selected = true;
+            select.appendChild(opt);
+        });
+        if (!select.options.length) {
+            const vazio = document.createElement('option');
+            vazio.disabled = true;
+            vazio.textContent = 'Nenhum resultado para a busca.';
+            select.appendChild(vazio);
+        }
+    }
+
+    function PintarSegmento(prefixo, tipo) {
+        const btnG = document.getElementById(`btn${prefixo}TipoGrupo`);
+        const btnU = document.getElementById(`btn${prefixo}TipoUsuario`);
+        if (btnG) btnG.className = tipo === 'Grupo' ? 'btn btn-xs btn-primary' : 'btn btn-xs btn-outline';
+        if (btnU) btnU.className = tipo === 'Usuario' ? 'btn btn-xs btn-primary' : 'btn btn-xs btn-outline';
+    }
+
+    // ---- Destino ----------------------------------------------------------------------
     function DefinirDestinoEspelho(tipo, id, nome) {
         ID_DESTINO_ESPELHO = id;
         TIPO_DESTINO_ESPELHO = tipo;
         NOME_DESTINO_ESPELHO = nome;
-
-        const badge = document.getElementById('badgeDestinoTipo');
         const nomeEl = document.getElementById('nomeDestinoFixo');
         const subEl = document.getElementById('subtituloDestinoFixo');
-        
-        if (badge) {
-            badge.innerText = tipo === 'Grupo' ? 'Grupo Corporativo' : 'Usuário';
-            badge.className = tipo === 'Grupo' ? 'badge-status badge-status-allow' : 'badge-status badge-status-inherited';
-        }
-        if (nomeEl) nomeEl.innerText = nome || `ID ${id}`;
-        if (subEl) subEl.innerText = tipo === 'Grupo' ? `Código Grupo: ${id}` : `Código Usuário: ${id}`;
+        if (nomeEl) nomeEl.innerText = nome || 'Ninguém selecionado';
+        if (subEl) subEl.innerText = id ? (tipo === 'Grupo' ? 'Grupo corporativo' : 'Pessoa') : '';
     }
 
     function AlternarSelecaoDestino(abrirSeletor) {
         const boxFixo = document.getElementById('boxDestinoFixo');
         const boxSeletor = document.getElementById('boxDestinoSeletor');
-        if (boxFixo && boxSeletor) {
-            if (abrirSeletor) {
-                boxFixo.classList.add('d-none');
-                boxSeletor.classList.remove('d-none');
-                SelecionarTipoDestino(TIPO_DESTINO_ESPELHO || 'Grupo');
-            } else {
-                boxFixo.classList.remove('d-none');
-                boxSeletor.classList.add('d-none');
-            }
-        }
+        if (!boxFixo || !boxSeletor) return;
+        boxFixo.classList.toggle('d-none', !!abrirSeletor);
+        boxSeletor.classList.toggle('d-none', !abrirSeletor);
+        if (abrirSeletor) SelecionarTipoDestino(TIPO_DESTINO_ESPELHO || 'Grupo');
     }
 
     function SelecionarTipoDestino(tipo) {
         TIPO_DESTINO_ESPELHO = tipo;
-        const btnG = document.getElementById('btnDestinoTipoGrupo');
-        const btnU = document.getElementById('btnDestinoTipoUsuario');
-        if (btnG && btnU) {
-            btnG.className = tipo === 'Grupo' ? 'btn btn-xs btn-primary flex-1' : 'btn btn-xs btn-outline flex-1';
-            btnU.className = tipo === 'Usuario' ? 'btn btn-xs btn-primary flex-1' : 'btn btn-xs btn-outline flex-1';
-        }
-
-        const sel = document.getElementById('selectDestinoAlvo');
-        if (!sel) return;
-        sel.innerHTML = '<option value="">Selecione o destino...</option>';
-
-        const lista = tipo === 'Grupo' ? LISTA_GRUPOS : LISTA_USUARIOS;
-        lista.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = item.id;
-            opt.textContent = tipo === 'Grupo' ? `${item.sigla} - ${item.nome}` : `${item.nome} (${item.login})`;
-            if (String(item.id) === String(ID_DESTINO_ESPELHO)) {
-                opt.selected = true;
-            }
-            sel.appendChild(opt);
-        });
-
-        AtualizarDestinoSelecionado();
+        PintarSegmento('Destino', tipo);
+        const busca = document.getElementById('buscaDestino');
+        if (busca) busca.value = '';
+        FiltrarDestino();
     }
 
-    function AtualizarDestinoSelecionado() {
+    function FiltrarDestino() {
+        const sel = document.getElementById('selectDestinoAlvo');
+        if (!sel) return;
+        PreencherLista(sel, TIPO_DESTINO_ESPELHO || 'Grupo', document.getElementById('buscaDestino')?.value, null);
+    }
+
+    async function AtualizarDestinoSelecionado() {
         const sel = document.getElementById('selectDestinoAlvo');
         if (!sel || !sel.value) return;
-        const id = sel.value;
         const opt = sel.options[sel.selectedIndex];
-        const nome = opt ? opt.textContent : `ID ${id}`;
-        DefinirDestinoEspelho(TIPO_DESTINO_ESPELHO, id, nome);
+        DefinirDestinoEspelho(TIPO_DESTINO_ESPELHO, sel.value, opt ? opt.textContent : `ID ${sel.value}`);
         PopularSelectOrigem();
+        await CarregarRegrasDestino();
+        AtualizarResumoEspelho();
     }
 
+    async function CarregarRegrasDestino() {
+        const nota = document.getElementById('notaDestinoHoje');
+        REGRAS_DESTINO_ESPELHO = null;
+        if (!ID_DESTINO_ESPELHO) { if (nota) nota.textContent = ''; return; }
+        try {
+            const dados = await BuscarRegras(TIPO_DESTINO_ESPELHO, ID_DESTINO_ESPELHO);
+            REGRAS_DESTINO_ESPELHO = dados.regras;
+            if (nota) nota.textContent = dados.total
+                ? `Hoje tem ${dados.total} permissão(ões) própria(s): ${dados.permitidas} concedida(s) e ${dados.bloqueadas} bloqueada(s).`
+                : 'Hoje não tem permissões próprias (usa só o que herda do grupo).';
+        } catch (_) {
+            if (nota) nota.textContent = '';
+        }
+    }
+
+    async function BuscarRegras(tipo, id) {
+        const resp = await fetch(`{{ url_for('Seguranca.resumo_regras_origem') }}?tipo=${tipo}&id=${id}&sistema_id=${SISTEMA_ID_SELECIONADO}`);
+        const d = await resp.json();
+        if (!resp.ok || d.status !== 'success') throw new Error(d.message || 'Falha ao consultar as permissões.');
+        return d.data;
+    }
+
+    // ---- Origem -----------------------------------------------------------------------
     function SelecionarTipoOrigem(tipo) {
         TIPO_ORIGEM_ESPELHO = tipo;
-        const btnG = document.getElementById('btnOrigemTipoGrupo');
-        const btnU = document.getElementById('btnOrigemTipoUsuario');
-        if (btnG && btnU) {
-            btnG.className = tipo === 'Grupo' ? 'btn btn-xs btn-primary flex-1' : 'btn btn-xs btn-outline flex-1';
-            btnU.className = tipo === 'Usuario' ? 'btn btn-xs btn-primary flex-1' : 'btn btn-xs btn-outline flex-1';
-        }
+        PintarSegmento('Origem', tipo);
+        const busca = document.getElementById('buscaOrigem');
+        if (busca) busca.value = '';
         PopularSelectOrigem();
     }
 
-    function PopularSelectOrigem() {
+    function FiltrarOrigem() { PopularSelectOrigem(true); }
+
+    function PopularSelectOrigem(manterSelecao) {
         const sel = document.getElementById('selectOrigemAlvo');
         if (!sel) return;
-        sel.innerHTML = '<option value="">Selecione a origem...</option>';
-
-        const lista = TIPO_ORIGEM_ESPELHO === 'Grupo' ? LISTA_GRUPOS : LISTA_USUARIOS;
-        lista.forEach(item => {
-            if (TIPO_ORIGEM_ESPELHO === TIPO_DESTINO_ESPELHO && String(item.id) === String(ID_DESTINO_ESPELHO)) {
-                return;
-            }
-            const opt = document.createElement('option');
-            opt.value = item.id;
-            opt.textContent = TIPO_ORIGEM_ESPELHO === 'Grupo' ? `${item.sigla} - ${item.nome}` : `${item.nome} (${item.login})`;
-            sel.appendChild(opt);
-        });
-
-        CarregarResumoOrigem();
+        const mesmoTipo = TIPO_ORIGEM_ESPELHO === TIPO_DESTINO_ESPELHO;
+        PreencherLista(sel, TIPO_ORIGEM_ESPELHO || 'Grupo', document.getElementById('buscaOrigem')?.value, mesmoTipo ? ID_DESTINO_ESPELHO : null);
+        if (!manterSelecao) { sel.selectedIndex = -1; CarregarResumoOrigem(); }
     }
 
     async function CarregarResumoOrigem() {
         const sel = document.getElementById('selectOrigemAlvo');
         const resBox = document.getElementById('resumoOrigemContainer');
         const avisoVazio = document.getElementById('avisoOrigemVazia');
+        REGRAS_ORIGEM_ESPELHO = null;
         if (!sel || !sel.value) {
             if (resBox) resBox.style.display = 'none';
             if (avisoVazio) avisoVazio.classList.add('d-none');
+            AtualizarResumoEspelho();
             return;
         }
-
-        const idOrigem = sel.value;
         try {
-            const resp = await fetch(`{{ url_for('Seguranca.resumo_regras_origem') }}?tipo=${TIPO_ORIGEM_ESPELHO}&id=${idOrigem}&sistema_id=${SISTEMA_ID_SELECIONADO}`);
-            const d = await resp.json();
-            if (!resp.ok || d.status !== 'success') throw new Error(d.message || 'Falha ao buscar resumo');
-
-            const total = d.data.total;
-            const permitidas = d.data.permitidas;
-            const bloqueadas = d.data.bloqueadas;
-
-            if (total === 0) {
+            const dados = await BuscarRegras(TIPO_ORIGEM_ESPELHO, sel.value);
+            REGRAS_ORIGEM_ESPELHO = dados.regras;
+            if (!dados.total) {
                 if (resBox) resBox.style.display = 'none';
                 if (avisoVazio) avisoVazio.classList.remove('d-none');
             } else {
                 if (avisoVazio) avisoVazio.classList.add('d-none');
                 if (resBox) resBox.style.display = 'block';
-                document.getElementById('cntOrigemTotal').innerText = `${total} regra${total > 1 ? 's' : ''}`;
-                document.getElementById('cntOrigemPermitidas').innerHTML = `<i class="ph-bold ph-check"></i> ${permitidas} concedida${permitidas > 1 ? 's' : ''}`;
-                document.getElementById('cntOrigemBloqueadas').innerHTML = `<i class="ph-bold ph-prohibit"></i> ${bloqueadas} bloqueada${bloqueadas > 1 ? 's' : ''}`;
+                document.getElementById('tituloRegrasOrigem').textContent = `${dados.total} permissão(ões) que serão copiadas:`;
+                const chips = document.getElementById('chipsOrigem');
+                chips.innerHTML = '';
+                dados.regras.forEach(regra => {
+                    const chip = document.createElement('span');
+                    chip.className = `esp-chip ${regra.conceder ? 'ok' : 'no'}`;
+                    chip.title = regra.descricao || '';
+                    chip.innerHTML = `<i class="ph-bold ${regra.conceder ? 'ph-check' : 'ph-prohibit'}"></i>`;
+                    chip.append(` ${regra.chave}`);
+                    chips.appendChild(chip);
+                });
             }
-        } catch(e) {
-            console.error("Erro ao carregar resumo da origem:", e);
+        } catch (erro) {
             if (resBox) resBox.style.display = 'none';
+            EspelhoErro(erro.message);
         }
+        AtualizarResumoEspelho();
+    }
+
+    // ---- Resumo e envio ---------------------------------------------------------------
+    function NomeOrigemEspelho() {
+        const sel = document.getElementById('selectOrigemAlvo');
+        return sel && sel.value ? sel.options[sel.selectedIndex].textContent : null;
+    }
+
+    function AtualizarResumoEspelho() {
+        const caixa = document.getElementById('resumoEspelho');
+        const botao = document.getElementById('btnConfirmarEspelhar');
+        if (!caixa) return;
+        const nomeOrigem = NomeOrigemEspelho();
+        const pronto = !!(nomeOrigem && ID_DESTINO_ESPELHO && REGRAS_ORIGEM_ESPELHO && REGRAS_ORIGEM_ESPELHO.length);
+        if (botao) botao.disabled = !pronto;
+        caixa.classList.toggle('pendente', !pronto);
+        if (!nomeOrigem || !ID_DESTINO_ESPELHO) {
+            caixa.textContent = 'Escolha de quem copiar e quem recebe para ver o resumo.';
+            return;
+        }
+        if (!pronto) {
+            caixa.textContent = 'A origem escolhida não tem permissões próprias para copiar. Escolha outra.';
+            return;
+        }
+        const modo = document.querySelector('input[name="modo_espelho"]:checked')?.value || 'substituir';
+        const total = REGRAS_ORIGEM_ESPELHO.length;
+        const proprias = REGRAS_DESTINO_ESPELHO ? REGRAS_DESTINO_ESPELHO.length : 0;
+        caixa.innerHTML = '';
+        const frase = document.createElement('span');
+        frase.append('Vou copiar ');
+        const negrito = (texto) => { const b = document.createElement('strong'); b.textContent = texto; return b; };
+        frase.append(negrito(`${total} permissão(ões)`), ' de ', negrito(nomeOrigem), ' para ', negrito(NOME_DESTINO_ESPELHO || ''), '. ');
+        if (modo === 'substituir') {
+            frase.append(proprias
+                ? `As ${proprias} permissão(ões) próprias que ele tem hoje serão apagadas e substituídas.`
+                : 'Ele não tem permissões próprias hoje, então nada será apagado.');
+        } else {
+            frase.append(proprias
+                ? `As ${proprias} que ele já tem continuam, e as copiadas são somadas.`
+                : 'Ele não tem permissões próprias hoje, então ficará só com as copiadas.');
+        }
+        caixa.appendChild(frase);
     }
 
     async function SubmeterEspelhamento(e) {
         e.preventDefault();
-        if (!PODE_EDITAR) {
-            alert('Sem permissão para alterar regras.');
-            return;
-        }
-
+        EspelhoErro('');
+        if (!PODE_EDITAR) { EspelhoErro('Você não tem permissão para alterar regras.'); return; }
         const selOrigem = document.getElementById('selectOrigemAlvo');
         const idOrigem = selOrigem ? selOrigem.value : null;
-        if (!idOrigem) {
-            alert('Por favor, selecione a entidade de origem para copiar as permissões.');
-            return;
-        }
-
-        if (!ID_DESTINO_ESPELHO) {
-            alert('Por favor, selecione a entidade de destino.');
-            return;
-        }
-
+        if (!idOrigem) { EspelhoErro('Escolha de quem copiar as permissões.'); return; }
+        if (!ID_DESTINO_ESPELHO) { EspelhoErro('Escolha quem vai receber as permissões.'); return; }
         if (TIPO_ORIGEM_ESPELHO === TIPO_DESTINO_ESPELHO && String(idOrigem) === String(ID_DESTINO_ESPELHO)) {
-            alert('Origem e destino não podem ser a mesma entidade.');
+            EspelhoErro('A origem e o destino não podem ser a mesma pessoa ou grupo.');
             return;
         }
 
         const modo = document.querySelector('input[name="modo_espelho"]:checked')?.value || 'substituir';
-        const nomeOrigem = selOrigem.options[selOrigem.selectedIndex]?.textContent || `ID ${idOrigem}`;
-        const nomeDestino = NOME_DESTINO_ESPELHO || `ID ${ID_DESTINO_ESPELHO}`;
-
-        const msgConfirm = modo === 'substituir'
-            ? `Confirma o espelhamento de permissões?\n\nTodas as regras diretas de "${nomeDestino}" serão SUBSTITUÍDAS pelas regras de "${nomeOrigem}".`
-            : `Confirma o espelhamento de permissões?\n\nAs regras de "${nomeOrigem}" serão MESCLADAS com as regras existentes de "${nomeDestino}".`;
-
-        if (!confirm(msgConfirm)) return;
-
         const btn = document.getElementById('btnConfirmarEspelhar');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Espelhando regras...';
+            btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Copiando...';
         }
-
+        let sucesso = false;
         try {
             const resp = await fetch("{{ url_for('Seguranca.espelhar_permissoes') }}", {
                 method: 'POST',
@@ -1683,26 +1746,28 @@
                     sistema_id: SISTEMA_ID_SELECIONADO
                 })
             });
-
-            const d = await resp.json();
+            const d = await resp.json().catch(() => ({}));
             if (!resp.ok || d.status !== 'success') {
-                throw new Error(d.message || 'Falha ao espelhar permissões.');
+                throw new Error(d.message || 'Não foi possível copiar as permissões.');
             }
-
+            sucesso = true;
             LuftBase.fecharModal('modalEspelharPermissoes');
-            alert(d.message || 'Permissões espelhadas com sucesso!');
-
-            // Se o destino espelhado for o alvo atualmente aberto na tela, recarrega a árvore imediatamente
-            if (String(ID_ATUAL) === String(ID_DESTINO_ESPELHO) && MODO === TIPO_DESTINO_ESPELHO) {
-                if (RECARREGAR_ATUAL) await RECARREGAR_ATUAL();
+            if (typeof LuftBase.toast === 'function') {
+                LuftBase.toast('Permissões copiadas', d.message || 'Concluído.', 'success');
+            } else {
+                alert(d.message || 'Permissões copiadas com sucesso!');
             }
-        } catch(e) {
-            console.error(e);
-            alert('Erro ao espelhar permissões: ' + (e.message || 'Falha na comunicação'));
+            if (String(ID_ATUAL) === String(ID_DESTINO_ESPELHO) && MODO === TIPO_DESTINO_ESPELHO && RECARREGAR_ATUAL) {
+                await RECARREGAR_ATUAL();
+            }
+        } catch (erro) {
+            console.error(erro);
+            EspelhoErro(erro.message || 'Falha na comunicação com o servidor.');
         } finally {
             if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="ph-bold ph-copy"></i> Confirmar Espelhamento';
+                btn.innerHTML = '<i class="ph-bold ph-copy"></i> Copiar permissões';
+                btn.disabled = sucesso;
+                if (!sucesso) AtualizarResumoEspelho();
             }
         }
     }

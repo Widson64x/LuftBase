@@ -15,6 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from luftbase.autorizacao.catalogo import ACOES_PERMISSAO, PermissaoLuftBase
 from luftbase.autorizacao.web import consultar_permissoes, exigir_permissao
 from luftbase.interface.web import validar_csrf_requisicao
+from luftbase.persistencia.core.usuario import Usuario
 from luftbase.persistencia.core.seguranca import (
     Modulo,
     Permissao,
@@ -581,6 +582,8 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
     dados_anteriores: dict[str, object] | None = None
     dados_novos: dict[str, object] | None = None
     chave_permissao = ""
+    if tipo == "Usuario" and acao != "Resetar" and not garantir_usuario_no_core(id_alvo):
+        return jsonify(status="error", message="Usuario nao encontrado no diretorio."), 404
     with estado.bancos.core.escrita() as sessao:
         permissao = sessao.get(Permissao, id_permissao)
         if permissao is None:
@@ -667,29 +670,30 @@ def resumo_regras_origem():  # type: ignore[no-untyped-def]
 
     estado = obter_luftbase()
     with estado.bancos.core.leitura() as sessao:
-        regras = (
-            sessao.execute(
-                select(modelo.conceder)
-                .join(Permissao, Permissao.id_permissao == modelo.id_permissao)
-                .where(
-                    coluna_alvo == id_alvo,
-                    Permissao.id_sistema == sistema_id,
-                )
+        linhas = sessao.execute(
+            select(
+                Permissao.chave_permissao,
+                Permissao.descricao_permissao,
+                modelo.conceder,
             )
-            .scalars()
-            .all()
-        )
+            .join(Permissao, Permissao.id_permissao == modelo.id_permissao)
+            .where(coluna_alvo == id_alvo, Permissao.id_sistema == sistema_id)
+            .order_by(Permissao.chave_permissao)
+        ).all()
 
-        total = len(regras)
-        permitidas = sum(1 for r in regras if r)
-        bloqueadas = total - permitidas
-
+    regras = [
+        {"chave": chave, "descricao": descricao or "", "conceder": bool(conceder)}
+        for chave, descricao, conceder in linhas
+    ]
+    total = len(regras)
+    permitidas = sum(1 for regra in regras if regra["conceder"])
     return jsonify(
         status="success",
         data={
             "total": total,
             "permitidas": permitidas,
-            "bloqueadas": bloqueadas,
+            "bloqueadas": total - permitidas,
+            "regras": regras,
         },
     )
 
@@ -758,6 +762,9 @@ def espelhar_permissoes():  # type: ignore[no-untyped-def]
 
     estado = obter_luftbase()
     ator = getattr(current_user, "id_usuario", None)
+
+    if tipo_destino == "Usuario" and not garantir_usuario_no_core(id_destino):
+        return jsonify(status="error", message="O usuario de destino nao foi encontrado no diretorio."), 404
 
     with estado.bancos.core.escrita() as sessao:
         regras_origem = sessao.execute(
@@ -1235,6 +1242,43 @@ def criar_nova_permissao():  # type: ignore[no-untyped-def]
             data={"chave": chave},
         )
     return redirect(url_for("Seguranca.visualizar_gerenciador", sistema_id=sistema_id))
+
+
+def garantir_usuario_no_core(codigo_usuario: int) -> bool:
+    """Cria o cadastro em `core.tb_usuario` de quem ainda nao fez login (dados do diretorio).
+
+    A regra de permissao de usuario tem FK para `tb_usuario`; sem esta etapa, dar uma permissao
+    a alguem que ainda nao entrou no LuftBase falhava com violacao de chave estrangeira. No
+    primeiro login real o cadastro e completado (nome, e-mail e grupo vindos do diretorio).
+    Devolve False quando o usuario nao existe nem no diretorio.
+    """
+
+    estado = obter_luftbase()
+    with estado.bancos.core.leitura() as sessao:
+        existe = sessao.execute(
+            select(Usuario.codigo_usuario).where(Usuario.codigo_usuario == codigo_usuario)
+        ).first()
+    if existe is not None:
+        return True
+    try:
+        with estado.bancos.diretorio.leitura() as sessao_dir:
+            origem = sessao_dir.get(UsuarioDiretorio, codigo_usuario)
+            if origem is None or not (origem.login or "").strip():
+                return False
+            grupo = origem.grupo
+            dados = {
+                "codigo_usuario": codigo_usuario,
+                "login_usuario": (origem.login or "").strip(),
+                "nome_usuario": (origem.nome_completo or origem.login or "").strip(),
+                "email_usuario": (origem.email or "").strip() or None,
+                "codigo_usuariogrupo": origem.id_grupo,
+                "sigla_usuariogrupo": (grupo.sigla or "").strip() or None if grupo else None,
+            }
+    except SQLAlchemyError:
+        logger.exception("Falha ao ler o usuario %s no diretorio", codigo_usuario)
+        return False
+    estado.usuarios_core.garantir_usuario_do_diretorio(**dados)
+    return True
 
 
 def _normalizar_identificador(valor: object, *, limite: int) -> str:

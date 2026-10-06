@@ -2,6 +2,23 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a64] - 2026-10-06
+
+### Corrigido
+
+- Espelhar permissoes (e dar Permitir/Bloquear) para um usuario que ainda nao fez login no
+  LuftBase falhava com violacao de chave estrangeira (`fk_core_permissaousuario_usuario`): a lista
+  de usuarios vem do diretorio, mas a regra exige o cadastro em `core.tb_usuario`. Agora o
+  cadastro e criado na hora, a partir do diretorio, e completado no primeiro login.
+
+### Alterado
+
+- Tela "Espelhar permissoes" redesenhada em linguagem simples ("Copiar permissoes"): 1) copiar de
+  quem (grupo ou pessoa, com busca), mostrando as permissoes que serao copiadas; 2) quem recebe,
+  com o que ele ja tem hoje; 3) como aplicar ("Deixar igual a origem" ou "Somar ao que ja tem").
+  Uma frase resume o efeito antes de confirmar; erros aparecem no proprio modal em vez de `alert`.
+- `GET /seguranca/api/permissoes/resumo-origem` tambem devolve a lista de regras (`regras`).
+
 ## [0.1.0a63] - 2026-10-06
 
 ### Adicionado
