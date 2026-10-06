@@ -2,6 +2,14 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a72] - 2026-10-06
+
+### Adicionado
+
+- Perfil, aba "Sessoes & Seguranca": cada sessao mostra navegador e sistema (ex.: "Chrome 126 em
+  Windows") alem do IP, lidos do `User-Agent` sem dependencia nova, e ha um "Historico de Acessos"
+  (ultimos 30: IP, navegador, inicio, fim e motivo do encerramento) em `GET /perfil/sessoes/historico`.
+
 ## [0.1.0a71] - 2026-10-06
 
 ### Corrigido

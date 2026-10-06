@@ -359,6 +359,32 @@ class RepositorioUsuariosPostgreSQL:
                 for s in linhas
             ]
 
+    def listar_historico_sessoes(self, codigo_usuario: int, limite: int = 30) -> list[dict[str, Any]]:
+        """Historico de acessos do usuario: sessoes ativas e encerradas, da mais recente a mais antiga."""
+
+        comando = (
+            select(Sessao)
+            .where(Sessao.codigo_usuario == codigo_usuario)
+            .order_by(Sessao.criada_em.desc())
+            .limit(max(1, min(limite, 100)))
+        )
+        with self._banco.leitura() as sessao:
+            return [
+                {
+                    "id_sessao": s.id_sessao,
+                    "ip_origem": s.ip_origem,
+                    "user_agent": s.user_agent,
+                    "status": s.status,
+                    "criada_em": s.criada_em.isoformat() if s.criada_em else None,
+                    "ultima_atividade": s.ultima_atividade.isoformat()
+                    if s.ultima_atividade
+                    else None,
+                    "encerrada_em": s.encerrada_em.isoformat() if s.encerrada_em else None,
+                    "motivo_encerramento": s.motivo_encerramento,
+                }
+                for s in sessao.execute(comando).scalars().all()
+            ]
+
     def revogar_outras_sessoes(self, codigo_usuario: int, id_sessao_atual: str) -> int:
         """Revoga todas as outras sessoes ativas do usuario."""
 

@@ -84,6 +84,7 @@ const LuftPerfil = {
 
                 if (targetTab === 'sessoes') {
                     this.carregarSessoes();
+                    this.carregarHistoricoSessoes();
                 }
             });
         });
@@ -668,6 +669,63 @@ const LuftPerfil = {
         }
     },
 
+    _esc: function(valor) {
+        return String(valor ?? '').replace(/[&<>"']/g, (c) => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
+    },
+
+    _iconeDispositivo: function(dispositivo) {
+        if (dispositivo === 'mobile') return 'ph-bold ph-device-mobile';
+        if (dispositivo === 'tablet') return 'ph-bold ph-device-tablet';
+        return 'ph-bold ph-desktop';
+    },
+
+    _formatarDataHora: function(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
+    },
+
+    carregarHistoricoSessoes: async function() {
+        const container = document.getElementById('luft-perfil-historico-lista');
+        if (!container) return;
+        const motivos = { LOGOUT_VOLUNTARIO: 'Saiu da conta', TIMEOUT_INATIVIDADE: 'Expirou por inatividade', ROTACAO_SESSAO: 'Sessão renovada', REVOGADA_ADMIN: 'Encerrada à força', REVOGADA_USUARIO: 'Encerrada por você' };
+        try {
+            const resp = await fetch((window.LUFT_RAIZ || '') + '/_luftbase/perfil/sessoes/historico', {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!resp.ok) return;
+            const itens = (await resp.json()).historico || [];
+            if (itens.length === 0) {
+                container.innerHTML = '<div class="luft-sessoes-carregando">Nenhum acesso registrado ainda.</div>';
+                return;
+            }
+            container.innerHTML = itens.map(s => {
+                const ativa = s.status === 'ATIVA';
+                const fim = ativa ? 'Em andamento' : (this._formatarDataHora(s.encerrada_em || s.ultima_atividade) || 'Encerrada');
+                const motivo = ativa ? '' : ` (${this._esc(motivos[s.motivo_encerramento] || s.motivo_encerramento || 'Encerrada')})`;
+                return `
+                    <div class="luft-sessao-item ${s.is_atual ? 'is-atual' : ''}">
+                        <div class="luft-sessao-device">
+                            <i class="${this._iconeDispositivo(s.dispositivo)} luft-sessao-icon"></i>
+                            <div class="luft-sessao-info">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="luft-sessao-title">${this._esc(s.descricao || 'Navegador desconhecido')}</span>
+                                    ${ativa ? '<span class="luft-badge-sessao-atual"><i class="ph-bold ph-check-circle"></i> Ativa</span>' : ''}
+                                </div>
+                                <span class="luft-sessao-meta">IP ${this._esc(s.ip_origem || 'Rede Interna')} &bull; Início: ${this._formatarDataHora(s.criada_em)} &bull; Fim: ${fim}${motivo}</span>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        } catch (erro) {
+            console.error('Erro ao listar histórico:', erro);
+            container.innerHTML = '<div class="luft-sessoes-carregando text-danger">Falha ao carregar o histórico.</div>';
+        }
+    },
+
     carregarSessoes: async function() {
         const container = document.getElementById('luft-perfil-sessoes-lista');
         if (!container) return;
@@ -686,10 +744,8 @@ const LuftPerfil = {
             }
 
             container.innerHTML = sessoes.map(s => {
-                const isMobile = s.user_agent && /mobile|android|iphone/i.test(s.user_agent);
-                const icone = isMobile ? 'ph-bold ph-device-mobile' : 'ph-bold ph-desktop';
-                const d = s.ultima_atividade ? new Date(s.ultima_atividade) : null;
-                const tempoStr = d ? `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'Ativo';
+                const icone = this._iconeDispositivo(s.dispositivo);
+                const tempoStr = this._formatarDataHora(s.ultima_atividade) || 'Ativo';
 
                 return `
                     <div class="luft-sessao-item ${s.is_atual ? 'is-atual' : ''}">
@@ -697,10 +753,10 @@ const LuftPerfil = {
                             <i class="${icone} luft-sessao-icon"></i>
                             <div class="luft-sessao-info">
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="luft-sessao-title">${s.ip_origem || 'Rede Interna'}</span>
+                                    <span class="luft-sessao-title">${this._esc(s.descricao || 'Navegador desconhecido')}</span>
                                     ${s.is_atual ? '<span class="luft-badge-sessao-atual"><i class="ph-bold ph-check-circle"></i> Esta sessão</span>' : ''}
                                 </div>
-                                <span class="luft-sessao-meta">Última atividade: ${tempoStr} &bull; ${s.id_exibicao || s.id_sessao}</span>
+                                <span class="luft-sessao-meta">IP ${this._esc(s.ip_origem || 'Rede Interna')} &bull; Última atividade: ${tempoStr}</span>
                             </div>
                         </div>
                     </div>
@@ -729,6 +785,7 @@ const LuftPerfil = {
             if (resp.ok && dados.status === 'success') {
                 this._notificar(dados.mensagem || 'Outras sessões foram revogadas.', 'sucesso');
                 void this.carregarSessoes();
+                void this.carregarHistoricoSessoes();
             } else {
                 alert(dados.mensagem || 'Falha ao revogar sessões.');
             }

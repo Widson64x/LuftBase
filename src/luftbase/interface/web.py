@@ -11,6 +11,7 @@ from typing import Any
 from flask import Blueprint, Flask, abort, jsonify, request, session, url_for
 from flask_login import current_user
 
+from luftbase.identidade.agente_usuario import interpretar_agente
 from luftbase.identidade.modelos import UsuarioAutenticado
 from luftbase.interface.modelos import PreferenciaTema
 from luftbase.nucleo.excecoes import ErroConfiguracao
@@ -380,6 +381,7 @@ def registrar_interface_web(app: Flask) -> None:
         id_atual = id_sessao_atual()
 
         for s in sessoes:
+            s.update(interpretar_agente(s.get("user_agent")))
             s["is_atual"] = s["id_sessao"] == id_atual
             raw_id = s["id_sessao"]
             s["id_exibicao"] = f"sess_{raw_id[:6]}...{raw_id[-4:]}" if len(raw_id) > 12 else raw_id
@@ -391,6 +393,22 @@ def registrar_interface_web(app: Flask) -> None:
                 "total_ativas": len(sessoes),
             }
         )
+
+    @bp.get("/perfil/sessoes/historico")
+    def historico_sessoes_perfil():  # type: ignore[no-untyped-def]
+        usuario = _usuario_atual()
+        if usuario is None:
+            abort(401)
+        from luftbase.plataforma import obter_luftbase
+
+        repo = obter_luftbase().usuarios_core
+        itens = repo.listar_historico_sessoes(usuario.id_usuario, limite=30)
+        id_atual = id_sessao_atual()
+        for s in itens:
+            s.update(interpretar_agente(s.get("user_agent")))
+            s["is_atual"] = s["id_sessao"] == id_atual
+            s.pop("id_sessao", None)
+        return jsonify({"status": "success", "historico": itens})
 
     @bp.post("/perfil/sessoes/revogar-outras")
     def revogar_outras_sessoes_perfil():  # type: ignore[no-untyped-def]
