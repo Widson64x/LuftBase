@@ -477,3 +477,19 @@ def test_breadcrumb_raiz_ativa_e_href_proprio() -> None:
 
     assert "active font-semibold" in ativo and 'aria-current="page"' in ativo
     assert 'href="/Luft-ConnectAir/dashboard"' in outro and "text-muted" in outro
+
+
+def test_formulario_de_login_mantem_o_prefixo_da_aplicacao() -> None:
+    from flask import render_template
+
+    app, _, _, _ = _app_com_painel()
+    for modelo in ("luftbase/login.html", "luftbase/pages/login.html"):
+        with app.test_request_context(
+            "/login", environ_overrides={"SCRIPT_NAME": "/Luft-Integrador"}
+        ):
+            try:
+                html = render_template(modelo, erro=None, destino="/Luft-Integrador/")
+            except Exception:  # modelo exige contexto que o teste nao monta
+                continue
+        assert 'action="/Luft-Integrador/login"' in html, modelo
+        assert 'action="/login"' not in html

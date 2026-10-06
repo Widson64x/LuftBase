@@ -2,6 +2,15 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a65] - 2026-10-06
+
+### Corrigido
+
+- O formulario de login enviava as credenciais para `/login` na RAIZ do dominio quando a aplicacao
+  roda sob um prefixo (ex.: `/Luft-Integrador`), porque `action` usava so `request.path`. Atras do
+  nginx o POST caia no Workspace: dava certo quando o Workspace respondia (a sessao e compartilhada)
+  e falhava com pagina de erro do nginx quando nao. Agora `action` inclui `request.script_root`.
+
 ## [0.1.0a64] - 2026-10-06
 
 ### Corrigido

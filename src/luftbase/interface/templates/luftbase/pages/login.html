@@ -87,7 +87,7 @@
                     </div>
                 </header>
 
-                <form class="login-form" method="POST" action="{{ action_url | default(request.path) }}" data-login-form>
+                <form class="login-form" method="POST" action="{{ action_url | default(request.script_root ~ request.path) }}" data-login-form>
                     <div class="login-field">
                         <label for="usuario">Usuário ou e-mail</label>
                         <div class="login-input-wrap">

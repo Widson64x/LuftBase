@@ -80,7 +80,7 @@
                     <div class="login-error" role="alert">{{ erro }}</div>
                 {% endif %}
 
-                <form class="login-form" method="POST" action="{{ action_url | default(request.path) }}" data-login-form>
+                <form class="login-form" method="POST" action="{{ action_url | default(request.script_root ~ request.path) }}" data-login-form>
                     <input type="hidden" name="csrf_token" value="{{ luft_csrf_token }}">
                     <input type="hidden" name="next" value="{{ destino | default(request.args.get('next', '')) }}">
 
