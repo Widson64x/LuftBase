@@ -2,6 +2,16 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a67] - 2026-10-06
+
+### Corrigido
+
+- SQL Server: quando o driver ODBC pedido (padrao `ODBC Driver 18 for SQL Server`) nao esta
+  instalado, o LuftBase usa o melhor que a maquina tem (18, 17, 13, 11, Native Client 11, e por
+  ultimo o `SQL Server` legado) e avisa no log. Antes a conexao falhava com `IM002` num servidor
+  Windows que so tinha o Driver 17, derrubando o login. Os parametros `Encrypt` e
+  `TrustServerCertificate` so sao enviados a drivers que os entendem (o legado nao).
+
 ## [0.1.0a66] - 2026-10-06
 
 ### Adicionado

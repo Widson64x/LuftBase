@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 import weakref
@@ -85,6 +86,53 @@ def vigiar_ociosidade(
     return thread
 
 
+DRIVER_ODBC_PADRAO = "ODBC Driver 18 for SQL Server"
+# Do mais novo ao mais antigo. O "SQL Server" legado e o ultimo recurso (sem TLS moderno).
+_DRIVERS_ODBC_PREFERIDOS = (
+    DRIVER_ODBC_PADRAO,
+    "ODBC Driver 17 for SQL Server",
+    "ODBC Driver 13 for SQL Server",
+    "ODBC Driver 11 for SQL Server",
+    "SQL Server Native Client 11.0",
+    "SQL Server",
+)
+_logger = logging.getLogger("luftbase.banco")
+
+
+def drivers_odbc_instalados() -> tuple[str, ...]:
+    """Drivers ODBC visiveis nesta maquina (vazio se o pyodbc nao existir)."""
+
+    try:
+        import pyodbc
+    except ImportError:
+        return ()
+    return tuple(pyodbc.drivers())
+
+
+def resolver_driver_odbc(pedido: str | None, instalados: tuple[str, ...] | None = None) -> str:
+    """Devolve o driver pedido se existir; senao o melhor SQL Server instalado.
+
+    O mesmo segredo do Vault serve ao Linux (driver 18) e a um servidor Windows que tenha so o 17,
+    sem editar o segredo nem instalar nada. Sem nenhum driver compativel, devolve o pedido e o
+    erro nativo do ODBC aparece na conexao.
+    """
+
+    desejado = pedido or DRIVER_ODBC_PADRAO
+    disponiveis = drivers_odbc_instalados() if instalados is None else instalados
+    if not disponiveis or desejado in disponiveis:
+        return desejado
+    for candidato in _DRIVERS_ODBC_PREFERIDOS:
+        if candidato in disponiveis:
+            _logger.warning(
+                "Driver ODBC %r nao esta instalado; usando %r. Instale o driver pedido ou ajuste "
+                "o campo `driver` do segredo no Vault.",
+                desejado,
+                candidato,
+            )
+            return candidato
+    return desejado
+
+
 class ConstrutorEngines:
     """Transforma credenciais tipadas em engines sem montar URLs manualmente."""
 
@@ -105,6 +153,10 @@ class ConstrutorEngines:
                 query={"sslmode": credencial.sslmode or "prefer"},
             )
         if credencial.tipo is TipoBanco.SQLSERVER:
+            driver = resolver_driver_odbc(credencial.driver)
+            consulta = {"driver": driver}
+            if driver != "SQL Server":  # o driver legado nao entende estes parametros
+                consulta.update({"Encrypt": "yes", "TrustServerCertificate": "yes"})
             return URL.create(
                 drivername="mssql+pyodbc",
                 username=credencial.usuario,
@@ -112,11 +164,7 @@ class ConstrutorEngines:
                 host=credencial.host,
                 port=credencial.porta,
                 database=credencial.nome_banco,
-                query={
-                    "driver": credencial.driver or "ODBC Driver 18 for SQL Server",
-                    "Encrypt": "yes",
-                    "TrustServerCertificate": "yes",
-                },
+                query=consulta,
             )
         if credencial.tipo is TipoBanco.ORACLE:
             # Mesmo formato do legado: o nome do banco (SID/servico) vai no caminho da URL.

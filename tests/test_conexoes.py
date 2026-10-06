@@ -176,7 +176,7 @@ def test_vigia_desligado_ou_sem_engine_real_nao_cria_thread() -> None:
     [
         (TipoBanco.SQLSERVER, True, True),
         (TipoBanco.SQLSERVER, False, False),
-        (TipoBanco.POSTGRESQL, True, False),   # PostgreSQL nunca muda o modo
+        (TipoBanco.POSTGRESQL, True, False),  # PostgreSQL nunca muda o modo
         (TipoBanco.POSTGRESQL, False, False),
     ],
 )
@@ -193,3 +193,61 @@ def test_autocommit_so_para_sqlserver_somente_leitura(
     monkeypatch.setattr(conexoes, "vigiar_ociosidade", lambda *_a, **_k: None)
     ConstrutorEngines().criar(_credencial(tipo), somente_leitura=somente_leitura)
     assert (capturado.get("isolation_level") == "AUTOCOMMIT") is autocommit
+
+
+# ---- Driver ODBC: cai no que o servidor tem -------------------------------------------------
+
+
+def test_driver_pedido_e_usado_quando_instalado() -> None:
+    instalados = ("SQL Server", "ODBC Driver 17 for SQL Server", "ODBC Driver 18 for SQL Server")
+
+    assert (
+        conexoes.resolver_driver_odbc("ODBC Driver 17 for SQL Server", instalados)
+        == "ODBC Driver 17 for SQL Server"
+    )
+    assert conexoes.resolver_driver_odbc(None, instalados) == "ODBC Driver 18 for SQL Server"
+
+
+def test_sem_o_driver_18_usa_o_17_instalado(caplog: pytest.LogCaptureFixture) -> None:
+    # Caso real do servidor Windows de producao: so tem 'SQL Server' e o Driver 17.
+    instalados = ("SQL Server", "ODBC Driver 17 for SQL Server", "Qlik-teradata")
+
+    with caplog.at_level("WARNING", logger="luftbase.banco"):
+        escolhido = conexoes.resolver_driver_odbc(None, instalados)
+
+    assert escolhido == "ODBC Driver 17 for SQL Server"
+    assert "nao esta instalado" in caplog.text
+
+
+def test_driver_legado_so_como_ultimo_recurso_e_sem_nenhum_devolve_o_pedido() -> None:
+    assert conexoes.resolver_driver_odbc(None, ("SQL Server",)) == "SQL Server"
+    assert (
+        conexoes.resolver_driver_odbc(None, ("Qlik-teradata",)) == "ODBC Driver 18 for SQL Server"
+    )
+    # sem pyodbc/lista vazia nao ha o que comparar: respeita o pedido
+    assert conexoes.resolver_driver_odbc("Outro", ()) == "Outro"
+
+
+def test_url_sqlserver_usa_o_driver_resolvido_e_so_manda_tls_se_o_driver_entende(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from luftbase.infraestrutura.cofre.credenciais import CredencialBanco, Segredo
+
+    def url_com(instalados: tuple[str, ...]):  # type: ignore[no-untyped-def]
+        monkeypatch.setattr(conexoes, "drivers_odbc_instalados", lambda: instalados)
+        credencial = CredencialBanco(
+            tipo=TipoBanco.SQLSERVER,
+            host="h",
+            porta=1433,
+            nome_banco="b",
+            usuario="u",
+            senha=Segredo("s"),
+        )
+        return ConstrutorEngines().criar_url(credencial)
+
+    moderno = url_com(("ODBC Driver 17 for SQL Server",))
+    legado = url_com(("SQL Server",))
+
+    assert moderno.query["driver"] == "ODBC Driver 17 for SQL Server"
+    assert moderno.query["Encrypt"] == "yes" and moderno.query["TrustServerCertificate"] == "yes"
+    assert legado.query["driver"] == "SQL Server" and "Encrypt" not in legado.query
