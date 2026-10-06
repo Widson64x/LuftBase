@@ -6,7 +6,6 @@ renovacoes de inatividade por interacao na tela e encerramento voluntario ou tim
 
 from __future__ import annotations
 
-import contextlib
 import json
 import logging
 from datetime import datetime, timedelta
@@ -16,6 +15,7 @@ from flask import current_app, has_request_context, request
 from sqlalchemy import func, select, update
 
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
+from luftbase.nucleo.tempo import agora_local
 from luftbase.persistencia.core.sessoes import EventoSessao, Sessao
 from luftbase.persistencia.core.usuario import Usuario
 
@@ -136,7 +136,7 @@ class ArmazenamentoSessoesPostgreSQL:
             return None
 
         id_sessao = self._limpar_chave(chave)
-        agora = datetime.now()
+        agora = agora_local()
 
         try:
             with self._banco.unidade_trabalho() as sessao_db:
@@ -190,7 +190,7 @@ class ArmazenamentoSessoesPostgreSQL:
             return
 
         id_sessao = self._limpar_chave(chave)
-        agora = datetime.now()
+        agora = agora_local()
         expira_em = agora + timedelta(seconds=max(ttl_segundos, 1))
 
         ip_origem: str | None = None
@@ -384,7 +384,7 @@ class ArmazenamentoSessoesPostgreSQL:
             return
 
         id_sessao = self._limpar_chave(chave)
-        agora = datetime.now()
+        agora = agora_local()
 
         try:
             with self._banco.unidade_trabalho() as sessao_db:
@@ -441,7 +441,7 @@ class ArmazenamentoSessoesPostgreSQL:
     def listar_usuarios_online(self, id_sistema: int | None = None) -> list[dict[str, Any]]:
         """Devolve usuarios com sessao ativa e nao expirada."""
 
-        agora = datetime.now()
+        agora = agora_local()
         consulta = select(Sessao).where(
             Sessao.status == "ATIVA",
             Sessao.codigo_usuario.is_not(None),
@@ -475,7 +475,7 @@ class ArmazenamentoSessoesPostgreSQL:
     def contar_online(self, id_sistema: int | None = None) -> int:
         """Contagem instantanea de sessoes ativas."""
 
-        agora = datetime.now()
+        agora = agora_local()
         consulta = select(func.count(Sessao.id_sessao)).where(
             Sessao.status == "ATIVA",
             Sessao.codigo_usuario.is_not(None),
@@ -490,7 +490,7 @@ class ArmazenamentoSessoesPostgreSQL:
     def revogar_sessao(self, id_sessao: str, motivo: str = "REVOGADA_ADMIN") -> bool:
         """Revoga forcadamente uma sessao ativa."""
 
-        agora = datetime.now()
+        agora = agora_local()
         with self._banco.unidade_trabalho() as sessao_db:
             registro = sessao_db.execute(
                 select(Sessao).where(Sessao.id_sessao == id_sessao)

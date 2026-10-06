@@ -6,7 +6,6 @@ import logging
 import smtplib
 import ssl
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from datetime import datetime
 from email.message import EmailMessage
 from email.utils import formataddr, formatdate, make_msgid
 from functools import lru_cache
@@ -27,6 +26,7 @@ from luftbase.integracoes.email.modelos import (
 from luftbase.integracoes.email.texto import gerar_texto_de_html
 from luftbase.integracoes.email.transporte import TransporteEmail, TransporteSmtp
 from luftbase.nucleo.excecoes import EmailNaoConfigurado, ErroEmail
+from luftbase.nucleo.tempo import agora_local
 
 CID_LOGO = "luftbase-logo"
 PREFIXO_TESTE = "[TESTE]"
@@ -323,8 +323,8 @@ class ServicoEmail:
             "cid_logo": CID_LOGO,
             "modo_teste": redirecionado,
             "destinatarios_reais": originais if redirecionado else (),
-            "gerado_em": datetime.now().strftime("%d/%m/%Y %H:%M"),
-            "ano": datetime.now().year,
+            "gerado_em": agora_local().strftime("%d/%m/%Y %H:%M"),
+            "ano": agora_local().year,
         }
 
     @staticmethod

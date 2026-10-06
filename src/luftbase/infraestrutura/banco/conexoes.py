@@ -12,6 +12,7 @@ from sqlalchemy import URL, Engine, create_engine, event
 
 from luftbase.infraestrutura.cofre.credenciais import CredencialBanco, TipoBanco
 from luftbase.nucleo.excecoes import ErroConexaoBanco
+from luftbase.nucleo.tempo import nome_do_fuso
 
 ESQUEMA_LOGICO_APLICACAO = "luft_aplicacao"
 ESQUEMA_CORE = "core"
@@ -150,7 +151,12 @@ class ConstrutorEngines:
                 host=credencial.host,
                 port=credencial.porta,
                 database=credencial.nome_banco,
-                query={"sslmode": credencial.sslmode or "prefer"},
+                query={
+                    "sslmode": credencial.sslmode or "prefer",
+                    # `now()`/CURRENT_TIMESTAMP das colunas e das aplicacoes saem no mesmo fuso da
+                    # plataforma, qualquer que seja o fuso configurado no servidor PostgreSQL.
+                    "options": f"-c timezone={nome_do_fuso()}",
+                },
             )
         if credencial.tipo is TipoBanco.SQLSERVER:
             driver = resolver_driver_odbc(credencial.driver)

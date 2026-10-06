@@ -7,7 +7,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import (
     ColumnElement,
@@ -39,6 +38,7 @@ from luftbase.conteudo.modelos import (
 )
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
 from luftbase.nucleo.excecoes import ConteudoNaoEncontrado, ErroConteudo
+from luftbase.nucleo.tempo import agora_local
 from luftbase.persistencia.core.notificacoes import Notificacao, NotificacaoLeitura
 from luftbase.persistencia.core.publicacoes import (
     NotaAtualizacaoItem,
@@ -53,8 +53,7 @@ _AGORA_BANCO: ColumnElement[datetime] = literal_column(
 )
 
 
-def _agora_local() -> datetime:
-    return datetime.now(ZoneInfo("America/Sao_Paulo")).replace(tzinfo=None)
+_agora_local = agora_local
 
 
 def _json_texto(dados: Mapping[str, object] | None) -> str | None:

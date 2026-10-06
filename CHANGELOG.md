@@ -2,6 +2,20 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a70] - 2026-10-06
+
+### Corrigido
+
+- Horarios errados no Linux: o servidor roda em UTC e `datetime.now()` devolve o horario DA
+  MAQUINA, entao a mesma aplicacao gravava 17:55 no Linux quando em Brasilia eram 14:55. Corrigido em
+  tres camadas: (1) relogio unico `luftbase.nucleo.tempo.agora_local()` (America/Sao_Paulo, sem
+  tzinfo, formato das colunas `timestamp`), usado nas sessoes, no buffer de logs, no e-mail e no
+  conteudo; (2) `aplicar_fuso_do_processo()` poe o processo todo no mesmo fuso na inicializacao
+  (Linux), o que corrige tambem o `datetime.now()` das aplicacoes e os horarios dos logs; (3) toda
+  conexao PostgreSQL fixa `timezone` da sessao, entao `now()`/`CURRENT_TIMESTAMP` das colunas e das
+  aplicacoes saem no mesmo fuso. `LUFT_FUSO_HORARIO` troca o fuso; no Windows vale o fuso do sistema.
+- Registros ja gravados com a hora errada (17:xx em vez de 14:xx) nao sao reescritos.
+
 ## [0.1.0a69] - 2026-10-06
 
 ### Corrigido

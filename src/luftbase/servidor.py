@@ -208,6 +208,9 @@ def _preparar() -> None:
         load_dotenv(os.path.join(os.getcwd(), ".env"), override=False)
     except ImportError:  # pragma: no cover - python-dotenv e dependencia do LuftBase
         pass
+    from luftbase.nucleo.tempo import aplicar_fuso_do_processo
+
+    aplicar_fuso_do_processo()
     configurar_console()
 
 

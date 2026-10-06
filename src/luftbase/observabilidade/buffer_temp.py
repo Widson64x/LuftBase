@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from luftbase.nucleo.tempo import agora_local
 from luftbase.observabilidade.sanitizacao import serializar_dados_seguro
 
 
@@ -77,7 +78,7 @@ class BufferLogsTemporarios:
         """Insere uma nova entrada no buffer circular."""
 
         registro = RegistroLogTemp(
-            data_hora=data_hora or datetime.now(),
+            data_hora=data_hora or agora_local(),
             nivel=nivel.upper(),
             id_correlacao=id_correlacao,
             codigo_usuario=codigo_usuario,

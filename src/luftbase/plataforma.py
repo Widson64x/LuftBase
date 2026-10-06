@@ -55,6 +55,7 @@ from luftbase.integracoes.diagnostico import IntegracaoAplicacao
 from luftbase.integracoes.email import ResultadoEnvio, ServicoEmail
 from luftbase.interface.busca import ProvedorBusca
 from luftbase.interface.parametros import ParametroAplicacao
+from luftbase.nucleo.tempo import aplicar_fuso_do_processo
 from luftbase.interface.repositorio import RepositorioPreferenciasTema
 from luftbase.interface.servico import ServicoTemas, criar_registro_padrao
 from luftbase.interface.web import registrar_interface_web
@@ -143,6 +144,7 @@ class PlataformaLuft:
     ) -> EstadoPlataforma:
         """Valida a configuracao e registra um estado exclusivo no Flask."""
 
+        aplicar_fuso_do_processo()
         if self.chave_extensao in app.extensions:
             raise ErroInicializacao("O LuftBase ja foi inicializado nesta aplicacao.")
 
