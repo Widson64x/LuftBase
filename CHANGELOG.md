@@ -2,6 +2,25 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a62] - 2026-10-06
+
+### Adicionado
+
+- Painel de Controle > Aplicacoes & Ambiente > Servicos do Servidor funciona (antes devolvia 501).
+  O servico de cada aplicacao e descoberto pelo NOME do sistema no catalogo, sem `.env` e sem
+  nomes fixos: Linux/systemd = nome em minusculo + `.service` (`Luft-ConnectAir` ->
+  `luft-connectair.service`); Windows = o proprio nome (`Luft-ConnectAir`). O Workspace ve todas
+  as aplicacoes ativas; um satelite ve so a propria. Status em tempo real, iniciar, parar e
+  reiniciar, com CSRF, permissao `AMBIENTE.SERVICOS.EXECUTAR` e auditoria.
+- Seguranca: so atua em servicos de sistemas cadastrados (nada de nomes livres), nomes passam por
+  lista de caracteres permitidos, comandos rodam sem shell e com tempo limite. O Workspace e a
+  propria aplicacao em execucao sao somente monitoramento (parar a si mesma derrubaria a tela).
+- Linux: as acoes usam `sudo -n systemctl`. O usuario do servico precisa de sudo sem senha para
+  esses comandos, por exemplo em `/etc/sudoers.d/luft-servicos`:
+  `<usuario> ALL=(root) NOPASSWD: /usr/bin/systemctl start luft-*.service, /usr/bin/systemctl stop luft-*.service, /usr/bin/systemctl restart luft-*.service`.
+  O status nao precisa de sudo. Sem a regra, a tela explica o motivo em vez de falhar em silencio.
+- Windows: usa `sc query/start/stop` (rotulo "STATE"/"ESTADO" independe do idioma).
+
 ## [0.1.0a61] - 2026-10-06
 
 ### Alterado

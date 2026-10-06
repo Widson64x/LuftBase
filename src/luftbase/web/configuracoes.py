@@ -31,6 +31,15 @@ from luftbase.infraestrutura.provisionamento_sistema import (
     derivar_plano,
     destino_do_estado,
 )
+from luftbase.infraestrutura.servicos_host import (
+    ACOES,
+    ErroServicoHost,
+    StatusServico,
+    consultar_status,
+    executar_acao,
+    nome_do_servico,
+    plataforma_do_host,
+)
 from luftbase.interface.parametros import ParametroAplicacao
 from luftbase.interface.web import validar_csrf_requisicao
 from luftbase.persistencia.core.seguranca import Modulo, Permissao, PermissaoGrupo, Sistema
@@ -290,7 +299,7 @@ def _renderizar_painel_controle() -> str:
         url_comunicados=url_comunicados,
         url_atualizacoes=url_atualizacoes,
         projetos_operacao=[],
-        servicos_operacao=[],
+        servicos_operacao=_servicos_operacao(),
     )
 
 
@@ -1185,45 +1194,112 @@ def api_ambiente_variaveis_salvar():  # type: ignore[no-untyped-def]
     )
 
 
+def _sistemas_com_servico() -> list[Sistema]:
+    """Sistemas ativos cujo servico a tela pode ver: o Hub ve todos; um satelite, so o proprio."""
+
+    estado = obter_luftbase()
+    with estado.bancos.core.leitura() as sessao:
+        consulta = select(Sistema).where(Sistema.ativo.is_(True)).order_by(Sistema.id_sistema.asc())
+        sistemas = list(sessao.execute(consulta).scalars().all())
+        sessao.expunge_all()
+    if eh_sistema_master():
+        return sistemas
+    atual = sistema_aplicacao_atual()
+    return [s for s in sistemas if s.id_sistema == atual]
+
+
+def _servico_do_sistema(sistema: Sistema) -> dict[str, object]:
+    """Descreve o servico de uma aplicacao, descoberto pelo nome do sistema (sem .env)."""
+
+    nome = nome_do_servico(sistema.nome_sistema, plataforma_do_host())
+    # O Hub e a propria aplicacao em execucao so se monitoram: parar a si mesma derrubaria a tela.
+    protegido = sistema.id_sistema == 0 or sistema.id_sistema == sistema_aplicacao_atual()
+    return {
+        "idServico": str(sistema.id_sistema),
+        "nomeExibicao": sistema.nome_sistema,
+        "nomeServico": nome,
+        "descricao": sistema.descricao_sistema or "",
+        "protegido": protegido,
+        "status": "VERIFICANDO",
+    }
+
+
+def _servicos_operacao() -> list[dict[str, object]]:
+    try:
+        return [_servico_do_sistema(s) for s in _sistemas_com_servico()]
+    except SQLAlchemyError:
+        logger.exception("Falha ao listar os servicos das aplicacoes")
+        return []
+
+
 @ConfiguracoesBp.get("/api/configuracoes/ambiente/servicos")
 @login_required
 @exigir_permissao(PermissaoLuftBase.SERVICOS_VISUALIZAR)
 def api_ambiente_servicos():  # type: ignore[no-untyped-def]
-    """Informa que o diagnóstico de serviços está em homologação."""
+    """Status atual do servico de cada aplicacao visivel para este sistema."""
 
-    return (
-        jsonify(
-            {
-                "status": "error",
-                "message": (
-                    "Recurso de diagnóstico de serviços em fase de homologação "
-                    "e indisponível no momento."
-                ),
-            }
-        ),
-        501,
-    )
+    plataforma = plataforma_do_host()
+    itens = []
+    for servico in _servicos_operacao():
+        nome = cast("str | None", servico["nomeServico"])
+        status = (
+            consultar_status(nome, plataforma).value if nome else StatusServico.INDISPONIVEL.value
+        )
+        itens.append({**servico, "status": status})
+    return jsonify({"status": "success", "data": {"servicos": itens}})
 
 
 @ConfiguracoesBp.post("/api/configuracoes/ambiente/servicos/acao")
 @login_required
 @exigir_permissao(PermissaoLuftBase.SERVICOS_EXECUTAR)
 def api_ambiente_servicos_acao():  # type: ignore[no-untyped-def]
-    """Informa que o controle operacional de serviços está em homologação."""
+    """Inicia, para ou reinicia o servico de uma aplicacao cadastrada (exceto o Hub e o proprio)."""
 
     validar_csrf_requisicao()
-    return (
-        jsonify(
-            {
-                "status": "error",
-                "message": (
-                    "Recurso de controle de serviços operacionais em fase de homologação "
-                    "e indisponível no momento."
-                ),
-            }
-        ),
-        501,
+    dados = request.get_json(silent=True) or {}
+    acao = str(dados.get("acao", "")).strip().lower()
+    id_servico = str(dados.get("idServico", "")).strip()
+    if acao not in ACOES:
+        return jsonify({"status": "error", "message": "Ação inválida."}), 400
+
+    # So atua sobre servicos de sistemas cadastrados e visiveis: nada de nomes livres.
+    servico = next((s for s in _servicos_operacao() if s["idServico"] == id_servico), None)
+    if servico is None or not servico["nomeServico"]:
+        return jsonify({"status": "error", "message": "Serviço não encontrado."}), 404
+    if servico["protegido"]:
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Serviço protegido: este permite somente monitoramento.",
+                }
+            ),
+            403,
+        )
+
+    nome = cast("str", servico["nomeServico"])
+    estado = obter_luftbase()
+    try:
+        executar_acao(nome, acao, plataforma_do_host())
+    except ErroServicoHost as erro:
+        estado.auditoria.registrar_alteracao(
+            recurso="SERVICO",
+            id_recurso=int(id_servico),
+            acao=f"FALHA_{acao.upper()}_SERVICO",
+            descricao=f"Falha ao {acao} o serviço {nome}: {erro}",
+            dados_anteriores=None,
+            dados_novos={"servico": nome, "acao": acao},
+        )
+        return jsonify({"status": "error", "message": str(erro)}), 502
+    estado.auditoria.registrar_alteracao(
+        recurso="SERVICO",
+        id_recurso=int(id_servico),
+        acao=f"{acao.upper()}_SERVICO",
+        descricao=f"Serviço {nome}: ação '{acao}' executada.",
+        dados_anteriores=None,
+        dados_novos={"servico": nome, "acao": acao},
     )
+    return jsonify({"status": "success", "message": f"Serviço {nome}: {acao} concluído."})
 
 
 from luftbase.web import integracoes as _integracoes  # noqa: E402,F401,I001
