@@ -23,6 +23,12 @@ RESUMO = (
     "notificação. Workspace, ConnectAir e Integrador já estão nela, e os demais, como o Luft-Control, virão a seguir."
 )
 
+# Titulos de versoes anteriores da mesma nota: a nota ja publicada e reconhecida e tem o texto corrigido.
+TITULOS_ANTERIORES = (
+    "Nova plataforma Luft: o ecossistema agora roda no LuftBase",
+    "Uma base nova para os sistemas Luft: conheça o LuftBase",
+)
+
 _IMG = "luftbase:img/changelog/"
 
 CONTEUDO = f"""\
@@ -172,7 +178,7 @@ class ResultadoChangelog:
     """O que `publicar_changelog_plataforma` fez."""
 
     id_publicacao: int
-    acao: str  # "criada" | "atualizada" | "ja_publicada"
+    acao: str  # "criada" | "atualizada" | "texto_corrigido" | "ja_publicada"
     publicada: bool
 
 
@@ -205,12 +211,16 @@ def publicar_changelog_plataforma(
         (
             p
             for p in servico.listar_administracao(tipo=TipoPublicacao.ATUALIZACAO, limite=100)
-            if p.titulo == TITULO and p.status_publicacao != "ARQUIVADO"
+            if p.titulo in (TITULO, *TITULOS_ANTERIORES) and p.status_publicacao != "ARQUIVADO"
         ),
         None,
     )
     if existente is not None and existente.status_publicacao == "PUBLICADO":
-        return ResultadoChangelog(existente.id_publicacao, "ja_publicada", True)
+        # Ja foi para os usuarios (e notificou): so o texto e corrigido, nunca uma segunda notificacao.
+        corrigido = servico.corrigir_texto(existente.id_publicacao, dados)
+        return ResultadoChangelog(
+            existente.id_publicacao, "texto_corrigido" if corrigido else "ja_publicada", True
+        )
 
     if existente is not None:
         servico.atualizar_rascunho(existente.id_publicacao, dados)
@@ -228,6 +238,7 @@ __all__ = [
     "RESUMO",
     "TITULO",
     "ResultadoChangelog",
+    "TITULOS_ANTERIORES",
     "nova_publicacao",
     "publicar_changelog_plataforma",
 ]

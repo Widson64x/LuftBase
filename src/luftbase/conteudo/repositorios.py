@@ -655,6 +655,40 @@ class RepositorioPublicacoes:
                 )
             return ResultadoPublicacao(id_publicacao)
 
+    def corrigir_texto(
+        self,
+        id_sistema: int,
+        id_publicacao: int,
+        *,
+        titulo: str,
+        resumo: str | None,
+        conteudo: str,
+    ) -> bool:
+        """Corrige o texto de uma publicacao ja publicada (sem notificar de novo).
+
+        Devolve False quando nada mudou. Para correcoes editoriais; mudancas de audiencia, prioridade
+        ou versao continuam exigindo uma nova publicacao.
+        """
+
+        with self._banco.unidade_trabalho() as sessao:
+            publicacao = sessao.scalar(
+                select(Publicacao)
+                .where(
+                    Publicacao.id_publicacao == id_publicacao,
+                    Publicacao.id_sistema == id_sistema,
+                )
+                .with_for_update()
+            )
+            if publicacao is None:
+                raise ConteudoNaoEncontrado("Publicacao nao encontrada no sistema atual.")
+            if (publicacao.titulo, publicacao.resumo, publicacao.conteudo) == (titulo, resumo, conteudo):
+                return False
+            publicacao.titulo = titulo
+            publicacao.resumo = resumo
+            publicacao.conteudo = conteudo
+            publicacao.data_atualizacao = _agora_local()
+            return True
+
     def arquivar(self, id_sistema: int, id_publicacao: int) -> bool:
         """Arquiva uma publicacao do sistema informado."""
 

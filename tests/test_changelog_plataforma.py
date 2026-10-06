@@ -92,6 +92,11 @@ class _ServicoFalso:
         self.atualizadas.append(id_publicacao)
         return True
 
+    def corrigir_texto(self, id_publicacao, dados):
+        self.corrigidas = getattr(self, "corrigidas", [])
+        self.corrigidas.append(id_publicacao)
+        return True
+
     def publicar(self, id_publicacao):
         self.publicadas.append(id_publicacao)
         return True
@@ -112,7 +117,8 @@ def test_nao_duplica_nota_ja_publicada_e_reaproveita_rascunho() -> None:
     publicada = SimpleNamespace(id_publicacao=3, titulo=changelog.TITULO, status_publicacao="PUBLICADO")
     servico = _ServicoFalso([publicada])
     resultado = changelog.publicar_changelog_plataforma(servico, versao="2.0")
-    assert resultado.acao == "ja_publicada" and not servico.criadas and not servico.publicadas
+    assert resultado.acao == "texto_corrigido" and not servico.criadas and not servico.publicadas
+    assert servico.corrigidas == [3]  # texto novo, sem renotificar
 
     rascunho = SimpleNamespace(id_publicacao=4, titulo=changelog.TITULO, status_publicacao="RASCUNHO")
     servico = _ServicoFalso([rascunho])
@@ -139,3 +145,23 @@ def test_a_nota_fala_ao_usuario_e_nao_de_infraestrutura() -> None:
     assert "Luft-Control" in texto and "sistemas web" in texto
     for proibido in ("Todos os sistemas Luft", "Horário de Brasília", "cofre", "Vault", "homologação", "auditoria"):
         assert proibido not in texto, proibido
+
+
+def test_reconhece_a_nota_publicada_com_titulo_de_versao_anterior() -> None:
+    antiga = SimpleNamespace(
+        id_publicacao=9, titulo=changelog.TITULOS_ANTERIORES[-1], status_publicacao="PUBLICADO"
+    )
+    servico = _ServicoFalso([antiga])
+
+    resultado = changelog.publicar_changelog_plataforma(servico, versao="2.0")
+
+    assert resultado.id_publicacao == 9 and not servico.criadas and not servico.publicadas
+    assert servico.corrigidas == [9]
+
+
+def test_toda_imagem_citada_em_notas_antigas_ainda_existe() -> None:
+    # Apagar uma imagem quebra notas ja publicadas: so se remove com a nota corrigida no banco.
+    import re
+
+    for nome in re.findall(r"luftbase:img/changelog/([\w.-]+)", changelog.CONTEUDO):
+        assert (IMAGENS / nome).is_file(), nome

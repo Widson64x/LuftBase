@@ -2,6 +2,14 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a78] - 2026-10-06
+
+### Corrigido
+
+- Nota de lancamento ja publicada mostrava imagens quebradas: a a77 apagou as imagens administrativas que o
+  texto antigo ainda citava. Agora o script reconhece a nota publicada (mesmo com titulo de versoes
+  anteriores) e **corrige o texto** no banco, sem notificar de novo (`ServicoPublicacoes.corrigir_texto`).
+
 ## [0.1.0a77] - 2026-10-06
 
 ### Alterado

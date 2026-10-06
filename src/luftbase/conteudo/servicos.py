@@ -343,6 +343,19 @@ class ServicoPublicacoes:
         resultado = self._repositorio.atualizar_rascunho(self._id_sistema, id_publicacao, dados)
         return resultado.alterada
 
+    def corrigir_texto(self, id_publicacao: int, dados: NovaPublicacao) -> bool:
+        """Corrige titulo, resumo e conteudo de uma publicacao ja publicada, sem renotificar."""
+
+        if id_publicacao <= 0:
+            raise ErroConteudo("id_publicacao deve ser positivo.")
+        return self._repositorio.corrigir_texto(
+            self._id_sistema,
+            id_publicacao,
+            titulo=dados.titulo,
+            resumo=dados.resumo,
+            conteudo=dados.conteudo,
+        )
+
     def arquivar(self, id_publicacao: int) -> bool:
         """Arquiva uma publicacao."""
 
