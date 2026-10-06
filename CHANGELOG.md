@@ -2,6 +2,28 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a71] - 2026-10-06
+
+### Corrigido
+
+- IP do usuario: todos apareciam como `127.0.0.1`. O Waitress 3 apaga os cabecalhos `X-Forwarded-*`
+  quando nao ha proxy confiavel, entao o IP que o nginx informava nunca chegava a aplicacao. O
+  servidor agora confia no nginx local (`127.0.0.1`; `LUFT_PROXY_CONFIAVEL` troca o IP e
+  `desligado` desativa), e so vale o IP que o proprio proxy acrescentou, nunca um valor que o
+  cliente forje. A sessao grava `request.remote_addr` em vez de ler `X-Forwarded-For` cru (o 1o item
+  era forjavel). A auditoria passa a registrar o IP real tambem.
+- "Total de logins" ficava sempre em 0: nada o incrementava. Agora cada login de verdade (sessao
+  nova) soma 1; renovacoes e polling nao.
+
+### Alterado
+
+- Tela de perfil: a barra "Carregar nova foto / Remover foto" saiu. O botao da camera no avatar
+  (agora com um selo sempre visivel) abre um editor de foto: recorte circular, arrastar, zoom
+  (controle, roda do mouse e setas), girar, centralizar, escolher/trocar (tambem arrastando o
+  arquivo), remover com confirmacao no proprio botao e salvar. Erros aparecem no modal, sem `alert`.
+- Idioma da interface comentado (o sistema e focado em pt-BR por enquanto); o campo nao e mais
+  enviado, entao o valor salvo nao e sobrescrito.
+
 ## [0.1.0a70] - 2026-10-06
 
 ### Corrigido

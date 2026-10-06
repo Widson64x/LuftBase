@@ -156,108 +156,266 @@ const LuftPerfil = {
         }
     },
 
+    // ========================================================================
+    // EDITOR DE FOTO: recorte circular com arrastar, zoom e giro
+    // ========================================================================
+    _foto: null,
+
     _configurarUploadFoto: function() {
-        const fileInput = document.getElementById('luft-perfil-file-input');
-        const triggerBtn = document.getElementById('luft-perfil-avatar-upload-trigger');
-        const btnAlterar = document.getElementById('btn-luft-alterar-foto');
-        const btnRemover = document.getElementById('btn-luft-remover-foto');
+        const gatilho = document.getElementById('luft-perfil-avatar-upload-trigger');
+        const modal = document.getElementById('luft-foto-modal');
+        if (!gatilho || !modal) return;
 
-        const abrirSeletor = () => {
-            if (fileInput) fileInput.click();
+        // O drawer usa transform, o que faria o position: fixed do modal ficar preso nele.
+        if (modal.parentElement !== document.body) document.body.appendChild(modal);
+
+        const el = (id) => document.getElementById(id);
+        const canvas = el('luft-foto-canvas');
+        const palco = el('luft-foto-palco');
+        const entrada = el('luft-foto-input');
+        const zoom = el('luft-foto-zoom');
+        const TAM = canvas.width;
+        const estado = { img: null, rot: 0, zoom: 1, ox: 0, oy: 0, arrasto: null, alterada: false, temFotoAtual: false };
+        this._foto = estado;
+
+        const erro = (texto) => {
+            const caixa = el('luft-foto-erro');
+            caixa.textContent = texto || '';
+            caixa.hidden = !texto;
         };
 
-        if (triggerBtn) triggerBtn.addEventListener('click', abrirSeletor);
-        if (btnAlterar) btnAlterar.addEventListener('click', abrirSeletor);
+        const dimensoes = () => {
+            const girada = estado.rot % 2 === 1;
+            return { w: girada ? estado.img.height : estado.img.width, h: girada ? estado.img.width : estado.img.height };
+        };
+        const escala = () => {
+            const d = dimensoes();
+            return (TAM / Math.min(d.w, d.h)) * estado.zoom;
+        };
+        const limitar = () => {
+            if (!estado.img) return;
+            const d = dimensoes();
+            const folgaX = Math.max(0, (d.w * escala() - TAM) / 2);
+            const folgaY = Math.max(0, (d.h * escala() - TAM) / 2);
+            estado.ox = Math.min(folgaX, Math.max(-folgaX, estado.ox));
+            estado.oy = Math.min(folgaY, Math.max(-folgaY, estado.oy));
+        };
+        const desenhar = () => {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, TAM, TAM);
+            if (!estado.img) return;
+            limitar();
+            ctx.save();
+            ctx.translate(TAM / 2 + estado.ox, TAM / 2 + estado.oy);
+            ctx.rotate((estado.rot * Math.PI) / 2);
+            ctx.scale(escala(), escala());
+            ctx.drawImage(estado.img, -estado.img.width / 2, -estado.img.height / 2);
+            ctx.restore();
+            // Escurece o que fica fora do circulo (o que sera cortado).
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, TAM, TAM);
+            ctx.arc(TAM / 2, TAM / 2, TAM / 2 - 3, 0, Math.PI * 2, true);
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.58)';
+            ctx.fill('evenodd');
+            ctx.beginPath();
+            ctx.arc(TAM / 2, TAM / 2, TAM / 2 - 3, 0, Math.PI * 2);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.stroke();
+            ctx.restore();
+        };
+        const atualizarTela = () => {
+            const comImagem = !!estado.img;
+            el('luft-foto-vazio').hidden = comImagem;
+            canvas.hidden = !comImagem;
+            el('luft-foto-controles').hidden = !comImagem;
+            el('luft-foto-dica').hidden = !comImagem;
+            el('luft-foto-trocar').hidden = !comImagem;
+            el('luft-foto-remover').hidden = !estado.temFotoAtual;
+            el('luft-foto-salvar').disabled = !(comImagem && estado.alterada);
+            zoom.value = String(Math.round(estado.zoom * 100));
+            desenhar();
+        };
+        const marcarAlterada = () => { estado.alterada = true; atualizarTela(); };
 
-        if (fileInput) {
-            fileInput.addEventListener('change', (e) => {
-                const arquivo = e.target.files && e.target.files[0];
-                if (arquivo) {
-                    this._processarEEnviarFoto(arquivo);
-                }
-            });
-        }
-
-        if (btnRemover) {
-            btnRemover.addEventListener('click', () => this.removerFoto());
-        }
-    },
-
-    _processarEEnviarFoto: function(arquivo) {
-        if (!arquivo.type.startsWith('image/')) {
-            alert('Por favor, selecione um arquivo de imagem válido (PNG, JPEG ou WebP).');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                // Redimensionamento de alta performance via Canvas para tamanho 256x256
-                const canvas = document.createElement('canvas');
-                const tamanho = 256;
-                canvas.width = tamanho;
-                canvas.height = tamanho;
-                const ctx = canvas.getContext('2d');
-
-                // Corta o centro mantendo proporção quadrada perfeita
-                const menorLado = Math.min(img.width, img.height);
-                const sx = (img.width - menorLado) / 2;
-                const sy = (img.height - menorLado) / 2;
-
-                ctx.drawImage(img, sx, sy, menorLado, menorLado, 0, 0, tamanho, tamanho);
-                const fotoBase64 = canvas.toDataURL('image/webp', 0.88);
-
-                this._enviarFotoServidor(fotoBase64);
+        const carregarImagem = (fonte, alterada) => {
+            erro('');
+            const imagem = new Image();
+            imagem.onload = () => {
+                estado.img = imagem;
+                estado.rot = 0; estado.zoom = 1; estado.ox = 0; estado.oy = 0;
+                estado.alterada = alterada;
+                atualizarTela();
+                canvas.focus({ preventScroll: true });
             };
-            img.src = e.target.result;
+            imagem.onerror = () => erro('Não foi possível abrir essa imagem. Use um arquivo PNG, JPEG ou WebP.');
+            imagem.src = fonte;
         };
-        reader.readAsDataURL(arquivo);
+        const carregarArquivo = (arquivo) => {
+            if (!arquivo) return;
+            if (!/^image\/(png|jpe?g|webp)$/i.test(arquivo.type)) {
+                erro('Formato não aceito. Use PNG, JPEG ou WebP.');
+                return;
+            }
+            if (arquivo.size > 8 * 1024 * 1024) {
+                erro('A imagem é muito grande (máximo 8 MB).');
+                return;
+            }
+            const leitor = new FileReader();
+            leitor.onload = (e) => carregarImagem(e.target.result, true);
+            leitor.onerror = () => erro('Não foi possível ler o arquivo.');
+            leitor.readAsDataURL(arquivo);
+        };
+
+        const exportar = () => {
+            const SAIDA = 256;
+            const k = SAIDA / TAM;
+            const saida = document.createElement('canvas');
+            saida.width = SAIDA; saida.height = SAIDA;
+            const ctx = saida.getContext('2d');
+            ctx.imageSmoothingQuality = 'high';
+            ctx.translate(SAIDA / 2 + estado.ox * k, SAIDA / 2 + estado.oy * k);
+            ctx.rotate((estado.rot * Math.PI) / 2);
+            ctx.scale(escala() * k, escala() * k);
+            ctx.drawImage(estado.img, -estado.img.width / 2, -estado.img.height / 2);
+            const webp = saida.toDataURL('image/webp', 0.9);
+            return webp.startsWith('data:image/webp') ? webp : saida.toDataURL('image/png');
+        };
+
+        const aoTeclar = (e) => {
+            if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); fechar(); }
+        };
+        const abrir = () => {
+            erro('');
+            const atual = this._dadosUsuario && this._dadosUsuario.foto_perfil;
+            estado.img = null; estado.alterada = false; estado.temFotoAtual = !!atual;
+            modal.hidden = false;
+            document.addEventListener('keydown', aoTeclar, true);
+            if (atual) carregarImagem(atual, false); else atualizarTela();
+            modal.querySelector('.luft-foto-card').focus({ preventScroll: true });
+        };
+        const fechar = () => {
+            modal.hidden = true;
+            document.removeEventListener('keydown', aoTeclar, true);
+            entrada.value = '';
+            gatilho.focus({ preventScroll: true });
+        };
+        this._fecharEditorFoto = fechar;
+
+        gatilho.addEventListener('click', abrir);
+        modal.querySelectorAll('[data-foto-fechar]').forEach((b) => b.addEventListener('click', fechar));
+        modal.querySelectorAll('[data-foto-escolher]').forEach((b) => b.addEventListener('click', () => entrada.click()));
+        entrada.addEventListener('change', (e) => carregarArquivo(e.target.files && e.target.files[0]));
+
+        // Arrastar uma imagem do computador para o palco.
+        ['dragenter', 'dragover'].forEach((nome) => palco.addEventListener(nome, (e) => { e.preventDefault(); palco.classList.add('arrastando-arquivo'); }));
+        ['dragleave', 'drop'].forEach((nome) => palco.addEventListener(nome, (e) => { e.preventDefault(); palco.classList.remove('arrastando-arquivo'); }));
+        palco.addEventListener('drop', (e) => carregarArquivo(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]));
+
+        // Posicionar: arrastar com mouse/toque, setas do teclado e roda do mouse para o zoom.
+        canvas.addEventListener('pointerdown', (e) => {
+            if (!estado.img) return;
+            canvas.setPointerCapture(e.pointerId);
+            estado.arrasto = { x: e.clientX, y: e.clientY, ox: estado.ox, oy: estado.oy };
+            canvas.classList.add('segurando');
+        });
+        canvas.addEventListener('pointermove', (e) => {
+            if (!estado.arrasto) return;
+            const razao = TAM / canvas.getBoundingClientRect().width;
+            estado.ox = estado.arrasto.ox + (e.clientX - estado.arrasto.x) * razao;
+            estado.oy = estado.arrasto.oy + (e.clientY - estado.arrasto.y) * razao;
+            estado.alterada = true;
+            atualizarTela();
+        });
+        const soltar = () => { estado.arrasto = null; canvas.classList.remove('segurando'); };
+        canvas.addEventListener('pointerup', soltar);
+        canvas.addEventListener('pointercancel', soltar);
+        canvas.addEventListener('wheel', (e) => {
+            if (!estado.img) return;
+            e.preventDefault();
+            estado.zoom = Math.min(3, Math.max(1, estado.zoom + (e.deltaY < 0 ? 0.08 : -0.08)));
+            marcarAlterada();
+        }, { passive: false });
+        canvas.addEventListener('keydown', (e) => {
+            const passo = e.shiftKey ? 20 : 6;
+            const mover = { ArrowLeft: [-passo, 0], ArrowRight: [passo, 0], ArrowUp: [0, -passo], ArrowDown: [0, passo] }[e.key];
+            if (!mover || !estado.img) return;
+            e.preventDefault();
+            estado.ox += mover[0]; estado.oy += mover[1];
+            marcarAlterada();
+        });
+
+        zoom.addEventListener('input', () => { estado.zoom = Number(zoom.value) / 100; marcarAlterada(); });
+        el('luft-foto-girar-esq').addEventListener('click', () => { estado.rot = (estado.rot + 3) % 4; marcarAlterada(); });
+        el('luft-foto-girar-dir').addEventListener('click', () => { estado.rot = (estado.rot + 1) % 4; marcarAlterada(); });
+        el('luft-foto-centralizar').addEventListener('click', () => { estado.zoom = 1; estado.ox = 0; estado.oy = 0; marcarAlterada(); });
+
+        // Remover: confirmacao no proprio botao (sem janela do navegador).
+        const remover = el('luft-foto-remover');
+        let confirmando = null;
+        const rotuloRemover = remover.querySelector('span');
+        const reiniciarRemover = () => { clearTimeout(confirmando); confirmando = null; rotuloRemover.textContent = 'Remover foto'; };
+        remover.addEventListener('click', async () => {
+            if (!confirmando) {
+                rotuloRemover.textContent = 'Confirmar remoção';
+                confirmando = setTimeout(reiniciarRemover, 4000);
+                return;
+            }
+            reiniciarRemover();
+            remover.disabled = true;
+            const ok = await this.removerFoto();
+            remover.disabled = false;
+            if (ok) fechar(); else erro('Não foi possível remover a foto agora.');
+        });
+
+        const salvar = el('luft-foto-salvar');
+        salvar.addEventListener('click', async () => {
+            if (!estado.img) return;
+            salvar.disabled = true;
+            erro('');
+            const ok = await this._enviarFotoServidor(exportar());
+            if (ok) fechar(); else { salvar.disabled = false; erro('Não foi possível salvar a foto. Tente novamente.'); }
+        });
     },
 
     _enviarFotoServidor: async function(fotoBase64) {
         try {
             const resp = await fetch((window.LUFT_RAIZ || '') + '/_luftbase/perfil/foto', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': this._obterCsrfToken()
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this._obterCsrfToken() },
                 body: JSON.stringify({ foto: fotoBase64 })
             });
-            const dados = await resp.json();
+            const dados = await resp.json().catch(() => ({}));
             if (resp.ok && dados.status === 'success') {
+                if (this._dadosUsuario) this._dadosUsuario.foto_perfil = dados.foto_perfil;
                 this._atualizarAvataresNaInterface(dados.foto_perfil);
                 this._notificar('Foto de perfil atualizada com sucesso!', 'sucesso');
-            } else {
-                alert(dados.mensagem || 'Falha ao atualizar foto de perfil.');
+                return true;
             }
         } catch (erro) {
             console.error('Erro ao enviar foto:', erro);
-            alert('Erro de comunicação ao enviar foto de perfil.');
         }
+        return false;
     },
 
     removerFoto: async function() {
-        if (!confirm('Deseja realmente remover sua foto de perfil?')) return;
         try {
             const resp = await fetch((window.LUFT_RAIZ || '') + '/_luftbase/perfil/foto', {
                 method: 'DELETE',
-                headers: {
-                    'X-CSRF-Token': this._obterCsrfToken()
-                }
+                headers: { 'X-CSRF-Token': this._obterCsrfToken() }
             });
-            const dados = await resp.json();
+            const dados = await resp.json().catch(() => ({}));
             if (resp.ok && dados.status === 'success') {
+                if (this._dadosUsuario) this._dadosUsuario.foto_perfil = null;
                 this._atualizarAvataresNaInterface(null);
                 this._notificar('Foto de perfil removida.', 'sucesso');
-            } else {
-                alert(dados.mensagem || 'Falha ao remover foto.');
+                return true;
             }
         } catch (erro) {
             console.error('Erro ao remover foto:', erro);
-            alert('Erro ao remover foto.');
         }
+        return false;
     },
 
     _atualizarAvataresNaInterface: function(fotoUrl) {
@@ -479,7 +637,7 @@ const LuftPerfil = {
         const payload = {
             modo_tema: this._modoSelecionado,
             tema_preferido: this._temaSelecionado,
-            idioma: document.getElementById('campo-perfil-idioma')?.value || 'pt-BR'
+            ...(document.getElementById('campo-perfil-idioma') ? { idioma: document.getElementById('campo-perfil-idioma').value } : {})
         };
 
         try {

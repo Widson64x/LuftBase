@@ -44,6 +44,7 @@ _MARCA_HANDLER = "_luftbase_console"
 HOST_PADRAO = "127.0.0.1"
 PORTA_PADRAO = 8000
 THREADS_PADRAO = 8
+PROXY_CONFIAVEL_PADRAO = "127.0.0.1"
 _logger = logging.getLogger("luftbase.servidor")
 
 
@@ -55,6 +56,27 @@ class ConfiguracaoServidor:
     porta: int = PORTA_PADRAO
     prefixo: str = ""
     threads: int = THREADS_PADRAO
+    # Proxy reverso (nginx) autorizado a informar o IP e o protocolo reais do cliente. Sem isso o
+    # Waitress APAGA os cabecalhos X-Forwarded-* e a aplicacao so enxerga 127.0.0.1.
+    proxy_confiavel: str = PROXY_CONFIAVEL_PADRAO
+
+    @property
+    def argumentos_proxy(self) -> dict[str, object]:
+        """Opcoes do Waitress que ligam a confianca no proxy (vazio = nenhum proxy)."""
+
+        if not self.proxy_confiavel:
+            return {}
+        return {
+            "trusted_proxy": self.proxy_confiavel,
+            "trusted_proxy_count": 1,
+            "trusted_proxy_headers": {
+                "x-forwarded-for",
+                "x-forwarded-proto",
+                "x-forwarded-host",
+                "x-forwarded-port",
+            },
+            "clear_untrusted_proxy_headers": True,
+        }
 
     @property
     def url(self) -> str:
@@ -81,11 +103,20 @@ class ConfiguracaoServidor:
             if prefixo is not None
             else _variavel("LUFT_SERVIDOR_PREFIXO", "ROUTE_PREFIX")
         )
+        # LUFT_PROXY_CONFIAVEL: IP do proxy (padrao 127.0.0.1, o nginx na mesma maquina). Pode ser
+        # "*" para qualquer origem (so se o servidor nao aceitar conexoes de fora do proxy) e
+        # "desligado" para nao confiar em ninguem (acesso direto, sem proxy).
+        proxy = _variavel("LUFT_PROXY_CONFIAVEL")
+        if proxy is None:
+            proxy = PROXY_CONFIAVEL_PADRAO
+        elif proxy.lower() in {"desligado", "nenhum", "off", "false", "0"}:
+            proxy = ""
         return cls(
             host=host_final,
             porta=porta_final,
             prefixo=normalizar_prefixo(bruto),
             threads=threads_final,
+            proxy_confiavel=proxy,
         )
 
 
@@ -246,6 +277,7 @@ def executar(
         threads=configuracao.threads,
         url_prefix=configuracao.prefixo,
         ident=None,
+        **configuracao.argumentos_proxy,
     )
 
 

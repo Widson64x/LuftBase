@@ -38,8 +38,8 @@
                     <i class="ph-bold ph-camera"></i>
                     <span>Alterar</span>
                 </button>
+                <span class="luft-perfil-avatar-selo" aria-hidden="true"><i class="ph-bold ph-camera"></i></span>
             </div>
-            <input type="file" id="luft-perfil-file-input" accept="image/png, image/jpeg, image/webp" style="display: none;">
         </div>
 
         <div class="luft-perfil-hero-info">
@@ -66,18 +66,6 @@
                 </span>
             </div>
         </div>
-    </div>
-
-    <!-- Ações Rápidas de Avatar -->
-    <div class="luft-perfil-avatar-actions">
-        <button type="button" id="btn-luft-alterar-foto" class="luft-btn-perfil-sm luft-btn-secondary">
-            <i class="ph-bold ph-upload-simple"></i>
-            <span>Carregar nova foto</span>
-        </button>
-        <button type="button" id="btn-luft-remover-foto" class="luft-btn-perfil-sm luft-btn-ghost text-danger">
-            <i class="ph-bold ph-trash"></i>
-            <span>Remover foto</span>
-        </button>
     </div>
 
     <!-- Navegação de Abas -->
@@ -279,6 +267,7 @@
                 </div>
             </div>
 
+            {# Idioma da interface: desativado por enquanto (o sistema e focado em pt-BR).
             <div class="luft-perfil-section" style="margin-top: 24px;">
                 <h5 class="luft-perfil-section-title">Idioma da Interface</h5>
                 <div class="luft-input-icon-wrap">
@@ -290,6 +279,7 @@
                     </select>
                 </div>
             </div>
+            #}
 
             <div class="luft-perfil-form-actions" style="margin-top: 28px;">
                 <button type="button" id="btn-luft-salvar-aparencia" class="luft-btn-perfil luft-btn-primary">
@@ -367,4 +357,57 @@
         </span>
     </div>
 
+</div>
+
+<!-- Editor de foto de perfil (movido para o <body> pelo perfil.js) -->
+<div id="luft-foto-modal" class="luft-foto-modal" role="dialog" aria-modal="true" aria-labelledby="luft-foto-titulo" hidden>
+    <div class="luft-foto-backdrop" data-foto-fechar></div>
+    <div class="luft-foto-card" tabindex="-1">
+        <div class="luft-foto-head">
+            <h5 id="luft-foto-titulo">Foto de perfil</h5>
+            <button type="button" class="luft-foto-x" data-foto-fechar aria-label="Fechar"><i class="ph-bold ph-x"></i></button>
+        </div>
+
+        <div class="luft-foto-palco" id="luft-foto-palco">
+            <canvas id="luft-foto-canvas" width="320" height="320" tabindex="0" aria-label="Área de ajuste da foto: arraste para posicionar"></canvas>
+            <div class="luft-foto-vazio" id="luft-foto-vazio">
+                <i class="ph-duotone ph-image-square"></i>
+                <strong>Arraste uma imagem para cá</strong>
+                <span>ou escolha uma foto do seu computador</span>
+                <button type="button" class="luft-btn-perfil-sm luft-btn-secondary" data-foto-escolher>
+                    <i class="ph-bold ph-upload-simple"></i><span>Escolher foto</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="luft-foto-controles" id="luft-foto-controles">
+            <div class="luft-foto-zoom">
+                <i class="ph-bold ph-magnifying-glass-minus"></i>
+                <input type="range" id="luft-foto-zoom" min="100" max="300" value="100" step="1" aria-label="Aproximar">
+                <i class="ph-bold ph-magnifying-glass-plus"></i>
+            </div>
+            <div class="luft-foto-ferramentas">
+                <button type="button" class="luft-foto-ferr" id="luft-foto-girar-esq" title="Girar para a esquerda"><i class="ph-bold ph-arrow-counter-clockwise"></i></button>
+                <button type="button" class="luft-foto-ferr" id="luft-foto-girar-dir" title="Girar para a direita"><i class="ph-bold ph-arrow-clockwise"></i></button>
+                <button type="button" class="luft-foto-ferr" id="luft-foto-centralizar" title="Centralizar e restaurar o zoom"><i class="ph-bold ph-arrows-in-cardinal"></i></button>
+            </div>
+        </div>
+        <p class="luft-foto-dica" id="luft-foto-dica">Arraste a foto para posicionar e use o controle para aproximar.</p>
+        <p class="luft-foto-erro" id="luft-foto-erro" role="alert" hidden></p>
+
+        <div class="luft-foto-rodape">
+            <button type="button" class="luft-btn-perfil-sm luft-btn-ghost text-danger" id="luft-foto-remover" hidden>
+                <i class="ph-bold ph-trash"></i><span>Remover foto</span>
+            </button>
+            <span class="luft-foto-espaco"></span>
+            <button type="button" class="luft-btn-perfil-sm luft-btn-secondary" data-foto-escolher id="luft-foto-trocar" hidden>
+                <i class="ph-bold ph-upload-simple"></i><span>Trocar foto</span>
+            </button>
+            <button type="button" class="luft-btn-perfil-sm luft-btn-secondary" data-foto-fechar>Cancelar</button>
+            <button type="button" class="luft-btn-perfil-sm luft-btn-primary" id="luft-foto-salvar" disabled>
+                <i class="ph-bold ph-check"></i><span>Salvar</span>
+            </button>
+        </div>
+        <input type="file" id="luft-foto-input" accept="image/png, image/jpeg, image/webp" hidden>
+    </div>
 </div>

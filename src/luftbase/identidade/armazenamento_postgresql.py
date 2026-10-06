@@ -45,10 +45,14 @@ class ArmazenamentoSessoesPostgreSQL:
         agora: datetime,
         ip_origem: str | None,
         user_agent: str | None,
+        novo_login: bool = False,
     ) -> None:
         try:
             usuario = sessao_db.get(Usuario, codigo_usuario)
             if usuario is not None:
+                if novo_login:
+                    # So um login de verdade (sessao nova) conta; renovacao nao.
+                    usuario.total_logins = (usuario.total_logins or 0) + 1
                 usuario.status_online = True
                 usuario.id_sessao_atual = id_sessao
                 usuario.ultimo_acesso = agora
@@ -200,11 +204,9 @@ class ArmazenamentoSessoesPostgreSQL:
         login_usuario: str | None = None
 
         if has_request_context():
-            ip_origem = request.headers.get("X-Forwarded-For", request.remote_addr)
-            if ip_origem and "," in ip_origem:
-                ip_origem = ip_origem.split(",")[0].strip()
-            if ip_origem:
-                ip_origem = ip_origem[:50]
+            # `remote_addr` ja traz o IP real quando o proxy e confiavel (Waitress/ProxyFix). Ler
+            # X-Forwarded-For direto pegaria o 1o item, que o proprio cliente pode forjar.
+            ip_origem = (request.remote_addr or "")[:50] or None
             if request.user_agent and request.user_agent.string:
                 user_agent = request.user_agent.string[:500]
             with current_app.app_context():
@@ -331,6 +333,7 @@ class ArmazenamentoSessoesPostgreSQL:
                             agora,
                             registro.ip_origem,
                             registro.user_agent,
+                            novo_login=houve_login,
                         )
                 else:
                     # Nova sessao
@@ -371,6 +374,7 @@ class ArmazenamentoSessoesPostgreSQL:
                             agora,
                             ip_origem,
                             user_agent,
+                            novo_login=True,
                         )
 
                 sessao_db.commit()
