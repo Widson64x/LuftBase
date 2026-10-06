@@ -2,6 +2,17 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a61] - 2026-10-06
+
+### Alterado
+
+- Breadcrumb padronizado em todos os sistemas: `[casinha] > [Aplicacao] > [pagina]`. A casinha
+  leva a raiz da plataforma (Luft-Workspace; `/`, ou `LUFT_URL_WORKSPACE` no `app.config`) e o nome
+  da aplicacao leva a raiz da propria aplicacao. Antes a casinha e o nome eram um unico link, e
+  nas paginas do LuftBase ele levava ao Workspace. Novo macro compartilhado
+  `luftbase/_breadcrumb.html` (`raiz`), usado por todas as telas do LuftBase; as aplicacoes com
+  tela inicial propria passam `href_app=url_for(...)`. Variavel de contexto `luft_url_workspace`.
+
 ## [0.1.0a60] - 2026-10-05
 
 ### Corrigido

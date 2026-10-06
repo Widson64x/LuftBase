@@ -1,0 +1,12 @@
+{# Raiz do breadcrumb em todos os sistemas: [casinha] > [Aplicação]
+   - a casinha leva à raiz da plataforma (Luft-Workspace): `luft_url_workspace` (padrão "/");
+   - o nome leva à raiz da própria aplicação (`href_app`, ou a raiz sob o prefixo do servidor).
+   Uso: {% from "luftbase/_breadcrumb.html" import raiz as breadcrumb_raiz with context %}
+        {{ breadcrumb_raiz() }}                      (páginas internas)
+        {{ breadcrumb_raiz(ativo=true) }}            (quando a página atual é a raiz)
+        {{ breadcrumb_raiz(href_app=url_for(...)) }} (aplicação com tela inicial própria) #}
+{% macro raiz(ativo=false, href_app=none) -%}
+<a href="{{ luft_url_workspace | default('/') }}" class="luft-breadcrumb-item luft-breadcrumb-home" title="Ir para o Luft-Workspace" aria-label="Ir para o Luft-Workspace"><i class="ph-fill ph-house"></i></a>
+<i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
+<a href="{{ href_app or (request.script_root ~ '/') }}" class="luft-breadcrumb-item d-flex align-items-center gap-1 text-decoration-none{{ ' active font-semibold' if ativo else ' text-muted' }}" style="text-decoration: none;"{% if ativo %} aria-current="page"{% endif %}>{{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default('Luft-WorkSpace') }}</a>
+{%- endmacro %}

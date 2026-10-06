@@ -976,3 +976,23 @@ i[class^="ph-"], i[class*=" ph-"] {
 .luft-breadcrumb a:hover {
     color: var(--luft-primary-600) !important;
 }
+
+/* Casinha do breadcrumb: leva a raiz da plataforma (Luft-Workspace). */
+.luft-breadcrumb-home {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    color: var(--luft-text-muted);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.luft-breadcrumb-home i {
+    font-size: 1rem;
+}
+
+.luft-breadcrumb-home:hover {
+    background: var(--luft-primary-50, rgba(37, 99, 235, 0.1));
+}

@@ -1,12 +1,11 @@
 {% extends layout_base | default(luft_base_template) | default('luftbase/base.html') %}
+{% from "luftbase/_breadcrumb.html" import raiz as breadcrumb_raiz with context %}
 {% import "luftbase/components.html" as ui %}
 
 {% block titulo %}Painel de Controle - LuftBase{% endblock %}
 
 {% block breadcrumb %}
-    <a href="{{ url_raiz_aplicacao | default('/') }}" class="luft-breadcrumb-item d-flex align-items-center gap-1 text-muted text-decoration-none" style="text-decoration: none;">
-        <i class="ph-fill ph-house"></i> {{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default(luft_app_name) | default('Luft-WorkSpace') }}
-    </a>
+    {{ breadcrumb_raiz() }}
     <i class="ph-bold ph-caret-right text-muted" style="font-size: 0.75rem;"></i>
     <span class="luft-breadcrumb-item active font-semibold">Painel de Controle</span>
 {% endblock %}

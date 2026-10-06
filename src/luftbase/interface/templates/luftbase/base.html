@@ -297,9 +297,7 @@
                 <div class="d-flex align-items-center">
                     <div class="luft-breadcrumb">
                         {% block breadcrumb %}
-                            <span class="luft-breadcrumb-item active d-flex align-items-center gap-1">
-                                <i class="ph-fill ph-house"></i> {% block titulo_pagina %}{{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default('Luft-WorkSpace') }}{% endblock %}
-                            </span>
+                            {% block titulo_pagina %}{% from "luftbase/_breadcrumb.html" import raiz as breadcrumb_raiz with context %}{{ breadcrumb_raiz(ativo=true) }}{% endblock %}
                         {% endblock %}
                     </div>
                 </div>

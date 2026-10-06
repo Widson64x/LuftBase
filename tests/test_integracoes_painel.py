@@ -440,3 +440,40 @@ def test_painel_marca_global_como_somente_leitura_no_satelite() -> None:
     assert "LuftPublicacoesPainel.arquivar(7)" not in no_satelite
     assert "Gerenciado no Workspace" not in no_workspace
     assert "LuftPublicacoesPainel.arquivar(7)" in no_workspace
+
+
+# ---- Breadcrumb: [casinha -> Workspace] > [Aplicacao -> raiz do app] ----------------------------
+
+
+def _breadcrumb(script_root: str = "", **contexto) -> str:  # type: ignore[no-untyped-def]
+    from flask import render_template_string
+
+    app, _, _, _ = _app_com_painel()
+    app.config["LUFT_APLICACAO_NOME"] = "Luft-ConnectAir"
+    modelo = (
+        '{% from "luftbase/_breadcrumb.html" import raiz as breadcrumb_raiz with context %}'
+        "{{ breadcrumb_raiz(**args) }}"
+    )
+    with app.test_request_context("/x", base_url=f"http://h{script_root}/"):
+        from flask import request
+
+        request.environ["SCRIPT_NAME"] = script_root
+        return render_template_string(modelo, args=contexto, luft_url_workspace="/")
+
+
+def test_breadcrumb_casinha_vai_ao_workspace_e_nome_vai_a_raiz_do_app() -> None:
+    html = _breadcrumb(script_root="/Luft-ConnectAir")
+
+    assert 'href="/" class="luft-breadcrumb-item luft-breadcrumb-home"' in html
+    assert 'title="Ir para o Luft-Workspace"' in html
+    assert 'href="/Luft-ConnectAir/"' in html
+    assert ">Luft-ConnectAir</a>" in html
+    assert html.index("ph-house") < html.index("ph-caret-right") < html.index("Luft-ConnectAir")
+
+
+def test_breadcrumb_raiz_ativa_e_href_proprio() -> None:
+    ativo = _breadcrumb(ativo=True)
+    outro = _breadcrumb(href_app="/Luft-ConnectAir/dashboard")
+
+    assert "active font-semibold" in ativo and 'aria-current="page"' in ativo
+    assert 'href="/Luft-ConnectAir/dashboard"' in outro and "text-muted" in outro

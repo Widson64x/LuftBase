@@ -1,11 +1,10 @@
 {% extends "luftbase/base.html" %}
+{% from "luftbase/_breadcrumb.html" import raiz as breadcrumb_raiz with context %}
 
 {% block titulo %}Acesso Restrito - {{ luft_app_name | default('Luft System') }}{% endblock %}
 
 {% block breadcrumb %}
-    <a href="{{ url_raiz_aplicacao | default(luft_url_raiz) | default('/') }}" class="luft-breadcrumb-item d-flex align-items-center gap-1 text-muted text-decoration-none">
-        <i class="ph-fill ph-house"></i> {{ config.LUFT_APLICACAO_NOME | default(luft_nome_app) | default(luft_app_name) | default('Luft-WorkSpace') }}
-    </a>
+    {{ breadcrumb_raiz() }}
     <i class="ph-bold ph-caret-right"></i>
     <span class="luft-breadcrumb-item active">Acesso Restrito</span>
 {% endblock %}

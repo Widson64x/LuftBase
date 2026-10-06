@@ -580,6 +580,7 @@ def registrar_interface_web(app: Flask) -> None:
             "luft_csrf_token": token_csrf(),
             "luft_nome_app": app.config.get("LUFT_APLICACAO_NOME", "Luft-WorkSpace"),
             "url_raiz_aplicacao": "/",
+            "luft_url_workspace": app.config.get("LUFT_URL_WORKSPACE") or "/",
             "luft_tipo_versao_app": tipo_versao,
             "luft_url_busca": url_busca,
             "luft_app_version_type": tipo_versao,
