@@ -17,6 +17,7 @@ from luftbase.observabilidade.analise import (
     PaginaAuditoria,
     ServicoAnaliseAuditoria,
 )
+from luftbase.observabilidade.tempo_real import ServicoTempoReal
 from luftbase.plataforma import obter_luftbase
 from luftbase.web.escopo import sistema_aplicacao_atual
 
@@ -157,6 +158,18 @@ def api_resumo():  # type: ignore[no-untyped-def]
             },
         }
     )
+
+
+@AuditoriaBp.get("/tempo-real")
+@login_required
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
+def api_tempo_real():  # type: ignore[no-untyped-def]
+    """Retrato do momento: quem esta online, o que faz, navegadores e atividade recente."""
+
+    dados = ServicoTempoReal(obter_luftbase().bancos.core).obter(id_sistema=_resolver_sistema())
+    resposta = jsonify({"status": "success", "data": dados})
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta
 
 
 @AuditoriaBp.get("/acessos")

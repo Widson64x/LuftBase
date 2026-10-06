@@ -2,6 +2,18 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a81] - 2026-10-06
+
+### Adicionado
+
+- Auditoria & Analise, secao **Ao vivo** (atualiza a cada 10 s, com pausa e sem consultar quando a aba
+  esta oculta): usuarios online agora, sessoes ativas, requisicoes por minuto, tempo medio e erros 5xx; lista
+  de quem esta conectado (nome, navegador e SO, IP, sistema, o que fez por ultimo e ha quanto tempo,
+  situacao ativo/recente/ocioso); navegadores, sistemas operacionais e dispositivos em uso; feed das ultimas
+  acoes (sem as chamadas automaticas da tela). Segue o filtro de Sistema e o escopo da aplicacao.
+  Rota `GET /configuracoes/api/auditoria/tempo-real` (permissao `AUDITORIA.VISUALIZAR`, somente leitura),
+  `observabilidade/tempo_real.py`.
+
 ## [0.1.0a80] - 2026-10-06
 
 ### Alterado

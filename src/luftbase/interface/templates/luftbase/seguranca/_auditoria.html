@@ -4,6 +4,7 @@
     class="audit-shell"
     id="luftAuditoria"
     data-resumo-url="{{ url_for('Auditoria.api_resumo') }}"
+    data-tempo-real-url="{{ url_for('Auditoria.api_tempo_real') }}"
     data-acessos-url="{{ url_for('Auditoria.api_acessos') }}"
     data-detalhes-url="{{ url_for('Auditoria.api_detalhes') }}"
     data-alteracoes-url="{{ url_for('Auditoria.api_alteracoes') }}"
@@ -33,6 +34,50 @@
             </button>
         </div>
     </header>
+
+    <section class="audit-live" id="auditLive" aria-label="Atividade ao vivo">
+        <header class="audit-live-head">
+            <div>
+                <span class="audit-live-pulse" id="auditLivePulso"></span>
+                <h4>Ao vivo</h4>
+                <span class="audit-live-sub" id="auditLiveSub">Conectando…</span>
+            </div>
+            <div class="audit-live-actions">
+                <span class="audit-live-hint"><i class="ph-bold ph-arrows-clockwise"></i> atualiza a cada 10 s</span>
+                <button type="button" class="btn btn-outline btn-sm" id="auditLivePausar"><i class="ph-bold ph-pause"></i> Pausar</button>
+                <button type="button" class="btn btn-outline btn-sm" id="auditLiveRecolher" aria-expanded="true" title="Recolher"><i class="ph-bold ph-caret-up"></i></button>
+            </div>
+        </header>
+        <div class="audit-live-body" id="auditLiveCorpo">
+            <div class="audit-live-kpis">
+                <article><i class="ph-bold ph-user-circle-check"></i><div><strong data-live="usuarios_online">—</strong><small>Online agora</small></div></article>
+                <article><i class="ph-bold ph-devices"></i><div><strong data-live="sessoes_ativas">—</strong><small>Sessões ativas</small></div></article>
+                <article><i class="ph-bold ph-lightning"></i><div><strong data-live="requisicoes_por_minuto">—</strong><small>Req./min (5 min)</small></div></article>
+                <article><i class="ph-bold ph-timer"></i><div><strong data-live="tempo_medio_ms">—</strong><small>ms em média</small></div></article>
+                <article data-alerta="erros_15min"><i class="ph-bold ph-warning-octagon"></i><div><strong data-live="erros_15min">—</strong><small>Erros 5xx (15 min)</small></div></article>
+            </div>
+            <div class="audit-live-grid">
+                <article class="audit-card">
+                    <div class="audit-card-title"><div><h4>Quem está conectado</h4><p>O que cada pessoa fez por último, com navegador e IP.</p></div><i class="ph-bold ph-users-three"></i></div>
+                    <div class="audit-live-lista" id="auditLiveOnline"><div class="audit-empty">Carregando…</div></div>
+                </article>
+                <div class="audit-live-side">
+                    <article class="audit-card">
+                        <div class="audit-card-title"><div><h4>Navegadores</h4><p>Entre as sessões em atividade.</p></div><i class="ph-bold ph-browsers"></i></div>
+                        <div id="auditLiveNavegadores"></div>
+                    </article>
+                    <article class="audit-card">
+                        <div class="audit-card-title"><div><h4>Sistemas e dispositivos</h4><p>Onde as pessoas estão entrando.</p></div><i class="ph-bold ph-desktop"></i></div>
+                        <div id="auditLiveSistemas"></div>
+                    </article>
+                </div>
+            </div>
+            <article class="audit-card">
+                <div class="audit-card-title"><div><h4>Atividade ao vivo</h4><p>Últimas ações, da mais recente para a mais antiga (sem as chamadas automáticas da tela).</p></div><i class="ph-bold ph-pulse"></i></div>
+                <div class="audit-live-feed" id="auditLiveFeed"><div class="audit-empty">Carregando…</div></div>
+            </article>
+        </div>
+    </section>
 
     <div class="audit-filters" aria-label="Filtros da auditoria">
         <label class="audit-field audit-field-periodo">
@@ -171,3 +216,4 @@
 </aside>
 
 <script src="{{ url_for('luftbase.static', filename='js/auditoria.js') }}"></script>
+<script src="{{ url_for('luftbase.static', filename='js/auditoria_ao_vivo.js') }}"></script>

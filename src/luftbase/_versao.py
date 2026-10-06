@@ -1,3 +1,3 @@
 """Versao instalada do LuftBase."""
 
-__version__ = "0.1.0a80"
+__version__ = "0.1.0a81"
