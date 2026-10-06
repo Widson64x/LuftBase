@@ -2,6 +2,25 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a63] - 2026-10-06
+
+### Adicionado
+
+- Aplicacoes & Ambiente > Variaveis de Ambiente funciona (antes devolvia 501): le e altera o `.env`
+  de cada projeto, mas SO as variaveis NAO sensiveis de uma lista fechada (tempo de sessao e do
+  login corporativo, cache de permissoes, validade de links de e-mail e de qual ambiente vem o
+  banco de negocio). Tokens, Vault, identidade do sistema, cookies e LDAP nunca sao lidos nem
+  gravados pela web. Valores validados (inteiro em faixa ou opcao), com copia de seguranca
+  `.env.bak`, gravacao atomica, comentarios e quebra de linha preservados, auditoria e aviso de
+  que o servico precisa reiniciar. O projeto vem da pasta irma com o nome do sistema (mesma
+  convencao dos servicos, sem `.env`).
+
+### Corrigido
+
+- Servicos do Servidor: `systemctl` e `sudo` sao localizados tambem nos diretorios padrao do
+  sistema. Um servico systemd com `PATH` restrito (ex.: so a `.venv`) deixava todos os cartoes
+  como UNAVAILABLE. Quando um servico fica indisponivel, a tela passa a mostrar o motivo.
+
 ## [0.1.0a62] - 2026-10-06
 
 ### Adicionado

@@ -188,7 +188,9 @@ def _app(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
     ]
     monkeypatch.setattr(modulo, "_sistemas_com_servico", lambda: sistemas)
     monkeypatch.setattr(modulo, "plataforma_do_host", lambda: LINUX)
-    monkeypatch.setattr(modulo, "consultar_status", lambda nome, _p: StatusServico.EM_EXECUCAO)
+    monkeypatch.setattr(
+        modulo, "consultar_status_detalhado", lambda nome, _p: (StatusServico.EM_EXECUCAO, "")
+    )
     cliente = app.test_client()
     usuario = UsuarioAutenticado(
         id_usuario=10,
@@ -286,3 +288,22 @@ def test_post_devolve_502_e_audita_quando_o_host_recusa(monkeypatch: pytest.Monk
     assert resposta.status_code == 502
     assert resposta.get_json()["message"] == "sem sudo"
     assert estado.auditoria.registrar_alteracao.call_args.kwargs["acao"] == "FALHA_PARAR_SERVICO"
+
+
+def test_status_indisponivel_explica_o_motivo_e_usa_o_caminho_do_binario(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from luftbase.infraestrutura import servicos_host
+    from luftbase.infraestrutura.servicos_host import consultar_status_detalhado
+
+    falha = _executor(ResultadoComando(127, "", "comando nao encontrado: systemctl"))
+    status, detalhe = consultar_status_detalhado("luft-x.service", LINUX, falha)
+
+    assert status is StatusServico.INDISPONIVEL and "systemctl" in detalhe
+
+    # PATH restrito (ex.: so a .venv): systemctl e achado nos diretorios padrao do sistema.
+    monkeypatch.setattr(servicos_host.shutil, "which", lambda _n: None)
+    monkeypatch.setattr(servicos_host.os.path, "isfile", lambda c: c == "/usr/bin/systemctl")
+    monkeypatch.setattr(servicos_host.os, "access", lambda c, _m: c == "/usr/bin/systemctl")
+    assert servicos_host._binario("systemctl") == "/usr/bin/systemctl"
+    assert servicos_host._binario("inexistente") == "inexistente"

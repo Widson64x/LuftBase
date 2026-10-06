@@ -6,6 +6,7 @@ import contextlib
 import logging
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import cast
 
 logger = logging.getLogger(__name__)
@@ -34,11 +35,17 @@ from luftbase.infraestrutura.provisionamento_sistema import (
 from luftbase.infraestrutura.servicos_host import (
     ACOES,
     ErroServicoHost,
+    PlataformaHost,
     StatusServico,
-    consultar_status,
+    consultar_status_detalhado,
     executar_acao,
     nome_do_servico,
     plataforma_do_host,
+)
+from luftbase.infraestrutura.variaveis_ambiente import (
+    ErroVariavel,
+    gravar_variavel,
+    ler_variaveis,
 )
 from luftbase.interface.parametros import ParametroAplicacao
 from luftbase.interface.web import validar_csrf_requisicao
@@ -298,7 +305,7 @@ def _renderizar_painel_controle() -> str:
         parametros_aplicacao=parametros_aplicacao,
         url_comunicados=url_comunicados,
         url_atualizacoes=url_atualizacoes,
-        projetos_operacao=[],
+        projetos_operacao=_projetos_operacao(),
         servicos_operacao=_servicos_operacao(),
     )
 
@@ -1153,44 +1160,109 @@ def api_sistema_criar():  # type: ignore[no-untyped-def]
     )
 
 
+def _arquivo_env(sistema: Sistema) -> Path | None:
+    """`.env` do projeto de um sistema: o proprio, ou a pasta irma com o nome do sistema.
+
+    Mesma convencao dos servicos (sem `.env`): o projeto vive numa pasta com o nome da aplicacao,
+    ao lado desta. O nome so vale se for um nome seguro (sem barras nem `..`).
+    """
+
+    atual = Path(current_app.root_path).parent
+    if sistema.id_sistema == sistema_aplicacao_atual():
+        pasta = atual
+    elif nome_do_servico(sistema.nome_sistema, PlataformaHost.WINDOWS) is not None:
+        pasta = atual.parent / sistema.nome_sistema.strip()
+    else:
+        return None
+    arquivo = pasta / ".env"
+    return arquivo if arquivo.is_file() else None
+
+
+def _projetos_operacao() -> list[dict[str, object]]:
+    try:
+        sistemas = _sistemas_com_servico()
+    except SQLAlchemyError:
+        logger.exception("Falha ao listar os projetos do ambiente")
+        return []
+    return [
+        {"idProjeto": str(s.id_sistema), "nomeProjeto": s.nome_sistema, "protegido": False}
+        for s in sistemas
+        if _arquivo_env(s) is not None
+    ]
+
+
+def _projeto_pelo_id(id_projeto: object) -> tuple[Sistema, Path] | None:
+    """So projetos de sistemas cadastrados e visiveis; qualquer outro id (ou caminho) e ignorado."""
+
+    texto = str(id_projeto or "").strip()
+    for sistema in _sistemas_com_servico():
+        if str(sistema.id_sistema) == texto:
+            arquivo = _arquivo_env(sistema)
+            return (sistema, arquivo) if arquivo is not None else None
+    return None
+
+
 @ConfiguracoesBp.get("/api/configuracoes/ambiente/variaveis")
 @login_required
 @exigir_permissao(PermissaoLuftBase.VARIAVEIS_VISUALIZAR)
 def api_ambiente_variaveis():  # type: ignore[no-untyped-def]
-    """Informa que o recurso de ambiente está em homologação."""
+    """Variaveis NAO sensiveis do `.env` de um projeto (lista fechada; o resto nunca sai)."""
 
-    return (
-        jsonify(
-            {
-                "status": "error",
-                "message": (
-                    "Recurso de gestão de ambiente em fase de homologação "
-                    "e indisponível no momento."
-                ),
-            }
-        ),
-        501,
-    )
+    projeto = _projeto_pelo_id(request.args.get("idProjeto"))
+    if projeto is None:
+        return jsonify({"status": "error", "message": "Projeto não encontrado."}), 404
+    try:
+        variaveis = ler_variaveis(projeto[1])
+    except OSError:
+        logger.exception("Falha ao ler o .env de %s", projeto[0].nome_sistema)
+        return jsonify({"status": "error", "message": "Não foi possível ler o arquivo .env."}), 500
+    return jsonify({"status": "success", "data": {"variaveis": variaveis}})
 
 
 @ConfiguracoesBp.post("/api/configuracoes/ambiente/variaveis/salvar")
 @login_required
 @exigir_permissao(PermissaoLuftBase.VARIAVEIS_EDITAR)
 def api_ambiente_variaveis_salvar():  # type: ignore[no-untyped-def]
-    """Informa que a alteração de variáveis está em homologação."""
+    """Altera uma variavel NAO sensivel do `.env` (valida, faz copia de seguranca e audita)."""
 
     validar_csrf_requisicao()
-    return (
-        jsonify(
-            {
-                "status": "error",
-                "message": (
-                    "Recurso de gestão de variáveis em fase de homologação "
-                    "e indisponível no momento."
-                ),
-            }
-        ),
-        501,
+    dados = request.get_json(silent=True) or {}
+    projeto = _projeto_pelo_id(dados.get("idProjeto"))
+    if projeto is None:
+        return jsonify({"status": "error", "message": "Projeto não encontrado."}), 404
+    sistema, arquivo = projeto
+    chave = str(dados.get("chave", "")).strip()
+    try:
+        anterior, novo = gravar_variavel(arquivo, chave, str(dados.get("valor", "")))
+    except ErroVariavel as erro:
+        return jsonify({"status": "error", "message": str(erro)}), 400
+    except OSError:
+        logger.exception("Falha ao gravar o .env de %s", sistema.nome_sistema)
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Sem permissão para gravar o arquivo .env deste projeto.",
+                }
+            ),
+            500,
+        )
+
+    obter_luftbase().auditoria.registrar_alteracao(
+        recurso="VARIAVEL_AMBIENTE",
+        id_recurso=sistema.id_sistema,
+        acao="EDITAR_VARIAVEL",
+        descricao=f"Variável {chave} de {sistema.nome_sistema} alterada.",
+        dados_anteriores={chave: anterior},
+        dados_novos={chave: novo},
+    )
+    servico = nome_do_servico(sistema.nome_sistema, plataforma_do_host())
+    reinicio = f" Reinicie o serviço {servico} para aplicar." if servico else " Reinicie o serviço."
+    return jsonify(
+        {
+            "status": "success",
+            "message": f"{chave} atualizada em {sistema.nome_sistema}.{reinicio}",
+        }
     )
 
 
@@ -1242,10 +1314,14 @@ def api_ambiente_servicos():  # type: ignore[no-untyped-def]
     itens = []
     for servico in _servicos_operacao():
         nome = cast("str | None", servico["nomeServico"])
-        status = (
-            consultar_status(nome, plataforma).value if nome else StatusServico.INDISPONIVEL.value
+        status, detalhe = (
+            consultar_status_detalhado(nome, plataforma)
+            if nome
+            else (StatusServico.INDISPONIVEL, "Nome do sistema nao e um nome de servico valido.")
         )
-        itens.append({**servico, "status": status})
+        if status is StatusServico.INDISPONIVEL:
+            logger.warning("Servico %s indisponivel para consulta: %s", nome, detalhe)
+        itens.append({**servico, "status": status.value, "detalhe": detalhe})
     return jsonify({"status": "success", "data": {"servicos": itens}})
 
 

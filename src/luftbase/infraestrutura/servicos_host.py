@@ -13,7 +13,9 @@ shell, com lista de argumentos e tempo limite.
 
 from __future__ import annotations
 
+import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -70,9 +72,27 @@ def nome_do_servico(nome_sistema: str, plataforma: PlataformaHost) -> str | None
     return base
 
 
+_DIRETORIOS_PADRAO = ("/usr/bin", "/bin", "/usr/sbin", "/sbin", "/usr/local/bin")
+
+
+def _binario(nome: str) -> str:
+    """Caminho do executavel. Um servico systemd costuma ter PATH restrito (ex.: so a `.venv`),
+    entao `systemctl` e `sudo` sao procurados tambem nos diretorios padrao do sistema."""
+
+    achado = shutil.which(nome)
+    if achado:
+        return achado
+    for diretorio in _DIRETORIOS_PADRAO:
+        candidato = f"{diretorio}/{nome}"  # diretorios POSIX fixos
+        if os.path.isfile(candidato) and os.access(candidato, os.X_OK):
+            return candidato
+    return nome
+
+
 def executar_comando(argumentos: list[str]) -> ResultadoComando:
     """Executa sem shell e com tempo limite; binario ausente vira codigo 127."""
 
+    argumentos = [_binario(argumentos[0]), *argumentos[1:]]
     try:
         resultado = subprocess.run(  # noqa: S603
             argumentos,
@@ -125,6 +145,36 @@ def _status_windows(resultado: ResultadoComando) -> StatusServico:
     return StatusServico.INDISPONIVEL
 
 
+def _primeira_linha(texto: str) -> str:
+    linhas = [linha.strip() for linha in texto.splitlines() if linha.strip()]
+    return linhas[0][:200] if linhas else ""
+
+
+def consultar_status_detalhado(
+    nome_servico: str,
+    plataforma: PlataformaHost,
+    executor: Executor = executar_comando,
+) -> tuple[StatusServico, str]:
+    """Estado atual e, quando indisponivel, o motivo. Nunca levanta."""
+
+    if not _PADRAO_NOME.fullmatch(nome_servico.removesuffix(".service")):
+        return StatusServico.INDISPONIVEL, "Nome de servico invalido."
+    if plataforma is PlataformaHost.LINUX:
+        resultado = executor(
+            ["systemctl", "show", nome_servico, "-p", "LoadState", "-p", "ActiveState"]
+        )
+        if resultado.codigo != 0:
+            motivo = _primeira_linha(resultado.erro or resultado.saida)
+            return StatusServico.INDISPONIVEL, motivo or f"systemctl falhou ({resultado.codigo})."
+        status = _status_linux(resultado.saida)
+        return status, "" if status is not StatusServico.INDISPONIVEL else "Resposta inesperada."
+    resultado = executor(["sc", "query", nome_servico])
+    status = _status_windows(resultado)
+    if status is StatusServico.INDISPONIVEL:
+        return status, _primeira_linha(resultado.erro or resultado.saida) or "sc query falhou."
+    return status, ""
+
+
 def consultar_status(
     nome_servico: str,
     plataforma: PlataformaHost,
@@ -132,16 +182,7 @@ def consultar_status(
 ) -> StatusServico:
     """Estado atual do servico; nunca levanta (falha vira INDISPONIVEL)."""
 
-    if not _PADRAO_NOME.fullmatch(nome_servico.removesuffix(".service")):
-        return StatusServico.INDISPONIVEL
-    if plataforma is PlataformaHost.LINUX:
-        resultado = executor(
-            ["systemctl", "show", nome_servico, "-p", "LoadState", "-p", "ActiveState"]
-        )
-        if resultado.codigo != 0:
-            return StatusServico.INDISPONIVEL
-        return _status_linux(resultado.saida)
-    return _status_windows(executor(["sc", "query", nome_servico]))
+    return consultar_status_detalhado(nome_servico, plataforma, executor)[0]
 
 
 def _aguardar_status(
@@ -218,6 +259,7 @@ __all__ = [
     "ResultadoComando",
     "StatusServico",
     "consultar_status",
+    "consultar_status_detalhado",
     "executar_acao",
     "executar_comando",
     "nome_do_servico",

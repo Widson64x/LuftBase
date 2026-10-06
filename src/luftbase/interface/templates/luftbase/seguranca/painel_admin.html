@@ -2071,7 +2071,7 @@
             const resp = await req.json();
 
             if (resp.status === 'success') {
-                exibirToast('Sucesso', 'Variável atualizada no arquivo .env.', 'success');
+                exibirToast('Sucesso', resp.message || 'Variável atualizada no arquivo .env.', 'success');
                 LuftBase.fecharModal('modalEditarVariavel');
                 carregarVariaveisProjeto(projeto);
             } else {
@@ -2133,6 +2133,7 @@
                     const badge = document.getElementById(`badge-servico-${serv.idServico}`);
                     if (badge) {
                         badge.innerText = serv.status;
+                        badge.title = serv.detalhe || '';
                         badge.className = `luft-badge ${serv.status === 'RUNNING' ? 'luft-badge-success' : (serv.status === 'STOPPED' ? 'luft-badge-danger' : 'luft-badge-secondary')}`;
                     }
                     if (card) {
@@ -2140,6 +2141,17 @@
                         const smallNome = card.querySelector('small.font-mono');
                         if (smallNome && serv.nomeServico) {
                             smallNome.innerText = serv.nomeServico;
+                        }
+                        let aviso = card.querySelector('.servico-detalhe');
+                        if (serv.detalhe) {
+                            if (!aviso) {
+                                aviso = document.createElement('small');
+                                aviso.className = 'servico-detalhe text-danger d-block mt-1';
+                                if (smallNome) smallNome.after(aviso);
+                            }
+                            aviso.textContent = serv.detalhe;
+                        } else if (aviso) {
+                            aviso.remove();
                         }
                         const btnIniciar = card.querySelector('button[onclick*="iniciar"]');
                         const btnParar = card.querySelector('button[onclick*="parar"]');
