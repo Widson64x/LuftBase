@@ -40,6 +40,7 @@ from luftbase.identidade import (
     ServicoAutenticacao,
     TransporteLdap,
     carregar_usuario_sessao,
+    descartar_cookie_lembrar,
 )
 from luftbase.identidade.armazenamento_postgresql import ArmazenamentoSessoesPostgreSQL
 from luftbase.infraestrutura.banco.catalogo import CatalogoBancos
@@ -675,6 +676,7 @@ class PlataformaLuft:
         gerenciador.session_protection = "basic"
         gerenciador.init_app(app)
         gerenciador.user_loader(carregar_usuario_sessao)
+        descartar_cookie_lembrar(app)
         return gerenciador
 
 

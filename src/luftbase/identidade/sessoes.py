@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-from flask import Flask, Request, Response, current_app, session
+from flask import Flask, Request, Response, current_app, request, session
 from flask.sessions import SessionInterface, SessionMixin
 from flask_login import login_user, logout_user
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
@@ -261,7 +261,9 @@ def iniciar_sessao_usuario(usuario: UsuarioAutenticado) -> None:
     rotacionar_sessao()
     session.permanent = True
     session[_CHAVE_USUARIO] = usuario.como_dict()
-    if not login_user(usuario, remember=True, fresh=True):
+    # remember=False: a sessao vive no servidor. O cookie "lembrar" do Flask-Login sobrevivia ao
+    # logout e recriava uma sessao autenticada (ver `descartar_cookie_lembrar`).
+    if not login_user(usuario, remember=False, fresh=True):
         session.pop(_CHAVE_USUARIO, None)
         raise ErroSessao("O usuario nao esta ativo para iniciar a sessao.")
 
@@ -271,3 +273,24 @@ def encerrar_sessao_global() -> None:
 
     logout_user()
     revogar_sessao_atual()
+    # revogar_sessao_atual() faz session.clear(), o que apaga a ordem que o logout_user() deixou
+    # para o Flask-Login remover o cookie "lembrar". Repete-se a ordem depois da limpeza.
+    session["_remember"] = "clear"
+
+
+def descartar_cookie_lembrar(app: Flask) -> None:
+    """Remove o cookie \"lembrar\" do Flask-Login antes que ele possa recriar uma sessao.
+
+    O LuftBase nunca o usa (a sessao e do servidor), mas navegadores que logaram em versoes
+    anteriores ainda o carregam por um ano. Com ele, a primeira requisicao depois do logout fazia o
+    Flask-Login gravar `_user_id` na sessao anonima, e o usuario voltava a ficar online.
+    Roda antes de qualquer outro before_request, pois qualquer acesso a `current_user` o dispararia.
+    """
+
+    nome = app.config.get("REMEMBER_COOKIE_NAME", "remember_token")
+
+    def descartar() -> None:
+        if request.cookies.get(nome) is not None:
+            session["_remember"] = "clear"  # o Flask-Login ignora o cookie e o apaga na resposta
+
+    app.before_request_funcs.setdefault(None, []).insert(0, descartar)

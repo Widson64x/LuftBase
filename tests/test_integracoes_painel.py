@@ -533,3 +533,47 @@ def test_resumir_excecao_traz_a_cadeia_e_a_pilha_sem_valores() -> None:
     assert resumo["cadeia"] == ["builtins.RuntimeError", "builtins.ValueError"]
     assert any("interna" in linha for linha in resumo["origem"])  # type: ignore[union-attr]
     assert "secreto" not in str(resumo) and "outra-mensagem" not in str(resumo)
+
+
+# ---- Cookie "lembrar" velho nao pode recriar a sessao depois do logout ---------------------------
+
+
+def _app_com_rota_de_identidade():  # type: ignore[no-untyped-def]
+    from flask import jsonify, session
+    from flask_login import current_user
+
+    app, estado, cliente, _ = _app_com_painel()
+
+    @app.get("/quem")
+    def quem():  # type: ignore[no-untyped-def]
+        autenticado = bool(current_user.is_authenticated)  # dispara o carregamento do usuario
+        return jsonify(autenticado=autenticado, user_id=session.get("_user_id"))
+
+    return app, cliente
+
+
+def test_cookie_lembrar_antigo_nao_planta_user_id_nem_sobrevive() -> None:
+    from flask_login.utils import encode_cookie
+
+    app, cliente = _app_com_rota_de_identidade()
+    with app.app_context():
+        valor = encode_cookie("2280")
+    cliente.set_cookie("remember_token", valor)
+
+    resposta = cliente.get("/quem")
+
+    # Sem o descarte, o Flask-Login gravava _user_id=2280 mesmo sem reconhecer o usuario.
+    assert resposta.get_json() == {"autenticado": False, "user_id": None}
+    apagados = [
+        c for c in resposta.headers.getlist("Set-Cookie") if c.startswith("remember_token=")
+    ]
+    assert apagados and "Expires=Thu, 01 Jan 1970" in apagados[0]
+
+
+def test_login_nao_grava_mais_o_cookie_lembrar() -> None:
+    import inspect
+
+    from luftbase.identidade import sessoes
+
+    codigo = inspect.getsource(sessoes.iniciar_sessao_usuario)
+    assert "remember=False" in codigo and "remember=True" not in codigo

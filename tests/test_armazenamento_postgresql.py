@@ -267,3 +267,19 @@ def test_id_da_sessao_atual_vem_do_objeto_da_sessao(monkeypatch) -> None:  # typ
 
     assert sessao_real.get("_id") is None
     assert web.id_sessao_atual() == "abc123"
+
+
+def test_user_id_sozinho_nao_liga_a_sessao_a_um_usuario() -> None:
+    # O Flask-Login grava `_user_id` ate quando nao reconhece o usuario (cookie "lembrar" velho).
+    # Sem `luftbase_usuario` a sessao e anonima: nao pode aparecer online nem marcar o usuario.
+    armazenamento, banco = _preparar_armazenamento()
+    carga = json.dumps(
+        {"versao": 1, "salva_em": datetime.now().isoformat(), "dados": {"_user_id": "2280"}}
+    ).encode("utf-8")
+
+    armazenamento.salvar("luft:sessao:anonima", carga, 600)
+
+    with banco.leitura() as db:
+        registro = db.execute(select(Sessao).where(Sessao.id_sessao == "anonima")).scalar_one()
+        assert registro.codigo_usuario is None
+    assert armazenamento.contar_online() == 0

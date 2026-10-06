@@ -12,6 +12,7 @@ from luftbase.identidade.servico import ServicoAutenticacao
 from luftbase.identidade.sessoes import (
     InterfaceSessaoCompartilhada,
     carregar_usuario_sessao,
+    descartar_cookie_lembrar,
     encerrar_sessao_global,
     iniciar_sessao_usuario,
     revogar_sessao_atual,
@@ -28,6 +29,7 @@ __all__ = [
     "TransporteLdap",
     "UsuarioAutenticado",
     "carregar_usuario_sessao",
+    "descartar_cookie_lembrar",
     "encerrar_sessao_global",
     "iniciar_sessao_usuario",
     "revogar_sessao_atual",

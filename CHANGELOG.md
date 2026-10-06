@@ -2,6 +2,20 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a69] - 2026-10-06
+
+### Corrigido
+
+- Causa raiz do usuario que continuava ONLINE depois de sair: o login gravava o cookie "lembrar"
+  do Flask-Login (`remember=True`, um ano) e o logout nao o apagava (`session.clear()` descartava a
+  ordem de remocao). Na requisicao seguinte o Flask-Login lia o cookie e gravava `_user_id` na
+  sessao anonima mesmo sem reconhecer o usuario, e o armazenamento ligava essa sessao ao usuario so
+  por esse campo: nascia uma sessao `ATIVA` do usuario, renovada pelo polling a cada 10 s.
+  Correcoes: (1) o login nao grava mais o cookie (`remember=False`); (2) `descartar_cookie_lembrar`
+  remove o cookie que ainda existir nos navegadores, antes de qualquer outro `before_request`, e o
+  logout repete a ordem de remocao apos a limpeza; (3) so `luftbase_usuario` liga uma sessao a um
+  usuario, `_user_id` sozinho nao.
+
 ## [0.1.0a68] - 2026-10-06
 
 ### Corrigido

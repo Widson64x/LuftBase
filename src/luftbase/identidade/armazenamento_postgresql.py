@@ -220,9 +220,8 @@ class ArmazenamentoSessoesPostgreSQL:
                     "codigo_usuario"
                 )
                 login_usuario = usuario_info.get("login") or usuario_info.get("login_usuario")
-            elif "_user_id" in dados:
-                with contextlib.suppress(Exception):
-                    codigo_usuario = int(str(dados["_user_id"]).strip())
+            # `_user_id` sozinho NAO prova autenticacao: o Flask-Login o grava ate quando o
+            # carregador nao reconhece o usuario. So `luftbase_usuario` liga a sessao a alguem.
         except Exception:
             pass
 
