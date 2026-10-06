@@ -2,6 +2,13 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a79] - 2026-10-06
+
+### Corrigido
+
+- Script da nota de lancamento: se a nota existir em mais de uma copia (rodado com textos de versoes
+  diferentes), mantem a mais nova, corrige o texto dela e arquiva as demais.
+
 ## [0.1.0a78] - 2026-10-06
 
 ### Corrigido

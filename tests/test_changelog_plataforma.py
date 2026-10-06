@@ -97,6 +97,11 @@ class _ServicoFalso:
         self.corrigidas.append(id_publicacao)
         return True
 
+    def arquivar(self, id_publicacao):
+        self.arquivadas = getattr(self, "arquivadas", [])
+        self.arquivadas.append(id_publicacao)
+        return True
+
     def publicar(self, id_publicacao):
         self.publicadas.append(id_publicacao)
         return True
@@ -165,3 +170,15 @@ def test_toda_imagem_citada_em_notas_antigas_ainda_existe() -> None:
 
     for nome in re.findall(r"luftbase:img/changelog/([\w.-]+)", changelog.CONTEUDO):
         assert (IMAGENS / nome).is_file(), nome
+
+
+def test_copias_duplicadas_da_nota_sao_arquivadas_e_fica_a_mais_nova() -> None:
+    velha = SimpleNamespace(id_publicacao=5, titulo=changelog.TITULOS_ANTERIORES[0], status_publicacao="PUBLICADO")
+    nova = SimpleNamespace(id_publicacao=6, titulo=changelog.TITULOS_ANTERIORES[1], status_publicacao="PUBLICADO")
+    outra = SimpleNamespace(id_publicacao=7, titulo="Outra nota", status_publicacao="PUBLICADO")
+    servico = _ServicoFalso([velha, nova, outra])
+
+    resultado = changelog.publicar_changelog_plataforma(servico, versao="2.0")
+
+    assert resultado.id_publicacao == 6 and resultado.arquivadas == 1
+    assert servico.arquivadas == [5] and servico.corrigidas == [6] and not servico.criadas

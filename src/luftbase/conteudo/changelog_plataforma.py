@@ -180,6 +180,7 @@ class ResultadoChangelog:
     id_publicacao: int
     acao: str  # "criada" | "atualizada" | "texto_corrigido" | "ja_publicada"
     publicada: bool
+    arquivadas: int = 0  # copias antigas da mesma nota que foram arquivadas
 
 
 def nova_publicacao(*, versao: str, notificar: bool = True, criado_por: str = "Equipe Luft") -> NovaPublicacao:
@@ -207,19 +208,27 @@ def publicar_changelog_plataforma(
     """Cria (ou atualiza o rascunho de) a nota e a publica; nunca duplica uma já publicada."""
 
     dados = nova_publicacao(versao=versao, notificar=notificar)
-    existente = next(
+    candidatas = sorted(
         (
             p
             for p in servico.listar_administracao(tipo=TipoPublicacao.ATUALIZACAO, limite=100)
             if p.titulo in (TITULO, *TITULOS_ANTERIORES) and p.status_publicacao != "ARQUIVADO"
         ),
-        None,
+        key=lambda p: p.id_publicacao,
+        reverse=True,
     )
+    existente = candidatas[0] if candidatas else None
+    # Rodar o script mais de uma vez com textos diferentes pode ter deixado copias: fica a mais nova.
+    arquivadas = sum(1 for copia in candidatas[1:] if servico.arquivar(copia.id_publicacao))
+
     if existente is not None and existente.status_publicacao == "PUBLICADO":
         # Ja foi para os usuarios (e notificou): so o texto e corrigido, nunca uma segunda notificacao.
         corrigido = servico.corrigir_texto(existente.id_publicacao, dados)
         return ResultadoChangelog(
-            existente.id_publicacao, "texto_corrigido" if corrigido else "ja_publicada", True
+            existente.id_publicacao,
+            "texto_corrigido" if corrigido else "ja_publicada",
+            True,
+            arquivadas,
         )
 
     if existente is not None:
@@ -230,7 +239,7 @@ def publicar_changelog_plataforma(
 
     if publicar:
         servico.publicar(id_publicacao)
-    return ResultadoChangelog(id_publicacao, acao, publicar)
+    return ResultadoChangelog(id_publicacao, acao, publicar, arquivadas)
 
 
 __all__ = [
