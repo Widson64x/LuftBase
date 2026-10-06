@@ -1,4 +1,4 @@
-"""Gera as imagens da nota de atualização "Nova base dos sistemas Luft" (PNG, via Chrome sem interface).
+"""Gera as imagens da nota de atualização "Nova base dos sistemas web Luft" (PNG, via Chrome sem interface).
 
     python tools/gerar_imagens_changelog.py            # gera tudo
     python tools/gerar_imagens_changelog.py perfil-sessoes banner   # só algumas
@@ -167,8 +167,8 @@ def cartao_sistema(nome: str, desc: str, icone: str, cor: str, selo: str = "OPER
 def _():
     return f"""<div class="arte g1 aneis" style="height:420px;padding:70px 80px">
 <div class="lin" style="margin-bottom:34px"><div class="ic" style="width:64px;height:64px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:32px">{i("rocket-launch")}</div><div class="kicker">Nota de atualização</div></div>
-<h1>Uma base nova<br>para os sistemas Luft</h1>
-<p class="sub" style="margin-top:20px;max-width:700px">Workspace, ConnectAir e Integrador agora compartilham o LuftBase: login único, permissões claras e um painel de controle completo.</p>
+<h1>Uma base nova<br>para os sistemas web Luft</h1>
+<p class="sub" style="margin-top:20px;max-width:700px">Login único, perfil renovado e avisos com notificação: os sistemas web da Luft estão ganhando a mesma base.</p>
 <div class="vidro" style="position:absolute;right:70px;bottom:60px;width:250px;padding:18px"><div class="chip" style="background:#22d3ee;color:#083344">LuftBase</div>
 <div style="height:10px;border-radius:5px;background:rgba(255,255,255,.7);margin:16px 0 8px;width:70%"></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.35);margin-bottom:8px"></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.35);width:80%"></div></div></div>"""
 
@@ -179,36 +179,21 @@ def _():
         itens = "".join(f'<div class="lin" style="font-size:15px">{i(ic, "", "font-size:20px")}{t}</div>' for ic, t in linhas)
         return f'<div class="card p20 col" style="gap:14px;border-top:5px solid {cor}"><div class="lin"><b style="font-size:20px">{titulo}</b></div>{itens}</div>'
 
-    antes = caixa("Antes", "#94a3b8", [("lock-key", "Um login por sistema"), ("key", "Permissões em modelos diferentes"), ("table", "Parâmetros em planilha"), ("bell-slash", "Avisos espalhados"), ("question", "Difícil saber quem fez o quê")])
-    depois = caixa("Agora", "#2563eb", [("lock-key-open", "Login único para todos"), ("shield-check", "Permissões padronizadas"), ("database", "Parâmetros no banco, com histórico"), ("bell-ringing", "Comunicados e notas com notificação"), ("clipboard-text", "Auditoria de cada alteração")])
+    antes = caixa("Antes", "#94a3b8", [("lock-key", "Um login por sistema"), ("user-circle", "Perfil diferente em cada tela"), ("bell-slash", "Avisos espalhados"), ("question", "Difícil saber onde sua conta está aberta")])
+    depois = caixa("Agora", "#2563eb", [("lock-key-open", "Login único para todos"), ("user-circle", "Perfil igual em todos os sistemas"), ("bell-ringing", "Comunicados e notas com notificação"), ("devices", "Dispositivos e histórico de acessos")])
     return f"""<div style="padding:40px 50px;height:440px;background:#f8fafc"><div class="lin" style="justify-content:center;margin-bottom:28px"><h2>O que muda, em um olhar</h2></div>
 <div class="grid" style="grid-template-columns:1fr 70px 1fr;align-items:center">{antes}<div style="text-align:center;font-size:44px;color:#2563eb">{i("arrow-right")}</div>{depois}</div></div>"""
 
 
-@imagem("arquitetura", 1200, 560)
+@imagem("linha-do-tempo", 1200, 330)
 def _():
-    def app(x, nome, ic):
-        return f'<div class="no" style="left:{x}px;top:70px"><div class="bola">{i(ic)}</div><b>{nome}</b></div>'
-
-    return f"""<div class="arte g6 aneis" style="height:560px">
-<div class="kicker" style="position:absolute;left:60px;top:40px">Como tudo se conecta</div>
-{app(170,"Workspace","squares-four")}{app(558,"ConnectAir","airplane-tilt")}{app(946,"Integrador","rocket-launch")}
-<div class="vidro" style="position:absolute;left:90px;right:90px;top:240px;height:110px;display:flex;align-items:center;justify-content:center;gap:18px;background:linear-gradient(90deg,rgba(37,99,235,.55),rgba(6,182,212,.55))">
-<div class="ic" style="background:rgba(255,255,255,.2);color:#fff;width:56px;height:56px;font-size:30px">{i("stack")}</div><div><b style="font-size:26px">LuftBase</b><div style="font-size:14px;opacity:.9">Identidade · Permissões · Sessões · Notificações · Auditoria · Painel de controle</div></div></div>
-<div class="fio" style="left:210px;top:200px;width:1px;height:40px;background:#fff"></div><div class="fio" style="left:598px;top:200px;width:1px;height:40px;background:#fff"></div><div class="fio" style="left:986px;top:200px;width:1px;height:40px;background:#fff"></div>
-<div style="position:absolute;left:90px;right:90px;bottom:50px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
-{''.join(f'<div class="vidro" style="padding:14px;text-align:center"><div style="font-size:26px;margin-bottom:6px">{i(ic)}</div><b style="font-size:14px">{t}</b></div>' for ic,t in [("database","Banco corporativo"),("vault","Cofre de senhas"),("identification-card","Diretório de usuários"),("envelope-simple","E-mail")])}</div></div>"""
-
-
-@imagem("linha-do-tempo", 1200, 300)
-def _():
-    marcos = [("compass", "Planejamento", "Um núcleo único para os sistemas web"), ("hammer", "Construção", "LuftBase: identidade, permissões e painel"), ("flask", "Homologação", "Testes com a equipe no ambiente de validação"), ("rocket-launch", "Produção", "Entrada em produção, sistema a sistema")]
+    sistemas = [("squares-four", "Luft-Workspace", "Já na nova base", "v", True), ("airplane-tilt", "Luft-ConnectAir", "Já na nova base", "v", True), ("rocket-launch", "Luft-Integrador", "Já na nova base", "v", True), ("cpu", "Luft-Control", "Próximo a migrar", "a", False)]
     caixas = "".join(
-        f'<div style="flex:1;text-align:center;position:relative"><div class="ic {"b v a r".split()[n]}" style="margin:0 auto 12px;width:58px;height:58px;font-size:28px">{i(ic)}</div><b style="font-size:16px">{t}</b><div class="mudo" style="font-size:13px;margin-top:4px;padding:0 14px">{d}</div></div>'
-        for n, (ic, t, d) in enumerate(marcos)
+        f'<div class="card p20" style="text-align:center;{"" if ok else "border-style:dashed"}"><div class="ic {c}" style="margin:0 auto 12px;width:58px;height:58px;font-size:28px">{i(ic)}</div><b style="font-size:16px">{n}</b><div style="margin-top:8px"><span class="chip {"c-verde" if ok else "c-amb"}">{i("check-circle" if ok else "hourglass-medium")}{t}</span></div></div>'
+        for ic, n, t, c, ok in sistemas
     )
-    return f"""<div style="padding:40px 40px;height:300px;background:#fff"><div class="lin" style="justify-content:center;margin-bottom:28px"><h2>A jornada da migração</h2></div>
-<div style="position:relative;display:flex"><div style="position:absolute;left:12%;right:12%;top:28px;height:4px;background:linear-gradient(90deg,#2563eb,#059669,#d97706,#7c3aed);border-radius:2px"></div>{caixas}</div></div>"""
+    return f"""<div style="padding:36px 40px;height:330px;background:#f8fafc"><div class="lin" style="justify-content:center;margin-bottom:6px"><h2>Quais sistemas já estão na nova base</h2></div>
+<div class="mudo" style="text-align:center;font-size:14px;margin-bottom:22px">Todos os sistemas web da Luft vão seguir o mesmo padrão</div><div class="grid g4c">{caixas}</div></div>"""
 
 
 @imagem("login-unico", 1200, 420)
@@ -224,35 +209,9 @@ def _():
 <div class="kicker" style="position:absolute;left:90px;bottom:40px">Entrou em um, está em todos · saiu de um, saiu de todos</div></div>"""
 
 
-@imagem("permissoes-modelo", 1200, 460)
-def _():
-    partes = [("CONNECTAIR", "módulo", "#2563eb"), ("SISTEMA", "recurso", "#059669"), ("ACESSAR", "ação", "#d97706")]
-    blocos = "".join(f'<div style="text-align:center"><div style="padding:18px 30px;border-radius:16px;background:{c};color:#fff;font-size:34px;font-weight:800" class="mono">{t}</div><div class="rotulo" style="margin-top:10px">{r}</div></div>' for t, r, c in partes)
-    pontos = '<div style="font-size:40px;font-weight:800;color:#94a3b8;align-self:flex-start;padding-top:12px">.</div>'
-    exemplos = [("INTEGRADOR.SISTEMA.ADMINISTRAR", "Administrar o Integrador", "m"), ("CONNECTAIR.SISTEMA.ACESSAR", "Entrar no ConnectAir", "b"), ("PARAMETROS.REINTEGRACAO.EDITAR", "Editar parâmetros da reintegração", "a")]
-    lista = "".join(f'<div class="perm" style="gap:14px"><span class="mono" style="font-weight:700">{c}</span><span class="mudo">{d}</span></div>' for c, d, _ in exemplos)
-    return f"""<div style="padding:44px 60px;height:460px;background:#fff"><div class="lin" style="justify-content:center;margin-bottom:26px"><h2>Cada acesso tem nome, dono e motivo</h2></div>
-<div style="display:flex;gap:10px;justify-content:center;align-items:flex-start;margin-bottom:34px">{blocos.replace('</div></div><div', '</div></div>' + pontos + '<div')}</div>
-<div class="col" style="gap:8px">{lista}</div></div>"""
-
-
-@imagem("seguranca-camadas", 1200, 520)
-def _():
-    camadas = [("shield-check", "Sessão protegida", "cookie seguro, expira por inatividade, encerra em todos os sistemas"), ("vault", "Cofre de senhas", "credenciais fora do código e dos arquivos de configuração"), ("identification-badge", "Permissões mínimas", "cada pessoa vê e faz só o que precisa"), ("clipboard-text", "Auditoria", "quem fez o quê, quando e de onde"), ("eye-slash", "Logs sem dados sensíveis", "erros registrados sem expor senhas ou valores")]
-    linhas = "".join(f'<div class="vidro lin" style="padding:14px 18px;margin-bottom:12px"><div class="ic" style="background:rgba(255,255,255,.2);color:#fff">{i(ic)}</div><div><b style="font-size:17px">{t}</b><div style="font-size:13px;opacity:.85">{d}</div></div></div>' for ic, t, d in camadas)
-    return f"""<div class="arte g3 aneis" style="height:520px;padding:40px 70px"><div class="kicker" style="margin-bottom:8px">Segurança em camadas</div><h2 style="margin-bottom:22px;font-size:30px">Várias proteções, trabalhando juntas</h2>{linhas}</div>"""
-
-
-@imagem("auditoria-trilha", 1200, 420)
-def _():
-    ev = [("Maria Souza", "entrou no sistema", "agora há pouco", "sign-in", "b"), ("João Lima", "copiou permissões de um perfil", "há 12 min", "copy", "r"), ("Ana Reis", "editou um parâmetro do Integrador", "há 1 h", "pencil-simple", "a"), ("Pedro Alves", "publicou uma nota de atualização", "há 3 h", "megaphone", "v")]
-    linhas = "".join(f'<div class="card p16 lin"><div class="ic {c}">{i(ic)}</div><div style="flex:1"><b>{n}</b> <span class="mudo">{a}</span></div><span class="mudo" style="font-size:12px">{q}</span></div>' for n, a, q, ic, c in ev)
-    return f"""<div style="padding:36px 60px;height:420px;background:#f1f5f9"><div class="lin" style="margin-bottom:18px"><h2>Trilha de auditoria</h2><span class="chip c-azul">dados fictícios</span></div><div class="col" style="gap:10px">{linhas}</div></div>"""
-
-
 @imagem("notificacoes-arte", 1200, 420)
 def _():
-    notas = [("rocket-launch", "Nova atualização disponível", "Veja o que mudou nos sistemas Luft", "b"), ("megaphone", "Comunicado do TI", "Manutenção programada no sábado", "a"), ("shield-check", "Novo acesso liberado", "Você já pode usar o ConnectAir", "v")]
+    notas = [("rocket-launch", "Nova atualização disponível", "Veja o que mudou nos sistemas web", "b"), ("megaphone", "Comunicado do TI", "Manutenção programada no sábado", "a"), ("shield-check", "Novo acesso liberado", "Você já pode usar o ConnectAir", "v")]
     cards = "".join(f'<div class="card p16 lin" style="width:520px;box-shadow:0 14px 34px rgba(15,23,42,.18)"><div class="ic {c}">{i(ic)}</div><div><b>{t}</b><div class="mudo" style="font-size:12.5px">{d}</div></div></div>' for ic, t, d, c in notas)
     return f"""<div class="arte g4 aneis" style="height:420px;padding:56px 80px"><div class="kicker" style="margin-bottom:10px">Fique por dentro</div><h2 style="margin-bottom:24px">Avisos que chegam até você</h2>
 <div class="col" style="gap:12px;position:absolute;right:80px;top:50px">{cards}</div><p class="sub" style="max-width:420px">Comunicados e notas de atualização aparecem no sino, no feed e na tela de detalhes.</p></div>"""
@@ -261,7 +220,7 @@ def _():
 @imagem("encerramento", 1200, 340)
 def _():
     return f"""<div class="arte g1 aneis" style="height:340px;padding:70px 80px"><div class="lin" style="margin-bottom:18px"><div style="font-size:44px">{i("hand-waving")}</div><h1 style="font-size:44px">Obrigado por fazer parte</h1></div>
-<p class="sub" style="max-width:760px">Esta é a primeira de muitas melhorias. Se algo não estiver como você espera, fale com o TI: com a nova base, achamos a causa muito mais rápido.</p></div>"""
+<p class="sub" style="max-width:760px">Esta é a primeira de muitas melhorias. Se algo não estiver como você espera, fale com o TI.</p></div>"""
 
 
 # ----------------------------------------------------------------------------- telas (maquetes)
@@ -313,62 +272,20 @@ def _():
     return shell('<div class="titulo">Hub de Sistemas</div><div class="grid g3c" style="margin-top:20px"><div class="card" style="height:200px"></div><div class="card" style="height:200px"></div><div class="card" style="height:200px"></div></div>', extra=modal)
 
 
-@imagem("tela-integracoes", 1280, 780)
-def _():
-    def card(nome, desc, ic, cor, status, ver):
-        return f"""<div class="card p16 col"><div class="lin"><div class="ic {cor}">{i(ic)}</div><div style="flex:1"><b>{nome}</b><div class="mudo" style="font-size:12px">{desc}</div></div><span class="chip {'c-verde' if status=='Conectado' else 'c-amb'}">● {status}</span></div>
-<div class="lin" style="justify-content:space-between"><span class="mudo" style="font-size:12px">{ver}</span><span class="btn" style="padding:6px 10px">Detalhes</span></div></div>"""
-
-    cards = card("Cofre de senhas", "Credenciais e segredos dos sistemas", "vault", "r", "Conectado", "Versão do servidor 1.x") + card("Banco corporativo", "Core: usuários, sessões e permissões", "database", "b", "Conectado", "PostgreSQL") + card("Banco de negócio", "Dados dos sistemas de operação", "table", "v", "Conectado", "SQL Server") + card("E-mail", "Envio de avisos e redefinição de senha", "envelope-simple", "a", "Conectado", "SMTP") + card("Diretório de usuários", "Autenticação corporativa", "identification-card", "b", "Conectado", "LDAP") + card("Sessões", "Armazenamento das sessões", "lock-key-open", "v", "Conectado", "PostgreSQL (core)")
-    versoes = "".join(f'<tr><td><b>{s}</b></td><td class="mono">{v}</td><td><span class="chip c-verde">Atualizado</span></td></tr>' for s, v in [("Luft-Workspace", "LuftBase 0.1"), ("Luft-ConnectAir", "LuftBase 0.1"), ("Luft-Integrador", "LuftBase 0.1")])
-    corpo = f'<div class="titulo">Integrações</div><div class="lede">Estado dos serviços que sustentam os sistemas</div><div class="grid g3c" style="margin-bottom:16px">{cards}</div><div class="card"><table><tr><th>Sistema</th><th>Base</th><th>Situação</th></tr>{versoes}</table></div>'
-    return shell(corpo, crumb="Integrações", ativo="Painel")
-
-
-@imagem("tela-servicos", 1280, 700)
-def _():
-    linhas = "".join(
-        f'<tr><td class="lin">{i(ic,"","font-size:20px;color:#2563eb")}<b>{n}</b></td><td><span class="chip {c}">● {s}</span></td><td class="mudo">{u}</td><td style="text-align:right"><span class="btn" style="padding:5px 9px">{i("arrow-clockwise")}Reiniciar</span></td></tr>'
-        for ic, n, s, c, u in [("squares-four", "Luft-Workspace", "Em execução", "c-verde", "há 2 dias"), ("airplane-tilt", "Luft-ConnectAir", "Em execução", "c-verde", "há 5 h"), ("rocket-launch", "Luft-Integrador", "Em execução", "c-verde", "há 1 dia")]
-    )
-    corpo = f'<div class="titulo">Serviços do servidor</div><div class="lede">Veja o estado e reinicie o serviço de cada sistema, sem acessar o servidor</div><div class="card"><table><tr><th>Serviço</th><th>Situação</th><th>No ar</th><th></th></tr>{linhas}</table></div><div class="card p16 lin" style="margin-top:14px;background:#fffbeb;border-color:#fde68a">{i("warning","","font-size:22px;color:#b45309")}<div style="font-size:13px"><b>Ações registradas.</b> Todo reinício fica na auditoria, com o nome de quem pediu.</div></div>'
-    return shell(corpo, crumb="Serviços do servidor", ativo="Painel")
-
-
-@imagem("tela-copiar-permissoes", 1280, 760)
-def _():
-    passos = f'<div class="lin" style="gap:26px;margin-bottom:18px"><div class="passo ok"><i>{i("check")}</i>Origem</div><div class="passo on"><i>2</i>Escolher permissões</div><div class="passo"><i>3</i>Destino</div></div>'
-    perms = [("CONNECTAIR.SISTEMA.ACESSAR", True), ("PARAMETROS.REINTEGRACAO.VISUALIZAR", True), ("INTEGRADOR.SISTEMA.ACESSAR", True), ("PARAMETROS.REINTEGRACAO.EDITAR", False), ("CONTEUDO.COMUNICADOS.CRIAR", False), ("CONTEUDO.ATUALIZACOES.PUBLICAR", False)]
-    lista = "".join(f'<div class="perm"><span class="lin"><span class="ck {"on" if o else ""}">{i("check") if o else ""}</span><span class="mono">{p}</span></span><span class="chip {"c-azul" if o else "c-cinza"}">{"Será copiada" if o else "Ignorada"}</span></div>' for p, o in perms)
-    corpo = f'<div class="titulo">Copiar permissões</div><div class="lede">Leve o acesso de uma pessoa para outra, em três passos, vendo antes o que será copiado</div>{passos}<div class="card p20 col"><div class="lin"><div class="av">LA</div><div style="flex:1"><b>Origem: Luciano A.</b><div class="mudo" style="font-size:12px">Perfil de referência · 24 permissões</div></div><span class="chip c-azul">3 selecionadas</span></div><div class="col" style="gap:7px">{lista}</div><div class="lin" style="justify-content:flex-end"><span class="btn">Voltar</span><span class="btn p">Continuar {i("arrow-right")}</span></div></div>'
-    return shell(corpo, crumb="Segurança", ativo="Painel")
-
-
-@imagem("tela-parametros", 1280, 760)
-def _():
-    linhas = "".join(
-        f'<tr><td><b>{c}</b></td><td class="mono">{h}</td><td class="mono">{u}</td><td class="mudo" style="font-size:12px">{p}</td><td><span class="chip {"c-verde" if a else "c-cinza"}">{"Ativo" if a else "Inativo"}</span></td><td style="text-align:right;color:#475569">{i("pencil-simple")} &nbsp;{i("plugs-connected")} &nbsp;{i("eye")}</td></tr>'
-        for c, h, u, p, a in [("Cliente Exemplo A", "sftp.exemplo-a.com:22", "usuario_a", "↙ /entrada   ↗ /saida", True), ("Cliente Exemplo B", "sftp.exemplo-b.com:22", "usuario_b", "↙ /in   ↗ /out", True), ("Cliente Exemplo C", "files.exemplo-c.com:2222", "usuario_c", "↙ /recebidos   ↗ /enviados", False)]
-    )
-    abas = '<div class="lin" style="gap:8px;margin-bottom:14px"><span class="chip c-azul" style="padding:8px 14px">Reintegração WMS</span><span class="chip c-cinza" style="padding:8px 14px">XMLs Ecobox</span></div>'
-    corpo = f'<div class="lin" style="justify-content:space-between"><div><div class="titulo">Parâmetros das integrações</div><div class="lede">Antes numa planilha, agora no banco, com histórico e senhas protegidas</div></div><span class="btn p">{i("plus")}Novo cliente</span></div>{abas}<div class="card"><table><tr><th>Cliente</th><th>Servidor</th><th>Usuário</th><th>Pastas</th><th>Situação</th><th></th></tr>{linhas}</table></div><div class="card p16 lin" style="margin-top:14px;background:#ecfdf5;border-color:#a7f3d0">{i("lock-key","","font-size:22px;color:#047857")}<div style="font-size:13px"><b>Senhas cifradas.</b> Ninguém consegue ver uma senha depois de salva, nem nos logs.</div></div>'
-    return shell(corpo, crumb="Parâmetros", ativo="Integrador")
-
-
 @imagem("tela-notas", 1280, 760)
 def _():
     def nota(v, t, r, tags, novo=False):
         return f"""<div class="card p20 col" style="gap:8px;{'border-left:5px solid #2563eb' if novo else ''}"><div class="lin"><span class="chip c-azul">CHANGELOG</span><span class="chip c-cinza">v{v}</span><span class="chip c-roxo">{i("globe")}Global</span>{'<span class="chip c-verde">NOVO</span>' if novo else ''}</div>
 <b style="font-size:17px">{t}</b><div class="mudo" style="font-size:13px">{r}</div></div>"""
 
-    corpo = '<div class="titulo">Notas de Atualização</div><div class="lede">Tudo o que mudou nos sistemas Luft</div><div class="col">' + nota("2.0", "Nova base dos sistemas Luft", "Login único, permissões claras, perfil renovado e painel de controle completo.", "", True) + nota("1.9", "Melhorias de desempenho", "Telas mais rápidas e mensagens de erro mais claras.", "") + nota("1.8", "Ajustes de acessibilidade", "Contraste e navegação por teclado revisados.", "") + "</div>"
+    corpo = '<div class="titulo">Notas de Atualização</div><div class="lede">Tudo o que mudou nos sistemas web da Luft</div><div class="col">' + nota("2.0", "Nova base dos sistemas web Luft", "Login único, permissões claras, perfil renovado e painel de controle completo.", "", True) + nota("1.9", "Melhorias de desempenho", "Telas mais rápidas e mensagens de erro mais claras.", "") + nota("1.8", "Ajustes de acessibilidade", "Contraste e navegação por teclado revisados.", "") + "</div>"
     return shell(corpo, crumb="Notas de Atualização", ativo="Notas")
 
 
 @imagem("tela-notificacoes", 1280, 700)
 def _():
     pop = f"""<div class="card" style="position:absolute;right:70px;top:62px;width:420px;box-shadow:0 24px 60px rgba(15,23,42,.3)"><div class="lin" style="padding:14px 16px;border-bottom:1px solid var(--linha);justify-content:space-between"><b>Notificações</b><span class="mudo" style="font-size:12px">Marcar todas como lidas</span></div>
-{''.join(f'<div class="lin" style="padding:13px 16px;border-bottom:1px solid #eef2f7;background:{"#eff6ff" if n else "#fff"}"><div class="ic {c}" style="width:36px;height:36px;font-size:18px">{i(ic)}</div><div style="flex:1"><b style="font-size:13px">{t}</b><div class="mudo" style="font-size:12px">{d}</div></div>{"<span style=width:9px;height:9px;border-radius:50%;background:#2563eb></span>" if n else ""}</div>' for ic,c,t,d,n in [("rocket-launch","b","Nova base dos sistemas Luft","Veja o que mudou para você",True),("megaphone","a","Comunicado do TI","Janela de manutenção no sábado",True),("shield-check","v","Acesso liberado","Você já pode usar o ConnectAir",False)])}</div>"""
+{''.join(f'<div class="lin" style="padding:13px 16px;border-bottom:1px solid #eef2f7;background:{"#eff6ff" if n else "#fff"}"><div class="ic {c}" style="width:36px;height:36px;font-size:18px">{i(ic)}</div><div style="flex:1"><b style="font-size:13px">{t}</b><div class="mudo" style="font-size:12px">{d}</div></div>{"<span style=width:9px;height:9px;border-radius:50%;background:#2563eb></span>" if n else ""}</div>' for ic,c,t,d,n in [("rocket-launch","b","Nova base dos sistemas web Luft","Veja o que mudou para você",True),("megaphone","a","Comunicado do TI","Janela de manutenção no sábado",True),("shield-check","v","Acesso liberado","Você já pode usar o ConnectAir",False)])}</div>"""
     return shell('<div class="titulo">Hub de Sistemas</div><div class="grid g3c" style="margin-top:18px"><div class="card" style="height:180px"></div><div class="card" style="height:180px"></div><div class="card" style="height:180px"></div></div>', extra=pop)
 
 
@@ -391,7 +308,7 @@ def _():
 
 @imagem("tela-login", 1280, 700)
 def _():
-    return f"""<div style="display:flex;height:700px"><div class="arte g1 aneis" style="flex:1;padding:80px"><img src="{LOGO}" style="width:70px;filter:brightness(0) invert(1);margin-bottom:28px"><h1 style="font-size:46px">Bem-vindo ao<br>ecossistema Luft</h1><p class="sub" style="margin-top:18px;max-width:420px">Um acesso único para o Workspace, o ConnectAir e o Integrador.</p></div>
+    return f"""<div style="display:flex;height:700px"><div class="arte g1 aneis" style="flex:1;padding:80px"><img src="{LOGO}" style="width:70px;filter:brightness(0) invert(1);margin-bottom:28px"><h1 style="font-size:46px">Bem-vindo ao<br>ecossistema Luft</h1><p class="sub" style="margin-top:18px;max-width:420px">Um acesso único para os sistemas web da Luft.</p></div>
 <div style="width:520px;background:#fff;display:grid;place-items:center"><div style="width:360px" class="col"><div style="font-size:26px;font-weight:800">Entrar</div><div class="mudo" style="font-size:13px;margin-top:-6px">Use o seu usuário e senha corporativos</div>
 <div class="card p16 lin" style="box-shadow:none">{i("user","mudo")}<span class="mudo">Usuário</span></div><div class="card p16 lin" style="box-shadow:none">{i("lock","mudo")}<span class="mudo">Senha</span></div><div class="btn p" style="justify-content:center;padding:13px">Entrar</div></div></div></div>"""
 

@@ -70,7 +70,7 @@ def test_todas_as_imagens_do_changelog_existem() -> None:
 def test_changelog_renderiza_sem_sobras_de_marcacao() -> None:
     html = str(renderizar(changelog.CONTEUDO))
 
-    assert "<img" in html and "md-cards" in html and "md-alerta" in html
+    assert "<img" in html and "md-destaque" in html and "md-alerta" in html
     assert ":::" not in html and "###" not in html and "![" not in html
 
 
@@ -133,7 +133,9 @@ def test_versao_e_obrigatoria_para_nota_de_atualizacao(versao: str) -> None:
     assert changelog.nova_publicacao(versao=versao).versao == versao
 
 
-def test_a_nota_e_longa_e_tem_dezenas_de_imagens() -> None:
-    assert len(changelog.CONTEUDO) > 14000
-    assert changelog.CONTEUDO.count("luftbase:img/changelog/") >= 20
-    assert "Todos os sistemas" not in changelog.CONTEUDO and "Horário de Brasília" not in changelog.CONTEUDO
+def test_a_nota_fala_ao_usuario_e_nao_de_infraestrutura() -> None:
+    texto = changelog.CONTEUDO
+    assert changelog.CONTEUDO.count("luftbase:img/changelog/") >= 12
+    assert "Luft-Control" in texto and "sistemas web" in texto
+    for proibido in ("Todos os sistemas Luft", "Horário de Brasília", "cofre", "Vault", "homologação", "auditoria"):
+        assert proibido not in texto, proibido

@@ -2,6 +2,14 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a77] - 2026-10-06
+
+### Alterado
+
+- Nota global de lancamento reescrita como comunicado para o usuario final: fala dos "sistemas web" da
+  Luft (Workspace, ConnectAir e Integrador ja adaptados; Luft-Control e os demais virao a seguir) e deixa
+  de fora o que e de TI (cofre, auditoria, servicos, parametros). 14 imagens, sem telas administrativas.
+
 ## [0.1.0a76] - 2026-10-06
 
 ### Alterado
