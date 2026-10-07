@@ -43,6 +43,10 @@
         }
     }
     botoes.forEach((b) => b.addEventListener('click', () => mostrar(b.dataset.visao)));
+    window.luftAuditoriaVisao = (nome) => mostrar(nome);
+    const drill = () => window.luftDrill;
+    const REGISTROS = (drillAcao, aba = 'acessos') => ({ drill: drillAcao, ir: 'registros', aba });
+    const DICA = 'Clique para ver os registros · Shift+clique só filtra os gráficos';
     let inicial = 'geral';
     try { inicial = localStorage.getItem(CHAVE_VISAO) || 'geral'; } catch (e) { /* idem */ }
     mostrar(inicial, false);
@@ -52,6 +56,9 @@
         $('auditDestaques').innerHTML = lista.map((d) => `
             <div class="audit-destaque" data-tom="${esc(d.tom)}"><i class="ph-bold ph-${esc(d.icone)}"></i>
                 <div><strong>${esc(d.titulo)}</strong><span>${esc(d.texto)}</span></div></div>`).join('');
+        [...$('auditDestaques').children].forEach((el, i) => {
+            if (lista[i].acao) drill()?.tornarClicavel(el, lista[i].acao, DICA);
+        });
     }
 
     // ---- comparação com o período anterior nos KPIs ---------------------------------------------
@@ -81,28 +88,54 @@
             $('auditHeatResumo').textContent = '';
             return;
         }
+        const selHora = drill()?.valor('hora');
+        const selDia = drill()?.valor('dia_semana');
+        const filtrado = selHora !== undefined || selDia !== undefined;
         let html = '<div class="audit-heat-grade"><span></span>';
-        for (let h = 0; h < 24; h++) html += `<span class="audit-heat-hora">${h % 3 === 0 ? String(h).padStart(2, '0') : ''}</span>`;
+        for (let h = 0; h < 24; h++) html += `<span class="audit-heat-hora" data-h="${h}" title="Todos os dias, ${String(h).padStart(2, '0')}h">${h % 3 === 0 ? String(h).padStart(2, '0') : ''}</span>`;
         mapa.dias.forEach((dia, d) => {
-            html += `<span class="audit-heat-dia">${esc(dia)}</span>`;
+            html += `<span class="audit-heat-dia" data-d="${d}" title="${esc(dia)}, o dia todo">${esc(dia)}</span>`;
             for (let h = 0; h < 24; h++) {
                 const v = mapa.matriz[d][h];
                 const nivel = v ? Math.max(Math.round((v / mapa.maximo) * 100), 10) : 0;
-                html += `<i class="audit-heat-cel" style="--n:${nivel}%" title="${esc(dia)} ${String(h).padStart(2, '0')}h: ${numero.format(v)} requisições"></i>`;
+                const sel = filtrado && (selHora === undefined || selHora === h) && (selDia === undefined || selDia === d);
+                html += `<i class="audit-heat-cel${sel ? ' sel' : ''}" data-h="${h}" data-d="${d}" style="--n:${nivel}%" title="${esc(dia)} ${String(h).padStart(2, '0')}h: ${numero.format(v)} requisições"></i>`;
             }
         });
         alvo.innerHTML = `${html}</div>`;
+        alvo.classList.toggle('filtrado', filtrado);
+        alvo.querySelectorAll('.audit-heat-cel').forEach((el) => drill()?.tornarClicavel(el, REGISTROS({ hora: Number(el.dataset.h), dia_semana: Number(el.dataset.d) }), DICA));
+        alvo.querySelectorAll('.audit-heat-hora').forEach((el) => drill()?.tornarClicavel(el, REGISTROS({ hora: Number(el.dataset.h) }), DICA));
+        alvo.querySelectorAll('.audit-heat-dia').forEach((el) => drill()?.tornarClicavel(el, REGISTROS({ dia_semana: Number(el.dataset.d) }), DICA));
         $('auditHeatResumo').textContent = mapa.hora_pico == null ? '' : `Pico: ${mapa.dia_pico}, ${String(mapa.hora_pico).padStart(2, '0')}h`;
     }
 
     // ---- saúde das respostas (rosca) ---------------------------------------------------------------
+    const estadoRosca = { itens: [] };
+    $('auditDonut')?.addEventListener('click', (ev) => {
+        // Clique no anel: descobre a fatia pelo ângulo.
+        const total = estadoRosca.itens.reduce((a, i) => a + i[1], 0);
+        if (!total) return;
+        const caixa = ev.currentTarget.getBoundingClientRect();
+        const dx = ev.clientX - (caixa.left + caixa.width / 2);
+        const dy = ev.clientY - (caixa.top + caixa.height / 2);
+        if (Math.hypot(dx, dy) < caixa.width * 0.30) return; // miolo
+        let angulo = (Math.atan2(dx, -dy) * 180) / Math.PI;
+        if (angulo < 0) angulo += 360;
+        let acumulado = 0;
+        for (const item of estadoRosca.itens) {
+            acumulado += (item[1] / total) * 360;
+            if (angulo <= acumulado) { drill()?.ir(REGISTROS({ resultado: item[3] }), ev); return; }
+        }
+    });
     function renderizarStatus(status) {
         const itens = [
-            ['Sucesso (2xx)', status.sucesso, '#10b981'],
-            ['Redirecionamento (3xx)', status.redirecionamento, '#3b82f6'],
-            ['Erro do cliente (4xx)', status.erro_cliente, '#f59e0b'],
-            ['Erro do servidor (5xx)', status.erro_servidor, '#ef4444'],
+            ['Sucesso (2xx)', status.sucesso, '#10b981', 'sucesso'],
+            ['Redirecionamento (3xx)', status.redirecionamento, '#3b82f6', 'redirecionamento'],
+            ['Erro do cliente (4xx)', status.erro_cliente, '#f59e0b', 'cliente'],
+            ['Erro do servidor (5xx)', status.erro_servidor, '#ef4444', 'servidor'],
         ];
+        estadoRosca.itens = itens;
         const total = itens.reduce((a, i) => a + i[1], 0);
         let acumulado = 0;
         const fatias = itens.map(([, v, cor]) => {
@@ -114,16 +147,18 @@
         $('auditDonutTotal').textContent = numero.format(total);
         $('auditStatusLegenda').innerHTML = itens.map(([nome, v, cor]) =>
             `<li><b style="background:${cor}"></b><span>${esc(nome)}</span><em>${numero.format(v)}${total ? ` · ${((v / total) * 100).toFixed(1).replace('.', ',')}%` : ''}</em></li>`).join('');
+        [...$('auditStatusLegenda').children].forEach((el, i) => drill()?.tornarClicavel(el, REGISTROS({ resultado: itens[i][3] }), DICA));
         const falhas = status.erro_cliente + status.erro_servidor;
         $('auditPerfTaxa').textContent = total ? `${((falhas / total) * 100).toFixed(1).replace('.', ',')}%` : '—';
     }
 
     // ---- tabelas -----------------------------------------------------------------------------------
-    function tabela(id, linhas, colunas, vazio) {
+    function tabela(id, linhas, colunas, vazio, acaoLinha) {
         const alvo = $(id);
         alvo.innerHTML = linhas.length
             ? linhas.map((l) => `<tr>${colunas(l)}</tr>`).join('')
             : `<tr><td colspan="9"><div class="audit-empty">${esc(vazio)}</div></td></tr>`;
+        if (acaoLinha && linhas.length) [...alvo.children].forEach((tr, i) => drill()?.tornarClicavel(tr, () => acaoLinha(linhas[i]), DICA));
     }
 
     const rota = (r, metodo) => `<td title="${esc(r)}"><span class="audit-method">${esc(metodo || '')}</span> ${esc(r)}</td>`;
@@ -136,10 +171,12 @@
         });
         tabela('auditRotasLentas', d.rotas_lentas, (r) =>
             `${rota(r.rota, r.metodo)}<td>${numero.format(r.total)}</td><td><b>${numero.format(r.media_ms)} ms</b></td><td>${numero.format(r.max_ms)} ms</td>`,
-            'Nenhuma rota com 3 chamadas ou mais no período.');
+            'Nenhuma rota com 3 chamadas ou mais no período.',
+            (r) => REGISTROS({ rota: r.rota, metodo: r.metodo }));
         tabela('auditRotasErro', d.rotas_com_erro, (r) =>
             `${rota(r.rota, r.metodo)}<td>${numero.format(r.total)}</td><td>${r.erros_5xx ? `<span class="audit-status error">${r.erros_5xx}</span>` : '—'}</td><td>${r.erros_4xx ? `<span class="audit-status warning">${r.erros_4xx}</span>` : '—'}</td>`,
-            'Nenhuma falha no período.');
+            'Nenhuma falha no período.',
+            (r) => REGISTROS({ rota: r.rota, metodo: r.metodo }));
     }
 
     function renderizarSeguranca(d) {
@@ -151,16 +188,25 @@
         badge.textContent = alertas > 99 ? '99+' : String(alertas);
         tabela('auditNegados', d.negados.itens, (n) =>
             `<td>${esc(quando(n.data_hora))}</td><td><b>${esc(n.login)}</b></td>${rota(n.rota)}<td><code>${esc(n.permissao || '—')}</code></td><td>${esc(n.ip)}</td>`,
-            'Nenhum acesso negado no período.');
+            'Nenhum acesso negado no período.',
+            (n) => REGISTROS(n.login && n.login !== 'anônimo' ? { resultado: 'negado', login: n.login } : { resultado: 'negado' }));
         tabela('auditCriticos', d.criticos, (c) =>
             `<td>${esc(quando(c.data_hora))}</td><td><b>${esc(c.login)}</b></td><td>${esc(c.acao)}</td><td title="${esc(c.descricao)}">${esc(c.descricao)}</td><td><span class="audit-severity ${esc(c.severidade)}">${esc(c.severidade)}</span></td>`,
-            'Nenhum evento crítico no período.');
+            'Nenhum evento crítico no período.',
+            (c) => REGISTROS({ login: c.login }, 'detalhes'));
     }
 
     function barras(itens, vazio, rotulo = (n) => n) {
         if (!itens.length) return `<div class="audit-empty">${esc(vazio)}</div>`;
         return itens.map((i) => `<div class="audit-live-barra"><span>${esc(rotulo(i.nome))}</span><div class="trilho"><span style="width:${Math.max(i.percentual, 3)}%"></span></div><em>${numero.format(i.total)}</em></div>`).join('');
     }
+
+    // Torna cada barra de um bloco clicável (a ação sai do item correspondente).
+    function ligarBarras(id, itens, acaoDe, deslocamento = 0) {
+        const barrasEl = [...$(id).querySelectorAll('.audit-live-barra')].slice(deslocamento, deslocamento + itens.length);
+        barrasEl.forEach((el, i) => { const acao = acaoDe(itens[i]); if (acao) drill()?.tornarClicavel(el, acao, DICA); });
+    }
+    const MOTIVO_CHAVE = { 'Em andamento': 'ATIVA', Expirou: 'EXPIRADA' };
 
     const nomeDispositivo = (n) => ({ desktop: 'Computador', mobile: 'Celular', tablet: 'Tablet' }[n] || n);
     const nomeMotivo = (n) => ({
@@ -179,12 +225,16 @@
         $('auditSessSistemas').innerHTML = `<div class="audit-live-sep">Sistema operacional</div>${barras(s.sistemas_operacionais, 'Sem dados.')}`
             + `<div class="audit-live-sep">Dispositivo</div>${barras(s.dispositivos, 'Sem dados.', nomeDispositivo)}`;
         $('auditSessMotivos').innerHTML = barras(s.motivos, 'Sem sessões.', nomeMotivo);
+        ligarBarras('auditSessNavegadores', s.navegadores, (i) => REGISTROS({ navegador: i.nome }, 'sessoes'));
+        ligarBarras('auditSessMotivos', s.motivos, (i) => REGISTROS({ motivo: MOTIVO_CHAVE[i.nome] || i.nome }, 'sessoes'));
         tabela('auditSessIpsTabela', s.ips, (i) =>
             `<td class="mono">${esc(i.ip)}${i.local ? ' <span class="audit-status ok" title="A própria máquina do servidor (ou de quem testa)">local</span>' : ''}</td><td>${numero.format(i.sessoes)}</td><td>${i.usuarios > 1 && !i.local ? `<span class="audit-status warning" title="Várias pessoas no mesmo IP">${i.usuarios}</span>` : i.usuarios}</td>`,
-            'Sem dados.');
+            'Sem dados.',
+            (i) => REGISTROS({ ip: i.ip }, 'sessoes'));
         tabela('auditUsuariosAtivos', d.usuarios_ativos, (u) =>
             `<td><b>${esc(u.login)}</b></td><td>${numero.format(u.requisicoes)}</td><td>${numero.format(u.rotas)}</td><td>${u.sistemas}</td><td>${u.falhas ? `<span class="audit-status warning">${numero.format(u.falhas)}</span>` : '—'}</td><td>${esc(quando(u.ultimo_acesso))}</td>`,
-            'Sem atividade no período.');
+            'Sem atividade no período.',
+            (u) => REGISTROS({ login: u.login }));
     }
 
     // ---- carga ---------------------------------------------------------------------------------------

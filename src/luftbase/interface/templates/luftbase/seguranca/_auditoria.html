@@ -6,6 +6,7 @@
     data-resumo-url="{{ url_for('Auditoria.api_resumo') }}"
     data-tempo-real-url="{{ url_for('Auditoria.api_tempo_real') }}"
     data-insights-url="{{ url_for('Auditoria.api_insights') }}"
+    data-sessoes-url="{{ url_for('Auditoria.api_sessoes') }}"
     data-acessos-url="{{ url_for('Auditoria.api_acessos') }}"
     data-detalhes-url="{{ url_for('Auditoria.api_detalhes') }}"
     data-alteracoes-url="{{ url_for('Auditoria.api_alteracoes') }}"
@@ -71,7 +72,8 @@
             <span>Resultado</span>
             <select id="auditResultado">
                 <option value="">Todos</option>
-                <option value="sucesso">Sucesso</option>
+                <option value="sucesso">Sucesso (2xx)</option>
+                <option value="redirecionamento">Redirecionamento (3xx)</option>
                 <option value="cliente">Erro 4xx</option>
                 <option value="servidor">Erro 5xx</option>
                 <option value="negado">Acesso negado</option>
@@ -114,6 +116,16 @@
     </nav>
 
     <p class="audit-desde" id="auditDesdeNota" hidden></p>
+
+    <div class="audit-chips" id="auditChips" hidden aria-live="polite">
+        <span class="audit-chips-titulo"><i class="ph-bold ph-funnel"></i> Filtros ativos</span>
+        <div class="audit-chips-lista" id="auditChipsLista"></div>
+        <div class="audit-chips-acoes">
+            <button type="button" class="btn btn-outline btn-sm" id="auditChipsVer"><i class="ph-bold ph-list-magnifying-glass"></i> Ver registros</button>
+            <button type="button" class="btn btn-outline btn-sm" id="auditChipsLimpar"><i class="ph-bold ph-x"></i> Limpar tudo</button>
+        </div>
+    </div>
+    <p class="audit-dica"><i class="ph-bold ph-hand-pointing"></i> Clique em qualquer gráfico, número ou linha para ver os registros por trás dele. <b>Shift+clique</b> só filtra os gráficos, sem trocar de seção.</p>
 
     <div class="audit-panel" data-painel="geral">
         <section class="audit-destaques" id="auditDestaques" aria-label="Destaques do período">
@@ -272,6 +284,7 @@
         <div class="audit-log-toolbar">
             <div class="audit-log-tabs" role="tablist">
                 <button class="active" data-log-tab="acessos" type="button"><i class="ph-bold ph-globe"></i> Rotas HTTP</button>
+                <button data-log-tab="sessoes" type="button"><i class="ph-bold ph-devices"></i> Sessões</button>
                 <button data-log-tab="detalhes" type="button"><i class="ph-bold ph-list-magnifying-glass"></i> Eventos</button>
                 <button data-log-tab="alteracoes" type="button"><i class="ph-bold ph-arrows-left-right"></i> Detalhes da Alteração</button>
                 {% if pode_ver_dados_sensiveis_auditoria %}
@@ -309,6 +322,7 @@
     <div class="audit-drawer-body" id="auditDrawerCorpo"></div>
 </aside>
 
+<script src="{{ url_for('luftbase.static', filename='js/auditoria_drill.js') }}"></script>
 <script src="{{ url_for('luftbase.static', filename='js/auditoria.js') }}"></script>
 <script src="{{ url_for('luftbase.static', filename='js/auditoria_ao_vivo.js') }}"></script>
 <script src="{{ url_for('luftbase.static', filename='js/auditoria_visoes.js') }}"></script>

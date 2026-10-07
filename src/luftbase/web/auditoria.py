@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 from datetime import datetime, timedelta
 from io import StringIO
 from zoneinfo import ZoneInfo
@@ -18,6 +19,7 @@ from luftbase.observabilidade.analise import (
     PaginaAuditoria,
     ServicoAnaliseAuditoria,
 )
+from luftbase.observabilidade.filtros import NAVEGADORES
 from luftbase.observabilidade.insights import ServicoInsights
 from luftbase.observabilidade.tempo_real import ServicoTempoReal
 from luftbase.plataforma import obter_luftbase
@@ -31,7 +33,13 @@ AuditoriaBp = Blueprint(
 
 _FUSO = ZoneInfo("America/Sao_Paulo")
 _SEVERIDADES = frozenset({"BAIXA", "MEDIA", "ALTA", "CRITICA"})
-_RESULTADOS = frozenset({"sucesso", "cliente", "servidor", "negado"})
+_RESULTADOS = frozenset({"sucesso", "redirecionamento", "cliente", "servidor", "negado"})
+_METODOS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
+_MOTIVOS = frozenset(
+    {"LOGOUT_VOLUNTARIO", "TIMEOUT_INATIVIDADE", "ROTACAO_SESSAO", "REVOGADA_ADMIN", "REVOGADA_USUARIO",
+     "LIMPEZA_VISITANTE", "ATIVA", "EXPIRADA"}
+)
+_PADRAO_IP = re.compile(r"^[0-9A-Fa-f:.]{3,45}$")
 
 
 def _servico() -> ServicoAnaliseAuditoria:
@@ -105,6 +113,52 @@ def dados_confiaveis_desde() -> datetime | None:
     return marco.astimezone(_FUSO).replace(tzinfo=None) if marco.tzinfo else marco
 
 
+def _montar_drill() -> dict[str, object]:
+    """Recortes que vem de cliques nos graficos e tabelas; tudo validado antes de virar filtro."""
+
+    dados: dict[str, object] = {}
+    rota = request.args.get("rota", "").strip()[:300]
+    if rota:
+        dados["rota"] = rota
+    metodo = request.args.get("metodo", "").strip().upper()
+    if metodo:
+        if metodo not in _METODOS:
+            abort(400, description="Metodo HTTP invalido.")
+        dados["metodo"] = metodo
+    ip = request.args.get("ip", "").strip()
+    if ip:
+        if not _PADRAO_IP.fullmatch(ip):
+            abort(400, description="IP invalido.")
+        dados["ip"] = ip
+    login = request.args.get("login", "").strip()[:100]
+    if login:
+        dados["login"] = login
+    grupo = request.args.get("grupo", "").strip()[:100]
+    if grupo:
+        dados["grupo_nome"] = grupo
+    navegador = request.args.get("navegador", "").strip()
+    if navegador:
+        if navegador not in (*NAVEGADORES, "Desconhecido"):
+            abort(400, description="Navegador invalido.")
+        dados["navegador"] = navegador
+    for nome, minimo, maximo, chave in (("hora", 0, 23, "hora"), ("dia_semana", 0, 6, "dia_semana")):
+        valor = request.args.get(nome, "").strip()
+        if valor:
+            try:
+                numero = int(valor)
+            except ValueError:
+                abort(400, description=f"Filtro {nome} invalido.")
+            if not minimo <= numero <= maximo:
+                abort(400, description=f"Filtro {nome} fora do intervalo.")
+            dados[chave] = numero
+    motivo = request.args.get("motivo", "").strip().upper()
+    if motivo:
+        if motivo not in _MOTIVOS:
+            abort(400, description="Motivo invalido.")
+        dados["motivo"] = motivo
+    return dados
+
+
 def _montar_filtro() -> FiltroAuditoria:
     agora = datetime.now(_FUSO).replace(tzinfo=None)
     fim = _data_opcional("fim") or agora
@@ -126,6 +180,7 @@ def _montar_filtro() -> FiltroAuditoria:
     if severidade not in _SEVERIDADES and severidade is not None:
         abort(400, description="Severidade invalida.")
     termo = request.args.get("termo", "").strip()[:100] or None
+    drill = _montar_drill()
 
     return FiltroAuditoria(
         inicio=inicio,
@@ -136,6 +191,7 @@ def _montar_filtro() -> FiltroAuditoria:
         termo=termo,
         resultado_http=resultado,
         severidade=severidade,
+        **drill,
     )
 
 
@@ -191,6 +247,16 @@ def api_insights():  # type: ignore[no-untyped-def]
     dados = ServicoInsights(obter_luftbase().bancos.core).obter(
         _montar_filtro(), desde=dados_confiaveis_desde()
     )
+    return jsonify({"status": "success", "data": dados})
+
+
+@AuditoriaBp.get("/sessoes")
+@login_required
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
+def api_sessoes():  # type: ignore[no-untyped-def]
+    """Sessoes do recorte (quem entrou, de onde, com que navegador e como terminou)."""
+
+    dados = ServicoInsights(obter_luftbase().bancos.core).listar_sessoes(_montar_filtro(), _montar_pagina())
     return jsonify({"status": "success", "data": dados})
 
 

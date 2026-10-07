@@ -2,6 +2,26 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a84] - 2026-10-07
+
+### Adicionado
+
+- **Auditoria interativa, no estilo de um BI**: tudo o que aparece na tela e clicavel e leva aos registros
+  por tras do numero.
+  - Clique em celula do **mapa de calor** (ou no titulo de uma hora/dia), barra do **volume**, fatia ou
+    legenda da **rosca**, **KPI**, **destaque**, linha de **ranking**, **rotas lentas/com falha**, **tentativas
+    negadas**, **eventos criticos**, **pessoas mais ativas**, **IPs**, **navegadores**, **motivos de
+    encerramento** e **pessoa online**: aplica o recorte e abre os Registros ja filtrados.
+  - **Shift+clique** so filtra: todos os graficos e numeros se recalculam sem trocar de secao. Mapa de calor e
+    rosca mostram o todo e destacam a parte escolhida.
+  - Barra de **filtros ativos** (chips removiveis, "Ver registros", "Limpar tudo") sempre visivel.
+  - Nova aba **Sessoes** em Registros (pessoa, sistema, navegador, SO, IP, situacao, duracao) e detalhe em
+    gaveta. `GET /configuracoes/api/auditoria/sessoes`.
+  - Novos recortes validados no servidor: `rota` (ids agrupados), `metodo`, `ip`, `login`, `grupo`,
+    `navegador` (as mesmas regras do grafico, conferidas por teste), `hora`, `dia_semana`, `motivo`; valem
+    para acessos, eventos, sessoes, graficos e exportacao CSV. Resultado ganhou "Redirecionamento (3xx)";
+    "Sucesso" passou a ser so 2xx.
+
 ## [0.1.0a83] - 2026-10-07
 
 ### Corrigido

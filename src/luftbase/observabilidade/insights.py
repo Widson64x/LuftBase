@@ -18,8 +18,9 @@ from sqlalchemy.orm import Session
 
 from luftbase.identidade.agente_usuario import interpretar_agente
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
-from luftbase.observabilidade.analise import FiltroAuditoria, ServicoAnaliseAuditoria
-from luftbase.persistencia.core import Log, LogEvento, Sessao, Sistema
+from luftbase.observabilidade.analise import FiltroAuditoria, PaginaAuditoria, ServicoAnaliseAuditoria
+from luftbase.observabilidade.filtros import condicao_navegador
+from luftbase.persistencia.core import Log, LogEvento, Sessao, Sistema, Usuario
 
 DIAS_SEMANA = ("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
 _NUMERO_NA_ROTA = re.compile(r"/\d+(?=/|$)")
@@ -82,6 +83,7 @@ def montar_mapa_calor(horas: Sequence[tuple[Any, int]]) -> dict[str, Any]:
         "por_dia": por_dia,
         "hora_pico": por_hora.index(max(por_hora)) if any(por_hora) else None,
         "dia_pico": DIAS_SEMANA[por_dia.index(max(por_dia))] if any(por_dia) else None,
+        "dia_pico_indice": por_dia.index(max(por_dia)) if any(por_dia) else None,
     }
 
 
@@ -206,6 +208,7 @@ def gerar_destaques(
             {
                 "tom": "red" if (var or 0) > 0 else "amber",
                 "icone": "warning-octagon",
+                "acao": {"drill": {"resultado": "servidor"}, "ir": "registros", "aba": "acessos"},
                 "titulo": f"{atual['erros_servidor']} erro(s) no servidor",
                 "texto": "Houve falhas 5xx no período" + tendencia
                 + (f". A rota mais afetada é {rotas_erro[0]['rota']}." if rotas_erro and rotas_erro[0]["erros_5xx"] else "."),
@@ -214,17 +217,20 @@ def gerar_destaques(
     if negados:
         achados.append(
             {"tom": "amber", "icone": "shield-warning", "titulo": f"{negados} acesso(s) negado(s)",
+             "acao": {"drill": {}, "ir": "seguranca"},
              "texto": "Pessoas tentaram abrir algo sem permissão. Veja os detalhes na aba Segurança."}
         )
     if rotas_lentas and rotas_lentas[0]["media_ms"] >= 800:
         r = rotas_lentas[0]
         achados.append(
             {"tom": "amber", "icone": "hourglass-medium", "titulo": "Rota lenta",
+             "acao": {"drill": {"rota": r["rota"], "metodo": r["metodo"]}, "ir": "registros", "aba": "acessos"},
              "texto": f"{r['metodo']} {r['rota']} leva em média {r['media_ms']} ms ({r['total']} chamadas)."}
         )
     if mapa["hora_pico"] is not None:
         achados.append(
             {"tom": "blue", "icone": "chart-line-up", "titulo": f"Pico às {mapa['hora_pico']:02d}h",
+             "acao": {"drill": {"hora": mapa["hora_pico"], "dia_semana": mapa["dia_pico_indice"]}, "ir": "registros", "aba": "acessos"},
              "texto": f"O dia mais movimentado foi {mapa['dia_pico']}; o horário de maior uso, {mapa['hora_pico']:02d}h."}
         )
     var_req = comparativo["variacao"]["requisicoes"]
@@ -238,6 +244,7 @@ def gerar_destaques(
         n = sessoes["navegadores"][0]
         achados.append(
             {"tom": "green", "icone": "browsers", "titulo": f"{n['nome']} lidera",
+             "acao": {"drill": {"navegador": n["nome"]}, "ir": "registros", "aba": "sessoes"},
              "texto": f"{n['percentual']:.0f}% dos acessos vêm de {n['nome']}"
              + (f"; {sessoes['sistemas_operacionais'][0]['nome']} é o sistema mais usado." if sessoes["sistemas_operacionais"] else ".")}
         )
@@ -266,6 +273,9 @@ class ServicoInsights:
         """`desde` e o inicio dos dados confiaveis: nada anterior a ele entra nem no comparativo."""
 
         cond = ServicoAnaliseAuditoria._condicoes_acesso(filtro)
+        # Estilo BI: o mapa de calor e a rosca mostram o todo, destacando a parte escolhida.
+        cond_mapa = ServicoAnaliseAuditoria._condicoes_acesso(replace(filtro, hora=None, dia_semana=None))
+        cond_status = ServicoAnaliseAuditoria._condicoes_acesso(replace(filtro, resultado_http=None))
         duracao = filtro.fim - filtro.inicio
         inicio_anterior = max(filtro.inicio - duracao, desde) if desde else filtro.inicio - duracao
         anterior = replace(filtro, inicio=min(inicio_anterior, filtro.inicio), fim=filtro.inicio)
@@ -276,14 +286,14 @@ class ServicoInsights:
             antes = self._indicadores(db, cond_anterior)
             # O rotulo evita o erro do PostgreSQL "deve aparecer no GROUP BY" (date_trunc recebe o literal como parametro).
             hora = _hora_cheia(db, Log.data_hora).label("hora")
-            horas = db.execute(select(hora, func.count(Log.id_log)).where(*cond).group_by(hora)).all()
+            horas = db.execute(select(hora, func.count(Log.id_log)).where(*cond_mapa).group_by(hora)).all()
             status = db.execute(
                 select(
                     func.count(Log.id_log).filter(Log.status_http < 300),
                     func.count(Log.id_log).filter(Log.status_http >= 300, Log.status_http < 400),
                     func.count(Log.id_log).filter(Log.status_http >= 400, Log.status_http < 500),
                     func.count(Log.id_log).filter(Log.status_http >= 500),
-                ).where(*cond)
+                ).where(*cond_status)
             ).one()
             rotas = db.execute(
                 select(
@@ -399,19 +409,40 @@ class ServicoInsights:
         }
 
     @staticmethod
-    def _sessoes(db: Session, filtro: FiltroAuditoria, cond_acesso: list[Any]) -> list[dict[str, Any]]:
-        condicoes = [
+    def _condicoes_sessao(filtro: FiltroAuditoria, cond_acesso: list[Any]) -> list[Any]:
+        condicoes: list[Any] = [
             Sessao.criada_em >= filtro.inicio,
             Sessao.criada_em <= filtro.fim,
             Sessao.codigo_usuario.is_not(None),  # visitante da tela de login nao e um login
         ]
         if filtro.codigo_usuario is not None:
             condicoes.append(Sessao.codigo_usuario == filtro.codigo_usuario)
+        if filtro.login:
+            condicoes.append(Sessao.login_usuario == filtro.login)
+        if filtro.ip:
+            condicoes.append(Sessao.ip_origem == filtro.ip)
+        if filtro.navegador:
+            condicoes.append(condicao_navegador(Sessao.user_agent, filtro.navegador))
+        if filtro.hora is not None:
+            condicoes.append(func.extract("hour", Sessao.criada_em) == filtro.hora)
+        if filtro.dia_semana is not None:
+            condicoes.append(func.extract("dow", Sessao.criada_em) == (filtro.dia_semana + 1) % 7)
+        if filtro.motivo == "ATIVA":
+            condicoes.extend((Sessao.status == "ATIVA", Sessao.expira_em > filtro.fim))
+        elif filtro.motivo == "EXPIRADA":
+            condicoes.extend((Sessao.status == "ATIVA", Sessao.expira_em <= filtro.fim))
+        elif filtro.motivo:
+            condicoes.append(Sessao.motivo_encerramento == filtro.motivo)
         if filtro.id_sistema is not None:
             # A sessao e compartilhada entre os sistemas: vale a pessoa que usou este sistema no periodo.
             condicoes.append(
                 Sessao.codigo_usuario.in_(select(Log.codigo_usuario).where(*cond_acesso, Log.codigo_usuario.is_not(None)))
             )
+        return condicoes
+
+    @staticmethod
+    def _sessoes(db: Session, filtro: FiltroAuditoria, cond_acesso: list[Any]) -> list[dict[str, Any]]:
+        condicoes = ServicoInsights._condicoes_sessao(filtro, cond_acesso)
         linhas = db.execute(
             select(Sessao).where(*condicoes).order_by(desc(Sessao.criada_em)).limit(LIMITE_SESSOES)
         ).scalars().all()
@@ -429,6 +460,49 @@ class ServicoInsights:
             }
             for s in linhas
         ]
+
+    def listar_sessoes(self, filtro: FiltroAuditoria, pagina: PaginaAuditoria) -> dict[str, Any]:
+        """Sessoes do recorte, da mais recente para a mais antiga, para o detalhe (drill-down)."""
+
+        cond_acesso = ServicoAnaliseAuditoria._condicoes_acesso(filtro)
+        condicoes = self._condicoes_sessao(filtro, cond_acesso)
+        with self._banco.leitura() as db:
+            total = db.scalar(select(func.count(Sessao.id_sessao)).where(*condicoes)) or 0
+            linhas = db.execute(
+                select(Sessao, Usuario.nome_usuario, Sistema.nome_sistema)
+                .outerjoin(Usuario, Usuario.codigo_usuario == Sessao.codigo_usuario)
+                .outerjoin(Sistema, Sistema.id_sistema == Sessao.id_sistema)
+                .where(*condicoes)
+                .order_by(desc(Sessao.criada_em))
+                .offset(pagina.deslocamento)
+                .limit(pagina.tamanho)
+            ).all()
+        agora = filtro.fim
+        itens = []
+        for s, nome, sistema in linhas:
+            agente = interpretar_agente(s.user_agent)
+            fim = s.encerrada_em or s.ultima_atividade
+            expirada = s.status == "ATIVA" and s.expira_em is not None and s.expira_em <= agora
+            itens.append(
+                {
+                    "id": s.id_sessao,
+                    "usuario": s.login_usuario or "—",
+                    "nome": nome or s.login_usuario or "—",
+                    "sistema": sistema or "—",
+                    "ip": s.ip_origem,
+                    "navegador": agente["navegador"] or "Desconhecido",
+                    "sistema_operacional": agente["sistema"] or "—",
+                    "dispositivo": agente["dispositivo"],
+                    "situacao": "Expirou" if expirada else ("Em andamento" if s.status == "ATIVA" else (s.motivo_encerramento or "Encerrada")),
+                    "criada_em": _iso(s.criada_em),
+                    "ultima_atividade": _iso(s.ultima_atividade),
+                    "encerrada_em": _iso(s.encerrada_em),
+                    "duracao_segundos": max(int((fim - s.criada_em).total_seconds()), 0) if fim and s.criada_em else None,
+                    "renovacoes": s.total_renovacoes,
+                    "user_agent": s.user_agent,
+                }
+            )
+        return {"total": int(total), "pagina": pagina.numero, "tamanho": pagina.tamanho, "itens": itens}
 
 
 __all__ = [

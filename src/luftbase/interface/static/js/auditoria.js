@@ -46,6 +46,7 @@
             const valor = $(id)?.value?.trim();
             if (valor) p.set(chave, valor);
         });
+        window.luftDrill?.parametros().forEach((valor, chave) => p.set(chave, valor));
         if (incluirPagina) {
             p.set('pagina', estado.pagina);
             p.set('tamanho', estado.tamanho);
@@ -54,6 +55,8 @@
     }
 
     window.luftAuditoriaParametros = parametros;
+    window.luftAuditoriaAtualizar = () => { estado.pagina = 1; return atualizar(); };
+    window.luftAuditoriaAba = (nome) => raiz.querySelector(`[data-log-tab="${nome}"]`)?.click();
 
     function parametrosLocais() {
         const p = new URLSearchParams({ limite: '200' });
@@ -108,11 +111,30 @@
         estado.arquivo = select.value || '';
     }
 
+    const acoesKpi = {
+        requisicoes: { drill: {}, ir: 'registros', aba: 'acessos' },
+        usuarios: { drill: {}, ir: 'pessoas' },
+        erros_servidor: { drill: { resultado: 'servidor' }, ir: 'registros', aba: 'acessos' },
+        acessos_negados: { drill: { resultado: 'negado' }, ir: 'registros', aba: 'acessos' },
+        duracao_media_ms: { drill: {}, ir: 'desempenho' },
+        detalhes: { drill: {}, ir: 'registros', aba: 'detalhes' },
+        alteracoes: { drill: {}, ir: 'registros', aba: 'alteracoes' },
+        detalhes_criticos: { drill: {}, ir: 'seguranca' },
+    };
+
+    function ligarKpis() {
+        Object.entries(acoesKpi).forEach(([chave, acao]) => {
+            const cartao = raiz.querySelector(`.audit-kpi [data-kpi="${chave}"]`)?.closest('.audit-kpi');
+            window.luftDrill?.tornarClicavel(cartao, acao, 'Clique para ver os registros · Shift+clique só filtra os gráficos');
+        });
+    }
+
     function renderizarKpis(dados) {
         Object.entries(dados).forEach(([chave, valor]) => {
             const el = raiz.querySelector(`[data-kpi="${chave}"]`);
             if (el) el.textContent = numero.format(valor || 0);
         });
+        ligarKpis();
         const taxa = raiz.querySelector('[data-kpi-suffix="taxa_erro"]');
         if (taxa) taxa.textContent = `${Number(dados.taxa_erro || 0).toLocaleString('pt-BR')}% das requisições`;
     }
@@ -132,6 +154,15 @@
             barra.style.setProperty('--erro', `${item.total ? item.erros / item.total * 100 : 0}%`);
             barra.style.setProperty('--negado', `${item.total ? item.negados / item.total * 100 : 0}%`);
             barra.title = `${formatarData(item.intervalo)}\n${item.total} requisições · ${item.erros} erros · ${item.negados} negados`;
+            const passo = itens.length > 1 ? new Date(itens[1].intervalo) - new Date(itens[0].intervalo) : 3600000;
+            const inicioBarra = item.intervalo.slice(0, 19);
+            const fimBarra = new Date(new Date(item.intervalo).getTime() + passo);
+            const pad = (n) => String(n).padStart(2, '0');
+            const fimTexto = `${fimBarra.getFullYear()}-${pad(fimBarra.getMonth() + 1)}-${pad(fimBarra.getDate())}T${pad(fimBarra.getHours())}:${pad(fimBarra.getMinutes())}:${pad(fimBarra.getSeconds())}`;
+            const dia = passo >= 86400000;
+            const partes = item.intervalo.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})/) || [];
+            const rotulo = dia ? `${partes[3]}/${partes[2]}` : `${partes[3]}/${partes[2]} ${partes[4]}h`;
+            window.luftDrill?.tornarClicavel(barra, { periodo: { inicio: inicioBarra, fim: fimTexto, rotulo }, ir: 'registros', aba: 'acessos' }, 'Clique para ver os registros deste intervalo');
             alvo.appendChild(barra);
         });
     }
@@ -148,6 +179,10 @@
         itens.forEach((item, indice) => {
             const linha = document.createElement('div');
             linha.className = 'audit-rank-row';
+            const chaves = { rotas: 'rota', usuarios: 'login', grupos: 'grupo', sistemas: 'sistema_id' };
+            if (item.chave !== null && item.chave !== undefined) {
+                window.luftDrill?.tornarClicavel(linha, { drill: { [chaves[estado.ranking]]: String(item.chave) }, ir: 'registros', aba: 'acessos' }, 'Clique para ver os registros');
+            }
             linha.innerHTML = `<span title="${escapar(item.rotulo)}">${indice + 1}. ${escapar(item.rotulo)}</span><strong>${numero.format(item.total)}</strong><div class="audit-rank-track"><i style="width:${item.total / maximo * 100}%"></i></div>`;
             alvo.appendChild(linha);
         });
@@ -170,13 +205,20 @@
         detalhes: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['grupo', 'Grupo'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['descricao', 'Descrição'], ['severidade', 'Severidade']],
         alteracoes: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['tipo_alteracao', 'Tipo'], ['campos_alterados', 'Campos']],
         temporarios: [['data_hora', 'Data'], ['nivel', 'Nível'], ['login_usuario', 'Usuário'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['mensagem', 'Mensagem']],
-        fisicos: [['data_hora', 'Data'], ['arquivo', 'Arquivo'], ['nivel', 'Nível'], ['login_usuario', 'Usuário'], ['acao', 'Ação'], ['mensagem', 'Mensagem']]
+        fisicos: [['data_hora', 'Data'], ['arquivo', 'Arquivo'], ['nivel', 'Nível'], ['login_usuario', 'Usuário'], ['acao', 'Ação'], ['mensagem', 'Mensagem']],
+        sessoes: [['criada_em', 'Início'], ['usuario', 'Pessoa'], ['sistema', 'Sistema'], ['navegador', 'Navegador'], ['sistema_operacional', 'SO'], ['ip', 'IP'], ['situacao', 'Situação'], ['duracao_segundos', 'Duração']]
     };
 
     function valorCelula(chave, item) {
         const valor = item[chave];
         if (chave === 'id_log') return valor == null ? '—' : `<span class="audit-id">#${escapar(valor)}</span>`;
-        if (chave === 'data_hora') return formatarData(valor);
+        if (chave === 'data_hora' || chave === 'criada_em') return formatarData(valor);
+        if (chave === 'duracao_segundos') return valor == null ? '—' : (valor < 60 ? `${valor} s` : valor < 3600 ? `${Math.round(valor / 60)} min` : `${Math.floor(valor / 3600)} h ${Math.round((valor % 3600) / 60)} min`);
+        if (chave === 'situacao') {
+            const nomes = window.luftDrill?.MOTIVOS || {};
+            const classe = valor === 'Em andamento' ? 'ok' : valor === 'Expirou' ? 'warning' : 'neutral';
+            return `<span class="audit-status ${classe}">${escapar(nomes[valor] || valor)}</span>`;
+        }
         if (chave === 'metodo') return `<span class="audit-method">${escapar(valor)}</span>`;
         if (chave === 'status') {
             const classe = valor >= 500 ? 'error' : valor >= 400 ? 'warning' : 'ok';
@@ -199,7 +241,9 @@
         itens.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = defs.map(([chave]) => `<td title="${escapar(item[chave])}">${valorCelula(chave, item)}</td>`).join('');
-            if (!abasLocais.has(estado.aba)) {
+            if (estado.aba === 'sessoes') {
+                tr.addEventListener('click', () => mostrarNoDrawer(item));
+            } else if (!abasLocais.has(estado.aba)) {
                 const tipo = estado.aba === 'acessos' ? 'acesso' : estado.aba === 'detalhes' ? 'detalhe' : 'alteracao';
                 tr.addEventListener('click', () => abrirDetalhe(tipo, item.id));
             }
@@ -218,7 +262,8 @@
             const urls = {
                 acessos: raiz.dataset.acessosUrl,
                 detalhes: raiz.dataset.detalhesUrl,
-                alteracoes: raiz.dataset.alteracoesUrl
+                alteracoes: raiz.dataset.alteracoesUrl,
+                sessoes: raiz.dataset.sessoesUrl
             };
             dados = await obter(`${urls[estado.aba]}?${parametros(true)}`);
         }
@@ -233,7 +278,7 @@
         $('auditPaginaAnterior').disabled = local || estado.pagina <= 1;
         $('auditProximaPagina').disabled = local || estado.pagina >= paginas;
         $('auditArquivoContainer').hidden = estado.aba !== 'fisicos';
-        if ($('auditBtnExportar')) $('auditBtnExportar').hidden = local;
+        if ($('auditBtnExportar')) $('auditBtnExportar').hidden = local || estado.aba === 'sessoes';
     }
 
     async function atualizar() {
@@ -251,25 +296,28 @@
         }
     }
 
+    function mostrarNoDrawer(dados) {
+        const corpo = $('auditDrawerCorpo');
+        corpo.replaceChildren();
+        Object.entries(dados).filter(([chave]) => !['tipo', 'id'].includes(chave)).forEach(([chave, valor]) => {
+            const dl = document.createElement('dl');
+            dl.className = 'audit-detail-row';
+            const dt = document.createElement('dt');
+            dt.textContent = chave.replaceAll('_', ' ');
+            const dd = document.createElement('dd');
+            dd.textContent = valor == null ? '—' : typeof valor === 'object' ? JSON.stringify(valor, null, 2) : String(valor);
+            dl.append(dt, dd);
+            corpo.appendChild(dl);
+        });
+        $('auditDrawer').classList.add('open');
+        $('auditDrawer').setAttribute('aria-hidden', 'false');
+        $('auditDrawerBackdrop').hidden = false;
+    }
+
     async function abrirDetalhe(tipo, id) {
         const url = raiz.dataset.registroUrl.replace('TIPO', tipo).replace('999999', id);
         try {
-            const dados = await obter(url);
-            const corpo = $('auditDrawerCorpo');
-            corpo.replaceChildren();
-            Object.entries(dados).filter(([chave]) => !['tipo', 'id'].includes(chave)).forEach(([chave, valor]) => {
-                const dl = document.createElement('dl');
-                dl.className = 'audit-detail-row';
-                const dt = document.createElement('dt');
-                dt.textContent = chave.replaceAll('_', ' ');
-                const dd = document.createElement('dd');
-                dd.textContent = valor == null ? '—' : typeof valor === 'object' ? JSON.stringify(valor, null, 2) : String(valor);
-                dl.append(dt, dd);
-                corpo.appendChild(dl);
-            });
-            $('auditDrawer').classList.add('open');
-            $('auditDrawer').setAttribute('aria-hidden', 'false');
-            $('auditDrawerBackdrop').hidden = false;
+            mostrarNoDrawer(await obter(url));
         } catch (e) {
             erro(e.message || 'Não foi possível abrir o registro.');
         }

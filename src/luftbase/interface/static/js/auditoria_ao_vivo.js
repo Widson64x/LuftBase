@@ -66,6 +66,9 @@
                 <div class="audit-live-dir"><b>${esc(situacao)}</b>conectado há ${duracao(p.conectado_segundos)}</div>
             </div>`;
         }).join('');
+        [...alvo.querySelectorAll('.audit-live-pessoa')].forEach((el, i) => {
+            window.luftDrill?.tornarClicavel(el, { drill: { login: lista[i].login }, ir: 'registros', aba: 'acessos' }, 'Clique para ver o que esta pessoa fez · Shift+clique só filtra os gráficos');
+        });
     }
 
     function barras(itens, vazio) {

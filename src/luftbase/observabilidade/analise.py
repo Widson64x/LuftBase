@@ -10,6 +10,7 @@ from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
+from luftbase.observabilidade.filtros import condicao_navegador, padrao_rota
 from luftbase.persistencia.core import Log, LogDetalhe, LogEvento, Sistema
 
 # Aliases de compatibilidade para evitar quebras em codigos legados
@@ -29,6 +30,16 @@ class FiltroAuditoria:
     termo: str | None = None
     resultado_http: str | None = None
     severidade: str | None = None
+    # Recortes vindos de cliques nos graficos e tabelas (drill-down).
+    rota: str | None = None  # rota normalizada: '/clientes/:id/testar'
+    metodo: str | None = None
+    ip: str | None = None
+    login: str | None = None
+    grupo_nome: str | None = None
+    navegador: str | None = None  # 'Chrome', 'Edge', ... ou 'Desconhecido'
+    hora: int | None = None  # 0-23
+    dia_semana: int | None = None  # 0 = segunda ... 6 = domingo
+    motivo: str | None = None  # so vale para sessoes (como terminaram)
 
 
 @dataclass(frozen=True, slots=True)
@@ -536,8 +547,27 @@ class ServicoAnaliseAuditoria:
                     Log.permissao_exigida.ilike(termo),
                 )
             )
+        if not ignorar_identidade:
+            if filtro.login:
+                condicoes.append(Log.login_usuario == filtro.login)
+            if filtro.grupo_nome:
+                condicoes.append(Log.nome_grupo == filtro.grupo_nome)
+        if filtro.rota:
+            condicoes.append(Log.rota_acessada.like(padrao_rota(filtro.rota), escape="\\"))
+        if filtro.metodo:
+            condicoes.append(Log.metodo_http == filtro.metodo)
+        if filtro.ip:
+            condicoes.append(Log.ip_origem == filtro.ip)
+        if filtro.navegador:
+            condicoes.append(condicao_navegador(Log.user_agent, filtro.navegador))
+        if filtro.hora is not None:
+            condicoes.append(func.extract("hour", Log.data_hora) == filtro.hora)
+        if filtro.dia_semana is not None:
+            condicoes.append(func.extract("dow", Log.data_hora) == (filtro.dia_semana + 1) % 7)
         if filtro.resultado_http == "sucesso":
-            condicoes.extend((Log.status_http >= 200, Log.status_http < 400))
+            condicoes.extend((Log.status_http >= 200, Log.status_http < 300))
+        elif filtro.resultado_http == "redirecionamento":
+            condicoes.extend((Log.status_http >= 300, Log.status_http < 400))
         elif filtro.resultado_http == "cliente":
             condicoes.extend((Log.status_http >= 400, Log.status_http < 500))
         elif filtro.resultado_http == "servidor":
@@ -560,6 +590,18 @@ class ServicoAnaliseAuditoria:
             condicoes.append(LogEvento.codigo_grupo == filtro.codigo_grupo)
         if filtro.severidade:
             condicoes.append(LogEvento.severidade == filtro.severidade)
+        if filtro.login:
+            condicoes.append(LogEvento.login_usuario == filtro.login)
+        if filtro.grupo_nome:
+            condicoes.append(LogEvento.nome_grupo == filtro.grupo_nome)
+        if filtro.ip:
+            condicoes.append(LogEvento.ip_origem == filtro.ip)
+        if filtro.navegador:
+            condicoes.append(condicao_navegador(LogEvento.user_agent, filtro.navegador))
+        if filtro.hora is not None:
+            condicoes.append(func.extract("hour", LogEvento.data_hora) == filtro.hora)
+        if filtro.dia_semana is not None:
+            condicoes.append(func.extract("dow", LogEvento.data_hora) == (filtro.dia_semana + 1) % 7)
         if filtro.termo:
             termo = f"%{filtro.termo}%"
             condicoes.append(
@@ -613,13 +655,13 @@ class ServicoAnaliseAuditoria:
     ) -> list[dict[str, Any]]:
         rotulo = func.coalesce(coluna, rotulo_nulo).label("rotulo")
         linhas = sessao.execute(
-            select(rotulo, func.count(Log.id_log).label("total"))
+            select(rotulo, func.count(Log.id_log).label("total"), func.max(coluna))
             .where(*condicoes)
             .group_by(rotulo)
             .order_by(desc("total"), rotulo)
             .limit(8)
         ).all()
-        return [{"rotulo": linha[0], "total": int(linha[1])} for linha in linhas]
+        return [{"rotulo": linha[0], "total": int(linha[1]), "chave": linha[2]} for linha in linhas]
 
     @staticmethod
     def _ranking_sistemas(
@@ -628,7 +670,7 @@ class ServicoAnaliseAuditoria:
     ) -> list[dict[str, Any]]:
         rotulo = func.coalesce(Sistema.nome_sistema, "Sistema removido").label("rotulo")
         linhas = sessao.execute(
-            select(rotulo, func.count(Log.id_log).label("total"))
+            select(rotulo, func.count(Log.id_log).label("total"), func.max(Log.id_sistema))
             .select_from(Log)
             .outerjoin(Sistema, Sistema.id_sistema == Log.id_sistema)
             .where(*condicoes)
@@ -636,7 +678,7 @@ class ServicoAnaliseAuditoria:
             .order_by(desc("total"), rotulo)
             .limit(8)
         ).all()
-        return [{"rotulo": linha[0], "total": int(linha[1])} for linha in linhas]
+        return [{"rotulo": linha[0], "total": int(linha[1]), "chave": linha[2]} for linha in linhas]
 
 
 def _data_iso(valor: datetime | None) -> str | None:
