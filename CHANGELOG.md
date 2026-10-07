@@ -2,6 +2,14 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a85] - 2026-10-07
+
+### Corrigido
+
+- Auditoria > Registros: o seletor "Arquivo" aparecia em todas as abas (o atributo `hidden` perdia para
+  `display: flex`). Agora so aparece em "Arquivos fisicos" e em "Raiz temporaria"; nesta ultima mostra, sem
+  opcao de troca, o arquivo do processo atual.
+
 ## [0.1.0a84] - 2026-10-07
 
 ### Adicionado

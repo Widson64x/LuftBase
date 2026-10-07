@@ -97,6 +97,17 @@
         if ([...select.options].some(op => op.value === atual)) select.value = atual;
     }
 
+    // A raiz temporária é um único arquivo (o do processo atual): mostra qual é, sem opção de troca.
+    function mostrarArquivoTemporario(nome) {
+        const select = $('auditArquivo');
+        select.replaceChildren();
+        const op = document.createElement('option');
+        op.value = nome || '';
+        op.textContent = nome ? `${nome} (processo atual)` : 'Somente em memória';
+        select.appendChild(op);
+        select.disabled = true;
+    }
+
     function preencherArquivos(arquivos) {
         const select = $('auditArquivo');
         const anterior = estado.arquivo;
@@ -255,9 +266,11 @@
         let dados;
         if (estado.aba === 'temporarios') {
             dados = await obter(`${raiz.dataset.temporariosUrl}?${parametrosLocais()}`);
+            mostrarArquivoTemporario(dados.arquivo_raiz);
         } else if (estado.aba === 'fisicos') {
             dados = await obter(`${raiz.dataset.fisicosUrl}?${parametrosLocais()}`);
             preencherArquivos(dados.arquivos || []);
+            $('auditArquivo').disabled = false;
         } else {
             const urls = {
                 acessos: raiz.dataset.acessosUrl,
@@ -277,7 +290,8 @@
         $('auditPaginaInfo').textContent = local ? 'Fonte local desta instância' : `Página ${estado.pagina} de ${paginas}`;
         $('auditPaginaAnterior').disabled = local || estado.pagina <= 1;
         $('auditProximaPagina').disabled = local || estado.pagina >= paginas;
-        $('auditArquivoContainer').hidden = estado.aba !== 'fisicos';
+        // O seletor só faz sentido nas duas abas que leem arquivos do servidor.
+        $('auditArquivoContainer').hidden = !(estado.aba === 'fisicos' || estado.aba === 'temporarios');
         if ($('auditBtnExportar')) $('auditBtnExportar').hidden = local || estado.aba === 'sessoes';
     }
 

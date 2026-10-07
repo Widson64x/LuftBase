@@ -317,3 +317,18 @@ def test_front_do_drill_esta_ligado_ao_modelo() -> None:
     fonte_web = Path(auditoria.__file__).read_text(encoding="utf-8")
     for chave in chaves_front:
         assert f'"{chave}"' in fonte_web or f"'{chave}'" in fonte_web or chave == "grupo", chave
+
+
+def test_seletor_de_arquivo_so_aparece_nas_abas_de_arquivos() -> None:
+    from pathlib import Path
+
+    from luftbase import servidor
+
+    raiz = Path(servidor.__file__).resolve().parent / "interface" / "static"
+    js = (raiz / "js" / "auditoria.js").read_text(encoding="utf-8")
+    css = (raiz / "css" / "auditoria.css").read_text(encoding="utf-8")
+
+    # `hidden` perdia para `display: flex`: o seletor ficava visível em todas as abas
+    assert ".audit-file-select[hidden] { display: none; }" in css
+    assert "!(estado.aba === 'fisicos' || estado.aba === 'temporarios')" in js
+    assert "mostrarArquivoTemporario(dados.arquivo_raiz)" in js
