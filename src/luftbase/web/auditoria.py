@@ -10,7 +10,7 @@ from io import StringIO
 from zoneinfo import ZoneInfo
 
 from flask import Blueprint, Response, abort, jsonify, request
-from flask_login import login_required
+from flask_login import current_user, login_required
 
 from luftbase.autorizacao import PermissaoLuftBase
 from luftbase.autorizacao.web import consultar_permissoes, exigir_permissao
@@ -19,6 +19,9 @@ from luftbase.observabilidade.analise import (
     PaginaAuditoria,
     ServicoAnaliseAuditoria,
 )
+from luftbase.interface.web import id_sessao_atual, validar_csrf_requisicao
+from luftbase.observabilidade import SeveridadeAuditoria, registrar_alteracao_auditoria
+from luftbase.observabilidade.controle_sessoes import ServicoControleSessoes
 from luftbase.observabilidade.filtros import NAVEGADORES
 from luftbase.observabilidade.insights import ServicoInsights
 from luftbase.observabilidade.tempo_real import ServicoTempoReal
@@ -250,13 +253,116 @@ def api_insights():  # type: ignore[no-untyped-def]
     return jsonify({"status": "success", "data": dados})
 
 
+def _capacidades_sessoes() -> dict[str, bool]:
+    decisoes = consultar_permissoes((PermissaoLuftBase.SESSOES_REVOGAR,))
+    return {"revogar_sessoes": bool(decisoes.get(PermissaoLuftBase.SESSOES_REVOGAR))}
+
+
+def _controle_sessoes() -> ServicoControleSessoes:
+    estado = obter_luftbase()
+    return ServicoControleSessoes(estado.bancos.core, estado.infraestrutura.armazenamento_sessoes)
+
+
+def _resposta_controle(resultado, mensagem_ok: str, *, acao: str, recurso_id: str, descricao: str):  # type: ignore[no-untyped-def]
+    """Traduz o resultado do servico em HTTP e deixa o rastro na auditoria."""
+
+    if resultado.motivo_recusa == "propria":
+        return jsonify({"status": "error", "message": "Esta é a sessão que você está usando. Para sair, use o botão Sair."}), 409
+    if resultado.motivo_recusa == "nao_encontrada" or resultado.encerradas == 0:
+        return jsonify({"status": "error", "message": "Nenhuma sessão ativa encontrada. Ela pode já ter terminado."}), 404
+    registrar_alteracao_auditoria(
+        recurso="SESSAO",
+        id_recurso=recurso_id,
+        acao=acao,
+        descricao=descricao,
+        dados_novos={"encerradas": resultado.encerradas, "pessoas": resultado.pessoas, "alvo": resultado.login},
+        severidade=SeveridadeAuditoria.MEDIA,
+    )
+    return jsonify(
+        {
+            "status": "success",
+            "message": mensagem_ok,
+            "data": {"encerradas": resultado.encerradas, "pessoas": resultado.pessoas},
+        }
+    )
+
+
+@AuditoriaBp.post("/sessoes/revogar")
+@login_required
+@exigir_permissao(PermissaoLuftBase.SESSOES_REVOGAR)
+def api_revogar_sessao():  # type: ignore[no-untyped-def]
+    """Encerra UMA sessao (identificada pela referencia que a lista devolve)."""
+
+    validar_csrf_requisicao()
+    ref = str((request.get_json(silent=True) or {}).get("ref") or "").strip()
+    if not re.fullmatch(r"[0-9a-f]{20}", ref):
+        abort(400, description="Referencia de sessao invalida.")
+    resultado = _controle_sessoes().encerrar_sessao(
+        ref, id_sistema=_escopo_da_aplicacao(), id_sessao_atual=id_sessao_atual()
+    )
+    return _resposta_controle(
+        resultado,
+        f"Sessão de {resultado.login or 'usuário'} encerrada.",
+        acao="REVOGAR_SESSAO",
+        recurso_id=ref,
+        descricao=f"Sessão de {resultado.login} encerrada por um administrador.",
+    )
+
+
+@AuditoriaBp.post("/sessoes/revogar-pessoa")
+@login_required
+@exigir_permissao(PermissaoLuftBase.SESSOES_REVOGAR)
+def api_revogar_pessoa():  # type: ignore[no-untyped-def]
+    """Desconecta uma pessoa: encerra todas as sessoes ativas dela (menos a sua, se for voce)."""
+
+    validar_csrf_requisicao()
+    try:
+        codigo = int((request.get_json(silent=True) or {}).get("codigo_usuario"))
+    except (TypeError, ValueError):
+        abort(400, description="Pessoa invalida.")
+    resultado = _controle_sessoes().encerrar_pessoa(
+        codigo, id_sistema=_escopo_da_aplicacao(), id_sessao_atual=id_sessao_atual()
+    )
+    return _resposta_controle(
+        resultado,
+        f"{resultado.login or 'Pessoa'} foi desconectada ({resultado.encerradas} sessão(ões) encerrada(s)).",
+        acao="DESCONECTAR_PESSOA",
+        recurso_id=str(codigo),
+        descricao=f"{resultado.login} desconectada por um administrador ({resultado.encerradas} sessão(ões)).",
+    )
+
+
+@AuditoriaBp.post("/sessoes/revogar-todas")
+@login_required
+@exigir_permissao(PermissaoLuftBase.SESSOES_REVOGAR)
+def api_revogar_todas():  # type: ignore[no-untyped-def]
+    """Desconecta todo mundo, menos a sua sessao atual. Exige digitar DESCONECTAR."""
+
+    validar_csrf_requisicao()
+    if str((request.get_json(silent=True) or {}).get("confirmacao") or "").strip().upper() != "DESCONECTAR":
+        abort(400, description="Confirmacao ausente: digite DESCONECTAR.")
+    resultado = _controle_sessoes().encerrar_todas(
+        id_sistema=_escopo_da_aplicacao(), id_sessao_atual=id_sessao_atual()
+    )
+    return _resposta_controle(
+        resultado,
+        f"{resultado.pessoas} pessoa(s) desconectada(s) ({resultado.encerradas} sessão(ões)).",
+        acao="DESCONECTAR_TODOS",
+        recurso_id="todas",
+        descricao=f"Todas as sessões foram encerradas por um administrador ({resultado.encerradas}).",
+    )
+
+
 @AuditoriaBp.get("/sessoes")
 @login_required
 @exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
 def api_sessoes():  # type: ignore[no-untyped-def]
     """Sessoes do recorte (quem entrou, de onde, com que navegador e como terminou)."""
 
-    dados = ServicoInsights(obter_luftbase().bancos.core).listar_sessoes(_montar_filtro(), _montar_pagina())
+    dados = ServicoInsights(obter_luftbase().bancos.core).listar_sessoes(
+        _montar_filtro(), _montar_pagina(), id_sessao_atual=id_sessao_atual()
+    )
+    dados["capacidades"] = _capacidades_sessoes()
     return jsonify({"status": "success", "data": dados})
 
 
@@ -266,7 +372,11 @@ def api_sessoes():  # type: ignore[no-untyped-def]
 def api_tempo_real():  # type: ignore[no-untyped-def]
     """Retrato do momento: quem esta online, o que faz, navegadores e atividade recente."""
 
-    dados = ServicoTempoReal(obter_luftbase().bancos.core).obter(id_sistema=_resolver_sistema())
+    usuario = current_user._get_current_object()
+    dados = ServicoTempoReal(obter_luftbase().bancos.core).obter(
+        id_sistema=_resolver_sistema(), codigo_usuario_atual=getattr(usuario, "id_usuario", None)
+    )
+    dados["capacidades"] = _capacidades_sessoes()
     resposta = jsonify({"status": "success", "data": dados})
     resposta.headers["Cache-Control"] = "no-store"
     return resposta

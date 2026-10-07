@@ -477,8 +477,19 @@ class PlataformaLuft:
             resolver_escopo_sistema(dados.get("sistema_id"))
 
             armazenamento = estado.infraestrutura.armazenamento_sessoes
-            if hasattr(armazenamento, "revogar"):
+            # O armazenamento PostgreSQL chama `revogar_sessao`; antes so se procurava `revogar` e a
+            # chamada "dava certo" sem encerrar nada.
+            revogada = False
+            if hasattr(armazenamento, "revogar_sessao"):
+                revogada = bool(armazenamento.revogar_sessao(id_sessao))
+            elif hasattr(armazenamento, "revogar"):
                 armazenamento.revogar(id_sessao)
+                revogada = True
+            if not revogada:
+                return (
+                    jsonify({"status": "error", "message": "Sessão não encontrada ou já encerrada."}),
+                    404,
+                )
             return jsonify({"status": "success", "message": "Sessão revogada com sucesso."}), 200
 
         app.add_url_rule(

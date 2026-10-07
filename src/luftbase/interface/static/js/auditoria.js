@@ -217,12 +217,18 @@
         alteracoes: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['tipo_alteracao', 'Tipo'], ['campos_alterados', 'Campos']],
         temporarios: [['data_hora', 'Data'], ['nivel', 'Nível'], ['login_usuario', 'Usuário'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['mensagem', 'Mensagem']],
         fisicos: [['data_hora', 'Data'], ['arquivo', 'Arquivo'], ['nivel', 'Nível'], ['login_usuario', 'Usuário'], ['acao', 'Ação'], ['mensagem', 'Mensagem']],
-        sessoes: [['criada_em', 'Início'], ['usuario', 'Pessoa'], ['sistema', 'Sistema'], ['navegador', 'Navegador'], ['sistema_operacional', 'SO'], ['ip', 'IP'], ['situacao', 'Situação'], ['duracao_segundos', 'Duração']]
+        sessoes: [['criada_em', 'Início'], ['usuario', 'Pessoa'], ['sistema', 'Sistema'], ['navegador', 'Navegador'], ['sistema_operacional', 'SO'], ['ip', 'IP'], ['situacao', 'Situação'], ['duracao_segundos', 'Duração'], ['acoes', '']]
     };
 
     function valorCelula(chave, item) {
         const valor = item[chave];
         if (chave === 'id_log') return valor == null ? '—' : `<span class="audit-id">#${escapar(valor)}</span>`;
+        if (chave === 'acoes') {
+            if (item.atual) return '<span class="audit-voce">sua sessão</span>';
+            return estado.podeRevogar && item.ativa
+                ? `<button type="button" class="audit-linha-btn perigo" data-ref="${escapar(item.ref)}" data-rotulo="${escapar(item.usuario)}"><i class="ph-bold ph-sign-out"></i> Encerrar</button>`
+                : '';
+        }
         if (chave === 'data_hora' || chave === 'criada_em') return formatarData(valor);
         if (chave === 'duracao_segundos') return valor == null ? '—' : (valor < 60 ? `${valor} s` : valor < 3600 ? `${Math.round(valor / 60)} min` : `${Math.floor(valor / 3600)} h ${Math.round((valor % 3600) / 60)} min`);
         if (chave === 'situacao') {
@@ -253,6 +259,10 @@
             const tr = document.createElement('tr');
             tr.innerHTML = defs.map(([chave]) => `<td title="${escapar(item[chave])}">${valorCelula(chave, item)}</td>`).join('');
             if (estado.aba === 'sessoes') {
+                tr.querySelector('[data-ref]')?.addEventListener('click', (ev) => {
+                    ev.stopPropagation(); // o botão não deve abrir a gaveta de detalhes
+                    window.luftControle?.encerrarSessao(item.ref, item.usuario);
+                });
                 tr.addEventListener('click', () => mostrarNoDrawer(item));
             } else if (!abasLocais.has(estado.aba)) {
                 const tipo = estado.aba === 'acessos' ? 'acesso' : estado.aba === 'detalhes' ? 'detalhe' : 'alteracao';
@@ -279,6 +289,7 @@
                 sessoes: raiz.dataset.sessoesUrl
             };
             dados = await obter(`${urls[estado.aba]}?${parametros(true)}`);
+            estado.podeRevogar = !!dados.capacidades?.revogar_sessoes;
         }
         const itens = dados.itens || [];
         estado.total = dados.total || 0;
@@ -313,7 +324,7 @@
     function mostrarNoDrawer(dados) {
         const corpo = $('auditDrawerCorpo');
         corpo.replaceChildren();
-        Object.entries(dados).filter(([chave]) => !['tipo', 'id'].includes(chave)).forEach(([chave, valor]) => {
+        Object.entries(dados).filter(([chave]) => !['tipo', 'id', 'ref', 'ativa', 'atual', 'codigo_usuario'].includes(chave)).forEach(([chave, valor]) => {
             const dl = document.createElement('dl');
             dl.className = 'audit-detail-row';
             const dt = document.createElement('dt');

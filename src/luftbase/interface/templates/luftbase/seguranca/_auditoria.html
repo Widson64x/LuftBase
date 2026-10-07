@@ -7,6 +7,9 @@
     data-tempo-real-url="{{ url_for('Auditoria.api_tempo_real') }}"
     data-insights-url="{{ url_for('Auditoria.api_insights') }}"
     data-sessoes-url="{{ url_for('Auditoria.api_sessoes') }}"
+    data-revogar-sessao-url="{{ url_for('Auditoria.api_revogar_sessao') }}"
+    data-revogar-pessoa-url="{{ url_for('Auditoria.api_revogar_pessoa') }}"
+    data-revogar-todas-url="{{ url_for('Auditoria.api_revogar_todas') }}"
     data-acessos-url="{{ url_for('Auditoria.api_acessos') }}"
     data-detalhes-url="{{ url_for('Auditoria.api_detalhes') }}"
     data-alteracoes-url="{{ url_for('Auditoria.api_alteracoes') }}"
@@ -182,6 +185,7 @@
                 <span class="audit-live-sub" id="auditLiveSub">Conectando…</span>
             </div>
             <div class="audit-live-actions">
+                <button type="button" class="btn btn-outline btn-sm audit-perigo" id="auditLiveDesconectarTodos" hidden title="Encerra todas as sessões, menos a sua"><i class="ph-bold ph-plugs"></i> Desconectar todos</button>
                 <span class="audit-live-hint"><i class="ph-bold ph-arrows-clockwise"></i> atualiza a cada 10 s</span>
                 <button type="button" class="btn btn-outline btn-sm" id="auditLivePausar"><i class="ph-bold ph-pause"></i> Pausar</button>
                 <button type="button" class="btn btn-outline btn-sm" id="auditLiveRecolher" aria-expanded="true" title="Recolher"><i class="ph-bold ph-caret-up"></i></button>
@@ -316,6 +320,20 @@
 
 </section>
 
+<dialog class="audit-dialog" id="auditConfirma" aria-labelledby="auditConfirmaTitulo">
+    <h4 id="auditConfirmaTitulo"></h4>
+    <p id="auditConfirmaTexto"></p>
+    <label class="audit-dialog-campo" id="auditConfirmaCampoLinha" hidden>
+        <span id="auditConfirmaDica"></span>
+        <input id="auditConfirmaCampo" type="text" autocomplete="off" spellcheck="false">
+    </label>
+    <div class="audit-dialog-acoes">
+        <button type="button" class="btn btn-outline" id="auditConfirmaCancelar">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="auditConfirmaOk">Confirmar</button>
+    </div>
+</dialog>
+<div class="audit-toast" id="auditToast" role="status" aria-live="polite" hidden></div>
+
 <div class="audit-drawer-backdrop" id="auditDrawerBackdrop" hidden></div>
 <aside class="audit-drawer" id="auditDrawer" aria-hidden="true" aria-labelledby="auditDrawerTitulo">
     <header><div><span>Investigação</span><h4 id="auditDrawerTitulo">Detalhes do registro</h4></div><button id="auditDrawerFechar" type="button" aria-label="Fechar"><i class="ph-bold ph-x"></i></button></header>
@@ -323,6 +341,7 @@
 </aside>
 
 <script src="{{ url_for('luftbase.static', filename='js/auditoria_drill.js') }}"></script>
+<script src="{{ url_for('luftbase.static', filename='js/auditoria_controle.js') }}"></script>
 <script src="{{ url_for('luftbase.static', filename='js/auditoria.js') }}"></script>
 <script src="{{ url_for('luftbase.static', filename='js/auditoria_ao_vivo.js') }}"></script>
 <script src="{{ url_for('luftbase.static', filename='js/auditoria_visoes.js') }}"></script>

@@ -2,6 +2,25 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a86] - 2026-10-07
+
+### Adicionado
+
+- **Controle de sessoes na Auditoria** (permissao `SEGURANCA.SESSOES.REVOGAR`; somente quem a tem ve os botoes):
+  - **Desconectar pessoa** (Ao vivo): encerra todas as sessoes dela, em qualquer navegador.
+  - **Encerrar sessao** (Registros > Sessoes): encerra uma sessao especifica; a sessao em uso aparece como "sua
+    sessao", sem botao.
+  - **Desconectar todos** (Ao vivo): encerra todas as sessoes menos a sua; exige digitar `DESCONECTAR`.
+  - Toda acao pede confirmacao, valida CSRF e escopo (um sistema satelite so alcanca quem o usa ou entrou por
+    ele), registra `REVOGACAO` na sessao, marca a pessoa como offline e deixa o rastro na auditoria
+    (`REVOGAR_SESSAO`, `DESCONECTAR_PESSOA`, `DESCONECTAR_TODOS`). A sessao e referenciada por um hash:
+    o identificador real nunca sai do servidor. Rotas `POST /configuracoes/api/auditoria/sessoes/revogar|revogar-pessoa|revogar-todas`.
+
+### Corrigido
+
+- `POST /_luftbase/sessoes/revogar` respondia sucesso sem encerrar nada com o armazenamento PostgreSQL (procurava
+  um metodo `revogar` que nao existe). Passa a chamar `revogar_sessao` e responde 404 se a sessao nao existe.
+
 ## [0.1.0a85] - 2026-10-07
 
 ### Corrigido

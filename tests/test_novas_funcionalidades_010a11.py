@@ -240,14 +240,25 @@ def test_sessoes_online_e_revogar() -> None:
     # A recusa por token não pode ser confundida com falta de permissão.
     assert "Ctrl+F5" in resp.get_json()["message"]
 
-    # Revogar com CSRF e permissao -> 200
+    # Revogar uma sessao que nao existe nao pode "dar certo": antes respondia 200 sem encerrar nada.
+    resp = cliente.post(
+        "/_luftbase/sessoes/revogar",
+        json={"id_sessao": "abc"},
+        headers={"X-CSRF-Token": "c" * 32},
+    )
+    assert resp.status_code == 404
+
+    # Revogar com CSRF e permissao, sessao existente -> 200 (usa revogar_sessao do armazenamento)
+    chamadas: list[str] = []
+    armazenamento = estado.infraestrutura.armazenamento_sessoes
+    armazenamento.revogar_sessao = lambda id_sessao, *_: chamadas.append(id_sessao) or True  # type: ignore[attr-defined]
     resp = cliente.post(
         "/_luftbase/sessoes/revogar",
         json={"id_sessao": "abc"},
         headers={"X-CSRF-Token": "c" * 32},
     )
     assert resp.status_code == 200
-    assert resp.get_json()["status"] == "success"
+    assert resp.get_json()["status"] == "success" and chamadas == ["abc"]
 
 
 # =========================================================================

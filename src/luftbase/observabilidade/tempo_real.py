@@ -71,6 +71,7 @@ def consolidar_tempo_real(
     *,
     agora: datetime,
     nomes_sistemas: Mapping[int, str] | None = None,
+    codigo_usuario_atual: int | None = None,
 ) -> dict[str, Any]:
     """Transforma linhas cruas em indicadores, lista de online (uma linha por pessoa), rankings e feed."""
 
@@ -110,6 +111,7 @@ def consolidar_tempo_real(
         online.append(
             {
                 "codigo_usuario": codigo,
+                "voce": codigo == codigo_usuario_atual,
                 "login": principal.get("login") or "—",
                 "nome": principal.get("nome") or principal.get("login") or "Usuário",
                 "grupo": principal.get("grupo"),
@@ -188,7 +190,7 @@ class ServicoTempoReal:
     def __init__(self, banco: BancoSQLAlchemy) -> None:
         self._banco = banco
 
-    def obter(self, *, id_sistema: int | None = None) -> dict[str, Any]:
+    def obter(self, *, id_sistema: int | None = None, codigo_usuario_atual: int | None = None) -> dict[str, Any]:
         """`id_sistema=None` enxerga todos os sistemas (escopo global)."""
 
         agora = agora_local()
@@ -242,7 +244,9 @@ class ServicoTempoReal:
                 }
                 for a in linhas_acesso
             ]
-        return consolidar_tempo_real(sessoes, acessos, agora=agora, nomes_sistemas=nomes)
+        return consolidar_tempo_real(
+            sessoes, acessos, agora=agora, nomes_sistemas=nomes, codigo_usuario_atual=codigo_usuario_atual
+        )
 
 
 __all__ = ["ServicoTempoReal", "consolidar_tempo_real"]

@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from luftbase.identidade.agente_usuario import interpretar_agente
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
 from luftbase.observabilidade.analise import FiltroAuditoria, PaginaAuditoria, ServicoAnaliseAuditoria
+from luftbase.observabilidade.controle_sessoes import referencia
 from luftbase.observabilidade.filtros import condicao_navegador
 from luftbase.persistencia.core import Log, LogEvento, Sessao, Sistema, Usuario
 
@@ -461,7 +462,9 @@ class ServicoInsights:
             for s in linhas
         ]
 
-    def listar_sessoes(self, filtro: FiltroAuditoria, pagina: PaginaAuditoria) -> dict[str, Any]:
+    def listar_sessoes(
+        self, filtro: FiltroAuditoria, pagina: PaginaAuditoria, *, id_sessao_atual: str = ""
+    ) -> dict[str, Any]:
         """Sessoes do recorte, da mais recente para a mais antiga, para o detalhe (drill-down)."""
 
         cond_acesso = ServicoAnaliseAuditoria._condicoes_acesso(filtro)
@@ -485,7 +488,11 @@ class ServicoInsights:
             expirada = s.status == "ATIVA" and s.expira_em is not None and s.expira_em <= agora
             itens.append(
                 {
-                    "id": s.id_sessao,
+                    # O identificador real da sessao nao sai do servidor: so uma referencia (hash).
+                    "ref": referencia(s.id_sessao),
+                    "ativa": s.status == "ATIVA" and not expirada,
+                    "atual": s.id_sessao == id_sessao_atual,
+                    "codigo_usuario": s.codigo_usuario,
                     "usuario": s.login_usuario or "—",
                     "nome": nome or s.login_usuario or "—",
                     "sistema": sistema or "—",

@@ -10,7 +10,7 @@
     const INTERVALO_MS = 10000;
     const $ = (id) => document.getElementById(id);
     const numero = new Intl.NumberFormat('pt-BR');
-    const estado = { pausado: false, vistos: new Set(), primeira: true, temporizador: null, carregando: false, atividade: [], visitantes: false };
+    const estado = { pausado: false, vistos: new Set(), primeira: true, temporizador: null, carregando: false, atividade: [], visitantes: false, podeRevogar: false };
 
     const esc = (valor) => String(valor == null ? '—' : valor).replace(/[&<>"']/g, (c) => (
         { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -63,11 +63,15 @@
                 <div class="audit-live-avatar">${esc(iniciais(p.nome))}</div>
                 <div><strong>${esc(p.nome)} <span class="mudo" style="font-weight:500">@${esc(p.login)}</span>${p.sessoes > 1 ? ` <span class="audit-live-mais" title="${esc(['Também em: ' + (p.outros_navegadores.join(', ') || 'o mesmo navegador')].join(''))}">+${p.sessoes - 1} ${p.sessoes > 2 ? 'sessões' : 'sessão'}</span>` : ''}</strong>
                     <small><i class="ph-bold ${iconeDispositivo(p.dispositivo)}"></i> ${esc(p.navegador)} · IP ${esc(ipTexto(p.ip))} · ${esc(p.sistema)}</small>${fazendo}</div>
-                <div class="audit-live-dir"><b>${esc(situacao)}</b>conectado há ${duracao(p.conectado_segundos)}</div>
+                <div class="audit-live-dir"><b>${esc(situacao)}</b>conectado há ${duracao(p.conectado_segundos)}${estado.podeRevogar && !p.voce ? `<button type="button" class="audit-linha-btn perigo" data-desconectar="${esc(p.codigo_usuario)}" title="Encerra todas as sessões de ${esc(p.nome)}"><i class="ph-bold ph-sign-out"></i> Desconectar</button>` : ''}${p.voce ? '<span class="audit-voce">você</span>' : ''}</div>
             </div>`;
         }).join('');
         [...alvo.querySelectorAll('.audit-live-pessoa')].forEach((el, i) => {
             window.luftDrill?.tornarClicavel(el, { drill: { login: lista[i].login }, ir: 'registros', aba: 'acessos' }, 'Clique para ver o que esta pessoa fez · Shift+clique só filtra os gráficos');
+            el.querySelector('[data-desconectar]')?.addEventListener('click', (ev) => {
+                ev.stopPropagation(); // o clique no botão não deve abrir os registros da pessoa
+                window.luftControle?.desconectarPessoa(lista[i].codigo_usuario, lista[i].nome);
+            });
         });
     }
 
@@ -116,8 +120,11 @@
             if (!resposta.ok || dados.status !== 'success') throw new Error(dados.message || `HTTP ${resposta.status}`);
             const d = dados.data;
             renderizarKpis(d.kpis);
-            renderizarOnline(d.online);
             renderizarRankings(d);
+            estado.podeRevogar = !!d.capacidades?.revogar_sessoes;
+            renderizarOnline(d.online);
+            const botaoTodos = $('auditLiveDesconectarTodos');
+            if (botaoTodos) botaoTodos.hidden = !estado.podeRevogar;
             estado.atividade = d.atividade;
             renderizarFeed();
             painel.classList.remove('falha');
@@ -150,6 +157,8 @@
     }
 
     $('auditLivePausar').addEventListener('click', () => definirPausa(!estado.pausado));
+    $('auditLiveDesconectarTodos')?.addEventListener('click', () => window.luftControle?.desconectarTodos());
+    window.luftAuditoriaVivo = carregar;
     $('auditLiveVisitantes')?.addEventListener('change', (ev) => { estado.visitantes = ev.currentTarget.checked; estado.primeira = true; renderizarFeed(); });
     $('auditLiveRecolher').addEventListener('click', (ev) => {
         const corpo = $('auditLiveCorpo');
