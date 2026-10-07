@@ -17,6 +17,7 @@ from luftbase.observabilidade.analise import (
     PaginaAuditoria,
     ServicoAnaliseAuditoria,
 )
+from luftbase.observabilidade.insights import ServicoInsights
 from luftbase.observabilidade.tempo_real import ServicoTempoReal
 from luftbase.plataforma import obter_luftbase
 from luftbase.web.escopo import sistema_aplicacao_atual
@@ -158,6 +159,16 @@ def api_resumo():  # type: ignore[no-untyped-def]
             },
         }
     )
+
+
+@AuditoriaBp.get("/insights")
+@login_required
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
+def api_insights():  # type: ignore[no-untyped-def]
+    """Comparativo, mapa de calor, desempenho, seguranca e sessoes do recorte filtrado."""
+
+    dados = ServicoInsights(obter_luftbase().bancos.core).obter(_montar_filtro())
+    return jsonify({"status": "success", "data": dados})
 
 
 @AuditoriaBp.get("/tempo-real")

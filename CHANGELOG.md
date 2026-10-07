@@ -2,6 +2,29 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a82] - 2026-10-07
+
+### Corrigido
+
+- Auditoria > Ao vivo mostrava "ninguem conectado" fora do Workspace: a sessao e unica (SSO) e nasce no sistema
+  onde a pessoa entrou, entao filtrar por `Sessao.id_sistema` escondia quem estava usando o Integrador ou o
+  ConnectAir. No escopo de um sistema, agora vale quem o usou nos ultimos 15 minutos ou entrou por ele, e o
+  sistema mostrado e o do ultimo acesso.
+
+### Alterado
+
+- **Auditoria & Analise reorganizada** em secoes (Visao geral, Ao vivo, Pessoas & sessoes, Desempenho,
+  Seguranca, Registros), com a escolha lembrada no navegador e contadores nas abas (online agora, alertas).
+  - Visao geral: destaques em linguagem simples ("16 erros no servidor, 300% a mais que antes"), KPIs com a
+    variacao frente ao periodo anterior de mesma duracao, mapa de calor (dia da semana x hora) e saude das
+    respostas (2xx a 5xx).
+  - Pessoas & sessoes: logins, pessoas e IPs diferentes, duracao media da sessao, navegadores, sistemas e
+    dispositivos, motivos de encerramento, pessoas mais ativas e IPs compartilhados por varias pessoas.
+  - Desempenho: telas mais lentas e rotas com falhas (ids agrupados: `/clientes/:id`).
+  - Seguranca: tentativas sem permissao (com a permissao que faltou) e eventos de severidade alta ou critica.
+  - Rota `GET /configuracoes/api/auditoria/insights` (somente leitura, `AUDITORIA.VISUALIZAR`),
+    `observabilidade/insights.py`. Registros, filtros e exportacao continuam como eram.
+
 ## [0.1.0a81] - 2026-10-06
 
 ### Adicionado

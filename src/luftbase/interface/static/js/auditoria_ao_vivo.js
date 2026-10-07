@@ -41,6 +41,8 @@
     function renderizarKpis(k) {
         ['usuarios_online', 'sessoes_ativas', 'requisicoes_por_minuto', 'tempo_medio_ms', 'erros_15min'].forEach((c) => definirKpi(c, k[c]));
         painel.querySelector('[data-alerta="erros_15min"]')?.classList.toggle('tem', (k.erros_15min || 0) > 0);
+        const selo = $('auditNavOnline');
+        if (selo) selo.textContent = numero.format(k.usuarios_online || 0);
     }
 
     function renderizarOnline(lista) {
@@ -119,8 +121,12 @@
     }
 
     // Só consulta com a aba do navegador visível e o painel realmente à vista (outras abas ficam quietas).
+    // Com a seção escondida, só atualiza o contador da aba (a cada 3 ciclos), para não pesar.
+    let tique = 0;
     function ciclo() {
-        if (estado.pausado || document.hidden || painel.offsetParent === null) return;
+        if (estado.pausado || document.hidden) return;
+        tique += 1;
+        if (painel.offsetParent === null && tique % 3 !== 0) return;
         carregar();
     }
 

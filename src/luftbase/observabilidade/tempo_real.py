@@ -11,7 +11,7 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, or_, select
 
 from luftbase.identidade.agente_usuario import interpretar_agente
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
@@ -90,18 +90,20 @@ def consolidar_tempo_real(
     for sessao in sorted(sessoes, key=lambda s: s["ultima_atividade"], reverse=True):
         agente = interpretar_agente(sessao.get("user_agent"))
         inativo = _segundos(agora - sessao["ultima_atividade"])
+        ultimo = ultimo_por_usuario.get(sessao.get("codigo_usuario"))
         if inativo <= JANELA_ONLINE.total_seconds():
             navegadores[_nome_navegador(agente["navegador"])] += 1
             sistemas_op[agente["sistema"] or "Desconhecido"] += 1
             dispositivos[agente["dispositivo"]] += 1
-        ultimo = ultimo_por_usuario.get(sessao.get("codigo_usuario"))
         online.append(
             {
                 "codigo_usuario": sessao.get("codigo_usuario"),
                 "login": sessao.get("login") or "—",
                 "nome": sessao.get("nome") or sessao.get("login") or "Usuário",
                 "grupo": sessao.get("grupo"),
-                "sistema": _nome_sistema(nomes_sistemas, sessao.get("id_sistema")),
+                "sistema": _nome_sistema(
+                    nomes_sistemas, ultimo["id_sistema"] if ultimo else sessao.get("id_sistema")
+                ),
                 "ip": sessao.get("ip_origem"),
                 "navegador": agente["descricao"],
                 "dispositivo": agente["dispositivo"],
@@ -173,14 +175,21 @@ class ServicoTempoReal:
         """`id_sistema=None` enxerga todos os sistemas (escopo global)."""
 
         agora = agora_local()
-        condicoes_sessao = [Sessao.status == "ATIVA", Sessao.expira_em > agora]
         condicoes_acesso = [Log.data_hora >= agora - JANELA_ATIVIDADE]
         if id_sistema is not None:
-            condicoes_sessao.append(Sessao.id_sistema == id_sistema)
             condicoes_acesso.append(Log.id_sistema == id_sistema)
 
         with self._banco.leitura() as db:
             nomes = {i: n for i, n in db.execute(select(Sistema.id_sistema, Sistema.nome_sistema)).all()}
+            linhas_acesso = db.execute(
+                select(Log).where(*condicoes_acesso).order_by(desc(Log.data_hora)).limit(LIMITE_ACESSOS)
+            ).scalars().all()
+            condicoes_sessao = [Sessao.status == "ATIVA", Sessao.expira_em > agora]
+            if id_sistema is not None:
+                # O login e unico (SSO): a sessao nasce no sistema onde a pessoa entrou, nao onde ela esta.
+                # Entao, no escopo de um sistema, vale quem o esta usando, nao so quem entrou por ele.
+                usando = {a.codigo_usuario for a in linhas_acesso if a.codigo_usuario is not None}
+                condicoes_sessao.append(or_(Sessao.id_sistema == id_sistema, Sessao.codigo_usuario.in_(usando)))
             linhas_sessao = db.execute(
                 select(Sessao, Usuario.nome_usuario, Usuario.sigla_usuariogrupo)
                 .outerjoin(Usuario, Usuario.codigo_usuario == Sessao.codigo_usuario)
@@ -188,9 +197,6 @@ class ServicoTempoReal:
                 .order_by(desc(Sessao.ultima_atividade))
                 .limit(LIMITE_SESSOES)
             ).all()
-            linhas_acesso = db.execute(
-                select(Log).where(*condicoes_acesso).order_by(desc(Log.data_hora)).limit(LIMITE_ACESSOS)
-            ).scalars().all()
             sessoes = [
                 {
                     "codigo_usuario": s.codigo_usuario,

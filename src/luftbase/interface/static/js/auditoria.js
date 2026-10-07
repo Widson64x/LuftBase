@@ -53,6 +53,8 @@
         return p;
     }
 
+    window.luftAuditoriaParametros = parametros;
+
     function parametrosLocais() {
         const p = new URLSearchParams({ limite: '200' });
         const termo = $('auditTermo').value.trim();
@@ -239,6 +241,8 @@
         erro();
         try {
             await Promise.all([carregarResumo(), carregarLogs()]);
+            raiz.dataset.auditoriaPronta = 'true'; // quem carregar depois (outros scripts) sabe que já houve a 1ª carga
+            document.dispatchEvent(new CustomEvent('luft:auditoria:atualizada'));
         } catch (e) {
             console.error(e);
             erro(e.message || 'Não foi possível consultar a auditoria.');

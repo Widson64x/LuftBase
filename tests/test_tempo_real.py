@@ -223,3 +223,25 @@ def test_consulta_real_respeita_o_escopo_do_sistema() -> None:
 
     assert [o["login"] for o in r["online"]] == ["bia"]
     assert [a["rota"] for a in r["atividade"]] == ["/Luft-Integrador/parametros"]
+
+
+def test_no_escopo_de_um_sistema_aparece_quem_o_usa_mesmo_que_o_login_tenha_sido_em_outro() -> None:
+    from luftbase.nucleo.tempo import agora_local
+    from luftbase.observabilidade.tempo_real import ServicoTempoReal
+
+    banco = _banco_com_dados()
+    agora = agora_local()
+    with banco.unidade_trabalho() as db:
+        # Ana entrou pelo Workspace (sistema 0) e agora esta no Integrador (sistema 3).
+        db.connection().exec_driver_sql(
+            "INSERT INTO core.tb_logs (id_sistema, codigo_usuario, login_usuario, rota_acessada, metodo_http, ip_origem,"
+            " id_correlacao, duracao_ms, status_http, data_hora) VALUES (3, 1, 'ana', '/Luft-Integrador/x', 'GET',"
+            " '10.0.0.9', 'c', 10, 200, ?)",
+            (agora - timedelta(seconds=5),),
+        )
+
+    r = ServicoTempoReal(banco).obter(id_sistema=3)
+
+    por_login = {o["login"]: o for o in r["online"]}
+    assert set(por_login) == {"ana", "bia"}
+    assert por_login["ana"]["sistema"] == "Luft-Integrador"  # onde esta agora, nao onde entrou
