@@ -2,6 +2,16 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [Nao lancado]
+
+### Documentacao
+
+- Novos documentos 14 a 21: Painel de Controle, auditoria analitica e controle de sessoes, perfil, servidor/rede/fuso,
+  referencia de variaveis de ambiente, guia da aplicacao satelite, operacao e deploy, conteudo rico.
+- `10-IDENTIDADE-E-SESSAO.md` reescrito (a sessao fica no PostgreSQL; o Redis e opcional).
+- `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
+  no doc 12.
+
 ## [0.1.0a88] - 2026-10-07
 
 ### Alterado

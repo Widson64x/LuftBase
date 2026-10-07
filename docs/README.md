@@ -15,6 +15,22 @@
 11. [Autorizacao](11-AUTORIZACAO.md)
 12. [Auditoria e observabilidade](12-AUDITORIA-E-OBSERVABILIDADE.md)
 13. [Notificacoes e publicacoes](13-NOTIFICACOES-E-PUBLICACOES.md)
+14. [Painel de Controle](14-PAINEL-DE-CONTROLE.md)
+15. [Auditoria analitica, "Ao vivo" e controle de sessoes](15-AUDITORIA-ANALITICA-E-CONTROLE-DE-SESSOES.md)
+16. [Perfil do usuario](16-PERFIL-DO-USUARIO.md)
+17. [Servidor, rede e fuso horario](17-SERVIDOR-REDE-E-FUSO.md)
+18. [Variaveis de ambiente (referencia)](18-VARIAVEIS-DE-AMBIENTE.md)
+19. [Guia da aplicacao satelite](19-GUIA-DA-APLICACAO-SATELITE.md)
+20. [Operacao e deploy](20-OPERACAO-E-DEPLOY.md)
+21. [Conteudo rico e notas de atualizacao](21-CONTEUDO-RICO-E-NOTAS-DE-ATUALIZACAO.md)
+
+### Por onde comecar, conforme o seu papel
+
+- **Vou criar ou manter um sistema Luft**: 19, 11, 04, 18 e o ADR-017.
+- **Cuido do servidor ou do deploy**: 20, 17, 18, 14.
+- **Preciso entender login, sessao e permissao**: 10, 11, 15.
+- **Investigo um problema**: 15 (auditoria), 20 (quando algo da errado), 12.
+- **Quero o panorama**: 01, 02 e o [README](../README.md).
 
 ## Decisoes arquiteturais
 
@@ -30,6 +46,10 @@
 - [ADR-011: autorizacao hierarquica e modulos](decisoes/ADR-011-AUTORIZACAO-HIERARQUICA-E-MODULOS.md)
 - [ADR-012: auditoria analitica e retrato historico](decisoes/ADR-012-AUDITORIA-ANALITICA-E-RETRATO-HISTORICO.md)
 - [ADR-013: trilha de logs encadeada e diagnostico local](decisoes/ADR-013-TRILHA-DE-LOGS-ENCADEADA.md)
+- [ADR-014: integracao de e-mail](decisoes/ADR-014-INTEGRACAO-DE-EMAIL.md)
+- [ADR-015: catalogo de aplicacoes e prefixo](decisoes/ADR-015-CATALOGO-DE-APLICACOES-E-PREFIXO.md)
+- [ADR-016: sistemas permanentes e catalogo na inicializacao](decisoes/ADR-016-SISTEMAS-PERMANENTES-E-CATALOGO-NA-INICIALIZACAO.md)
+- [ADR-017: padrao de projeto das aplicacoes](decisoes/ADR-017-PADRAO-DE-PROJETO-DAS-APLICACOES.md)
 
 O [Roadmap](../ROADMAP.md) controla marcos. O [Handoff](../HANDOFF.md) registra o estado
 operacional para continuidade entre pessoas e agentes.

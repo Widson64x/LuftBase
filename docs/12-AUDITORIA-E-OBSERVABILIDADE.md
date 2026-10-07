@@ -1,5 +1,11 @@
 # Auditoria e observabilidade
 
+> **Nomes atuais das tabelas.** Este documento descreve a cadeia pelos nomes do ADR-013. Depois da migracao 0012 as
+> tabelas do core se chamam: acesso HTTP = `tb_logs`; evento de dominio (acao, erro, ocorrencia) = `tb_logevento`;
+> retrato antes/depois = `tb_logdetalhe`. Leia `tb_logacesso` como `tb_logs`, o "detalhe" como `tb_logevento` e as
+> "alteracoes" como `tb_logdetalhe`. A tela analitica, o "Ao vivo", o drill-down e o controle de sessoes estao no
+> [doc 15](15-AUDITORIA-ANALITICA-E-CONTROLE-DE-SESSOES.md).
+
 ## Duas trilhas, cinco fontes
 
 O LuftBase nao trata auditoria relacional e diagnostico de processo como a mesma coisa.

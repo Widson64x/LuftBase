@@ -1,6 +1,10 @@
 # Roadmap do LuftBase
 
 Cada marco precisa atender seus criterios de aceite antes de ser marcado como concluido.
+Estado em **2026-10-07**, versao `0.1.0a88`. Legenda: `[x]` feito e em uso, `[ ]` pendente.
+O historico por versao esta no [CHANGELOG](CHANGELOG.md); a documentacao, em [docs/](docs/README.md).
+
+Producao hoje: Luft-Workspace e Luft-Integrador (Windows). Homologacao: os tres sistemas (Linux).
 
 ## M00 — Fundacao documental
 
@@ -93,8 +97,8 @@ Cada marco precisa atender seus criterios de aceite antes de ser marcado como co
 - [x] Remover models e inicializacoes sistemicas locais.
 - [x] Centralizar bootstrap exclusivamente por `LUFT_SISTEMA_ID` e preservar a identidade visual.
 - [x] Concluir e adotar a nova autorizacao hierarquica e catalogo de modulos (0.1.0a16).
-- [ ] Validar Windows e Linux.
-- [ ] Medir desempenho e preparar rollback.
+- [x] Validar Windows (producao) e Linux (homologacao): fuso unico, driver ODBC, cookie, IP real.
+- [ ] Medir desempenho e preparar rollback (plano de carga e procedimento de volta de versao).
 
 ## M12 — Integracoes corporativas
 
@@ -103,11 +107,55 @@ Cada marco precisa atender seus criterios de aceite antes de ser marcado como co
 - [x] Layout e componentes padrao de e-mail no pacote.
 - [x] Catalogo declarativo de modulos e permissoes para aplicacoes satelites.
 - [x] Publicacao sob prefixo (`SCRIPT_NAME`) e ponte de `flash` para toasts.
-- [ ] Migrar o Luft-ConnectAir do LuftCore para o LuftBase (codigo migrado; falta homologar).
+- [x] Migrar o Luft-ConnectAir do LuftCore para o LuftBase (em homologacao).
+- [ ] Publicar o Luft-ConnectAir em producao.
+- [x] Migrar o Luft-Integrador do LuftCore para o LuftBase (em producao).
+- [ ] Migrar o Luft-Control.
+
+## M13 — Painel de Controle e operacao
+
+- [x] Aba Integracoes: Vault, bancos, e-mail, LDAP e versoes, sem valores secretos.
+- [x] Verificador de versao do LuftBase contra o GitHub.
+- [x] Servicos do servidor (status, iniciar, parar, reiniciar) achados pelo nome do sistema, sem lista no `.env`.
+- [x] Variaveis de ambiente editaveis por lista fechada, com validacao, copia e troca atomica.
+- [x] Copiar permissoes entre usuarios em tres passos, com auditoria.
+- [x] Caminho de navegacao com a casinha levando ao Workspace.
+- [x] Provisionamento de sistemas por ambiente (schema, role, segredo) e `reprovisionar-sistema`.
+- [ ] Alertas automaticos (e-mail ou sino) para erros 5xx e acessos negados em sequencia.
+
+## M14 — Identidade, sessao e perfil
+
+- [x] Sessao compartilhada no PostgreSQL com eventos (`INICIO`, `RENOVACAO`, `LOGOUT`, `TIMEOUT`, `REVOGACAO`).
+- [x] Logout global confiavel (sessao finalizada nunca reativa; cookie "lembrar" descartado).
+- [x] IP real do usuario atras do nginx e navegador gravados por sessao.
+- [x] Perfil: foto com editor de recorte, dispositivos conectados, historico de acessos e total de logins.
+- [x] Horario unico de Brasilia em Windows e Linux.
+- [ ] Aviso ao usuario quando a sessao e encerrada por um administrador.
+- [ ] Bloqueio de login de um usuario pela tela.
+
+## M15 — Auditoria analitica
+
+- [x] Painel em secoes: visao geral, ao vivo, pessoas e sessoes, desempenho, seguranca e registros.
+- [x] Drill-down estilo BI (clique filtra e leva aos registros; Shift+clique so filtra).
+- [x] Controle de sessoes: encerrar uma, desconectar pessoa, desconectar todos.
+- [x] Dados confiaveis desde um marco (`LUFT_AUDITORIA_DADOS_DESDE`).
+- [ ] Retencao e arquivamento de logs antigos.
+- [ ] Agregador corporativo de logs para investigacoes com varios hosts (ADR-013).
+
+## M16 — Comunicacao
+
+- [x] Notas de atualizacao com markdown seguro, imagens, destaques e cards.
+- [x] Nota global de lancamento, idempotente, com correcao de texto sem renotificar.
+
+## M17 — Documentacao
+
+- [x] Documentacao tecnica de identidade, painel, auditoria, perfil, servidor, variaveis, satelites e operacao.
+- [ ] Atualizar `luftbase projeto criar` para gerar a estrutura do ADR-017.
+- [ ] Documentar a API publica final (congelamento da 1.0).
 
 ## M11 — Estabilizacao 1.0
 
 - [ ] Publicar alpha, beta e release candidate.
 - [ ] Congelar a API publica.
-- [ ] Concluir documentacao operacional.
+- [x] Concluir documentacao operacional (docs 14 a 21).
 - [ ] Publicar `1.0.0` somente depois do piloto homologado.

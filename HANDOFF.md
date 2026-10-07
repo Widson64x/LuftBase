@@ -1,5 +1,19 @@
 # Handoff
 
+## Estado atual (2026-10-07, versao 0.1.0a88)
+
+O registro abaixo e historico (por continuidade, da mais recente a mais antiga) e **parou de ser atualizado na 0.1.0a32**.
+Para o estado vigente use:
+
+- [ROADMAP](ROADMAP.md): marcos e pendencias;
+- [CHANGELOG](CHANGELOG.md): tudo o que mudou, versao a versao (da 0.1.0a33 em diante);
+- [docs/](docs/README.md): documentacao tecnica atualizada.
+
+Resumo operacional: o LuftBase roda em Luft-Workspace e Luft-Integrador (producao, Windows) e nos tres sistemas em homologacao
+(Linux). A sessao fica no PostgreSQL (`core.tb_sessao`); o Redis e opcional. Os nomes das tabelas de log mudaram na migracao
+0012 (`tb_logs` = acesso HTTP, `tb_logevento` = evento, `tb_logdetalhe` = antes/depois); os textos abaixo usam os nomes antigos.
+
+
 Atualizado em: 2026-09-30
 
 ## Estado
