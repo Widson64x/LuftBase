@@ -2,6 +2,27 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a83] - 2026-10-07
+
+### Corrigido
+
+- Auditoria, dados mais fieis ao que acontece:
+  - **Visitantes nao sao "conectados" nem "logins"**: sessoes sem usuario (tela de login, verificacoes) deixam
+    de aparecer como "Usuario @—" e de inflar "sessoes ativas" e "logins no periodo".
+  - **Uma linha por pessoa** em "Quem esta conectado" (com "+N sessoes" e os outros navegadores no balao),
+    em vez de uma por sessao.
+  - **"anonimo" virou "visitante"** no feed (a tela de entrada e o instante da saida), escondido por padrao
+    (caixa "mostrar visitantes").
+  - Navegador **"Desconhecido"** (sessoes de antes da captura) sai dos rankings e dos destaques e e contado a
+    parte; sessao "ATIVA" no banco mas ja expirada aparece como "Expirou", nao "Em andamento".
+  - **127.0.0.1** e rotulado como servidor local e nao dispara o aviso de "varias pessoas no mesmo IP".
+  - Variacao frente ao periodo anterior so aparece com base minima (30 requisicoes): chega de "subiu 1056%".
+
+### Adicionado
+
+- `LUFT_AUDITORIA_DADOS_DESDE` (ISO 8601, ex.: `2026-10-06T17:00`): ignora nas analises e nos registros da
+  auditoria o que veio antes do marco, sem apagar nada. Aparece em Ambiente e a tela avisa quando esta ativo.
+
 ## [0.1.0a82] - 2026-10-07
 
 ### Corrigido

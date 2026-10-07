@@ -109,15 +109,51 @@ def test_sem_dados_nao_quebra() -> None:
     assert r["kpis"]["tempo_medio_ms"] == 0 and r["kpis"]["usuarios_online"] == 0
 
 
-def test_sessao_sem_usuario_conhecido_e_agente_vazio() -> None:
+def test_visitante_sem_login_nao_conta_como_conectado() -> None:
+    visitante = _sessao(1, "ana", CHROME, inativo_s=10)
+    visitante.update(codigo_usuario=None, login=None, nome=None)
+    real = _sessao(2, "bia", CHROME, inativo_s=10)
+
+    r = consolidar_tempo_real([visitante, real], [], agora=AGORA)
+
+    assert [o["login"] for o in r["online"]] == ["bia"]
+    assert r["kpis"]["sessoes_ativas"] == 1 and r["kpis"]["usuarios_online"] == 1
+
+
+def test_uma_linha_por_pessoa_mesmo_com_varias_sessoes() -> None:
+    sessoes = [
+        _sessao(1, "ana", CHROME, inativo_s=10),
+        _sessao(1, "ana", EDGE, inativo_s=300),
+        _sessao(1, "ana", IPHONE, inativo_s=5000),
+        _sessao(2, "bia", CHROME, inativo_s=30),
+    ]
+
+    r = consolidar_tempo_real(sessoes, [], agora=AGORA, nomes_sistemas={0: "Luft-Workspace"})
+
+    assert [o["login"] for o in r["online"]] == ["ana", "bia"]
+    ana = r["online"][0]
+    assert ana["sessoes"] == 3 and ana["navegador"] == "Chrome 126 em Windows"
+    assert ana["outros_navegadores"] == ["Edge 126 em Windows", "Safari 17 em iOS"]
+    assert r["kpis"]["usuarios_online"] == 2 and r["kpis"]["sessoes_ativas"] == 4
+    assert r["kpis"]["sessoes_em_atividade"] == 3  # a do iPhone está parada há mais de 5 min
+
+
+def test_agente_vazio_e_sistema_zero_nao_quebram() -> None:
     sessao = _sessao(1, "ana", "", inativo_s=10)
-    sessao.update(codigo_usuario=None, login=None, nome=None)
 
     r = consolidar_tempo_real([sessao], [], agora=AGORA, nomes_sistemas={0: "Luft-Workspace"})
 
     pessoa = r["online"][0]
-    assert pessoa["nome"] == "Usuário" and pessoa["navegador"] == "Desconhecido"
-    assert pessoa["sistema"] == "Luft-Workspace" and r["kpis"]["usuarios_online"] == 0
+    assert pessoa["navegador"] == "Desconhecido" and pessoa["sistema"] == "Luft-Workspace"
+
+
+def test_feed_marca_quem_ainda_nao_fez_login() -> None:
+    acessos = [_acesso(5, None, "", "/login"), _acesso(9, 1, "ana", "/painel")]
+    acessos[0]["login"] = None
+
+    feed = consolidar_tempo_real([], acessos, agora=AGORA)["atividade"]
+
+    assert [(f["login"], f["anonimo"]) for f in feed] == [("visitante", True), ("ana", False)]
 
 
 def test_rota_exige_permissao_de_auditoria_e_os_arquivos_do_front_existem() -> None:

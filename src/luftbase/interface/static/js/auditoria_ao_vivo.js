@@ -10,7 +10,7 @@
     const INTERVALO_MS = 10000;
     const $ = (id) => document.getElementById(id);
     const numero = new Intl.NumberFormat('pt-BR');
-    const estado = { pausado: false, vistos: new Set(), primeira: true, temporizador: null, carregando: false };
+    const estado = { pausado: false, vistos: new Set(), primeira: true, temporizador: null, carregando: false, atividade: [], visitantes: false };
 
     const esc = (valor) => String(valor == null ? '—' : valor).replace(/[&<>"']/g, (c) => (
         { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -24,6 +24,9 @@
         const m = Math.floor((s % 3600) / 60);
         return m ? `${h} h ${m} min` : `${h} h`;
     }
+
+    // 127.0.0.1 / ::1 é a própria máquina do servidor (ou de quem testa), não um endereço de usuário.
+    const ipTexto = (ip) => (!ip ? '—' : /^(127\.|::1$)/.test(ip) ? `${ip} (servidor local)` : ip);
 
     const iniciais = (nome) => String(nome || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || '?';
     const iconeDispositivo = (d) => (d === 'mobile' ? 'ph-device-mobile' : d === 'tablet' ? 'ph-device-tablet' : 'ph-desktop');
@@ -58,8 +61,8 @@
             const situacao = p.estado === 'ativo' ? 'Ativo agora' : p.estado === 'recente' ? `Visto há ${duracao(p.inativo_segundos)}` : `Ocioso há ${duracao(p.inativo_segundos)}`;
             return `<div class="audit-live-pessoa" data-estado="${esc(p.estado)}">
                 <div class="audit-live-avatar">${esc(iniciais(p.nome))}</div>
-                <div><strong>${esc(p.nome)} <span class="mudo" style="font-weight:500">@${esc(p.login)}</span></strong>
-                    <small><i class="ph-bold ${iconeDispositivo(p.dispositivo)}"></i> ${esc(p.navegador)} · IP ${esc(p.ip || '—')} · ${esc(p.sistema)}</small>${fazendo}</div>
+                <div><strong>${esc(p.nome)} <span class="mudo" style="font-weight:500">@${esc(p.login)}</span>${p.sessoes > 1 ? ` <span class="audit-live-mais" title="${esc(['Também em: ' + (p.outros_navegadores.join(', ') || 'o mesmo navegador')].join(''))}">+${p.sessoes - 1} ${p.sessoes > 2 ? 'sessões' : 'sessão'}</span>` : ''}</strong>
+                    <small><i class="ph-bold ${iconeDispositivo(p.dispositivo)}"></i> ${esc(p.navegador)} · IP ${esc(ipTexto(p.ip))} · ${esc(p.sistema)}</small>${fazendo}</div>
                 <div class="audit-live-dir"><b>${esc(situacao)}</b>conectado há ${duracao(p.conectado_segundos)}</div>
             </div>`;
         }).join('');
@@ -76,18 +79,21 @@
             + `<div class="audit-live-sep">Dispositivo</div>${barras(d.dispositivos.map((x) => ({ ...x, nome: { desktop: 'Computador', mobile: 'Celular', tablet: 'Tablet' }[x.nome] || x.nome })), 'Sem dados.')}`;
     }
 
-    function renderizarFeed(itens) {
+    function renderizarFeed() {
         const alvo = $('auditLiveFeed');
+        const itens = estado.visitantes ? estado.atividade : estado.atividade.filter((a) => !a.anonimo);
         if (!itens.length) {
-            alvo.innerHTML = '<div class="audit-empty">Nenhuma ação nos últimos 15 minutos.</div>';
+            alvo.innerHTML = `<div class="audit-empty">${estado.atividade.length ? 'Só há acessos de visitantes (sem login) agora.' : 'Nenhuma ação nos últimos 15 minutos.'}</div>`;
             return;
         }
         const chaveDe = (a) => `${a.data_hora}|${a.login}|${a.metodo}|${a.rota}`;
         alvo.innerHTML = itens.map((a) => {
-            const chave = chaveDe(a);
-            const nova = !estado.primeira && !estado.vistos.has(chave);
-            return `<div class="audit-live-linha ${nova ? 'nova' : ''}">
-                <span class="quando">${esc(hora(a.data_hora))}</span><strong>${esc(a.login)}</strong>
+            const nova = !estado.primeira && !estado.vistos.has(chaveDe(a));
+            const quem = a.anonimo
+                ? '<em class="audit-live-visitante" title="Ainda não entrou, ou acabou de sair">visitante</em>'
+                : `<strong>${esc(a.login)}</strong>`;
+            return `<div class="audit-live-linha ${nova ? 'nova' : ''} ${a.anonimo ? 'visitante' : ''}">
+                <span class="quando">${esc(hora(a.data_hora))}</span>${quem}
                 <span class="rota" title="${esc(a.rota)}"><code>${esc(a.metodo)}</code> ${esc(a.rota)}</span>
                 <span class="audit-live-status ${classeStatus(a.status)}">${esc(a.status)}</span><span class="dur mudo">${a.duracao_ms == null ? '' : `${numero.format(a.duracao_ms)} ms`}</span></div>`;
         }).join('');
@@ -109,7 +115,8 @@
             renderizarKpis(d.kpis);
             renderizarOnline(d.online);
             renderizarRankings(d);
-            renderizarFeed(d.atividade);
+            estado.atividade = d.atividade;
+            renderizarFeed();
             painel.classList.remove('falha');
             $('auditLiveSub').textContent = `Atualizado às ${hora(d.gerado_em)}`;
         } catch (erro) {
@@ -140,6 +147,7 @@
     }
 
     $('auditLivePausar').addEventListener('click', () => definirPausa(!estado.pausado));
+    $('auditLiveVisitantes')?.addEventListener('change', (ev) => { estado.visitantes = ev.currentTarget.checked; estado.primeira = true; renderizarFeed(); });
     $('auditLiveRecolher').addEventListener('click', (ev) => {
         const corpo = $('auditLiveCorpo');
         corpo.hidden = !corpo.hidden;

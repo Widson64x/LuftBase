@@ -72,9 +72,11 @@ def consolidar_tempo_real(
     agora: datetime,
     nomes_sistemas: Mapping[int, str] | None = None,
 ) -> dict[str, Any]:
-    """Transforma linhas cruas em indicadores, lista de online, rankings e feed."""
+    """Transforma linhas cruas em indicadores, lista de online (uma linha por pessoa), rankings e feed."""
 
     nomes_sistemas = nomes_sistemas or {}
+    # Sessao sem usuario e de visitante (tela de login, verificacoes de saude): nao e ninguem conectado.
+    sessoes = [s for s in sessoes if s.get("codigo_usuario") is not None]
     uteis = [a for a in acessos if not _ruido(str(a.get("rota") or ""))]
 
     ultimo_por_usuario: dict[int, Mapping[str, Any]] = {}
@@ -83,34 +85,46 @@ def consolidar_tempo_real(
         if codigo is not None and codigo not in ultimo_por_usuario:
             ultimo_por_usuario[codigo] = acesso
 
+    por_pessoa: dict[int, list[Mapping[str, Any]]] = {}
+    for sessao in sorted(sessoes, key=lambda s: s["ultima_atividade"], reverse=True):
+        por_pessoa.setdefault(sessao["codigo_usuario"], []).append(sessao)
+
     online: list[dict[str, Any]] = []
     navegadores: Counter[str] = Counter()
     sistemas_op: Counter[str] = Counter()
     dispositivos: Counter[str] = Counter()
-    for sessao in sorted(sessoes, key=lambda s: s["ultima_atividade"], reverse=True):
-        agente = interpretar_agente(sessao.get("user_agent"))
-        inativo = _segundos(agora - sessao["ultima_atividade"])
-        ultimo = ultimo_por_usuario.get(sessao.get("codigo_usuario"))
-        if inativo <= JANELA_ONLINE.total_seconds():
-            navegadores[_nome_navegador(agente["navegador"])] += 1
-            sistemas_op[agente["sistema"] or "Desconhecido"] += 1
-            dispositivos[agente["dispositivo"]] += 1
+    janela = JANELA_ONLINE.total_seconds()
+    for codigo, lista in por_pessoa.items():
+        for outra in lista:  # os rankings contam cada aparelho/navegador em atividade
+            if _segundos(agora - outra["ultima_atividade"]) <= janela:
+                ag = interpretar_agente(outra.get("user_agent"))
+                navegadores[_nome_navegador(ag["navegador"])] += 1
+                sistemas_op[ag["sistema"] or "Desconhecido"] += 1
+                dispositivos[ag["dispositivo"]] += 1
+
+        principal = lista[0]  # a sessao mais recente representa a pessoa
+        agente = interpretar_agente(principal.get("user_agent"))
+        inativo = _segundos(agora - principal["ultima_atividade"])
+        ultimo = ultimo_por_usuario.get(codigo)
+        outros = {interpretar_agente(o.get("user_agent"))["descricao"] for o in lista[1:]} - {agente["descricao"]}
         online.append(
             {
-                "codigo_usuario": sessao.get("codigo_usuario"),
-                "login": sessao.get("login") or "—",
-                "nome": sessao.get("nome") or sessao.get("login") or "Usuário",
-                "grupo": sessao.get("grupo"),
+                "codigo_usuario": codigo,
+                "login": principal.get("login") or "—",
+                "nome": principal.get("nome") or principal.get("login") or "Usuário",
+                "grupo": principal.get("grupo"),
                 "sistema": _nome_sistema(
-                    nomes_sistemas, ultimo["id_sistema"] if ultimo else sessao.get("id_sistema")
+                    nomes_sistemas, ultimo["id_sistema"] if ultimo else principal.get("id_sistema")
                 ),
-                "ip": sessao.get("ip_origem"),
+                "ip": principal.get("ip_origem"),
                 "navegador": agente["descricao"],
                 "dispositivo": agente["dispositivo"],
                 "estado": _estado(inativo),
                 "inativo_segundos": inativo,
-                "conectado_segundos": _segundos(agora - sessao["criada_em"]),
-                "ultima_atividade": sessao["ultima_atividade"].isoformat(),
+                "conectado_segundos": _segundos(agora - principal["criada_em"]),
+                "ultima_atividade": principal["ultima_atividade"].isoformat(),
+                "sessoes": len(lista),
+                "outros_navegadores": sorted(outros)[:3],
                 "fazendo": (
                     {
                         "rota": ultimo["rota"],
@@ -124,8 +138,11 @@ def consolidar_tempo_real(
             }
         )
 
-    ativos = [o for o in online if o["inativo_segundos"] <= JANELA_ONLINE.total_seconds()]
-    usuarios_online = {o["codigo_usuario"] for o in ativos if o["codigo_usuario"] is not None}
+    ativos = [o for o in online if o["inativo_segundos"] <= janela]
+    sessoes_ativas = sum(len(v) for v in por_pessoa.values())
+    em_atividade = sum(
+        1 for v in por_pessoa.values() for s in v if _segundos(agora - s["ultima_atividade"]) <= janela
+    )
     cinco_min = agora - JANELA_ONLINE
     recentes = [a for a in acessos if a["data_hora"] >= cinco_min]
     duracoes = [a["duracao_ms"] for a in recentes if a.get("duracao_ms") is not None]
@@ -134,7 +151,8 @@ def consolidar_tempo_real(
     feed = [
         {
             "data_hora": a["data_hora"].isoformat(),
-            "login": a.get("login") or "anônimo",
+            "login": a.get("login") or "visitante",
+            "anonimo": a.get("codigo_usuario") is None,  # ainda sem login (ou acabou de sair)
             "rota": a["rota"],
             "metodo": a["metodo"],
             "status": a["status"],
@@ -145,22 +163,21 @@ def consolidar_tempo_real(
         for a in sorted(uteis, key=lambda a: a["data_hora"], reverse=True)[:LIMITE_FEED]
     ]
 
-    total_online = len(ativos)
     return {
         "gerado_em": agora.isoformat(),
         "kpis": {
-            "usuarios_online": len(usuarios_online),
-            "sessoes_ativas": len(online),
-            "sessoes_em_atividade": total_online,
+            "usuarios_online": len(ativos),
+            "sessoes_ativas": sessoes_ativas,
+            "sessoes_em_atividade": em_atividade,
             "requisicoes_5min": len(recentes),
             "requisicoes_por_minuto": round(len(recentes) / 5, 1),
             "erros_15min": len(erros),
             "tempo_medio_ms": round(sum(duracoes) / len(duracoes)) if duracoes else 0,
         },
         "online": online,
-        "navegadores": _ranking(navegadores, total_online),
-        "sistemas_operacionais": _ranking(sistemas_op, total_online),
-        "dispositivos": _ranking(dispositivos, total_online),
+        "navegadores": _ranking(navegadores, em_atividade),
+        "sistemas_operacionais": _ranking(sistemas_op, em_atividade),
+        "dispositivos": _ranking(dispositivos, em_atividade),
         "atividade": feed,
     }
 
@@ -184,7 +201,7 @@ class ServicoTempoReal:
             linhas_acesso = db.execute(
                 select(Log).where(*condicoes_acesso).order_by(desc(Log.data_hora)).limit(LIMITE_ACESSOS)
             ).scalars().all()
-            condicoes_sessao = [Sessao.status == "ATIVA", Sessao.expira_em > agora]
+            condicoes_sessao = [Sessao.status == "ATIVA", Sessao.expira_em > agora, Sessao.codigo_usuario.is_not(None)]
             if id_sistema is not None:
                 # O login e unico (SSO): a sessao nasce no sistema onde a pessoa entrou, nao onde ela esta.
                 # Entao, no escopo de um sistema, vale quem o esta usando, nao so quem entrou por ele.

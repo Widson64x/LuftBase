@@ -25,6 +25,9 @@ DIAS_SEMANA = ("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
 _NUMERO_NA_ROTA = re.compile(r"/\d+(?=/|$)")
 _UUID_NA_ROTA = re.compile(r"/[0-9a-fA-F]{8}-[0-9a-fA-F-]{27}(?=/|$)")
 LIMITE_SESSOES = 3000
+# Com menos requisicoes que isso no periodo anterior, "subiu 1056%" so engana: nao ha base de comparacao.
+BASE_MINIMA_COMPARACAO = 30
+_LOOPBACK = ("127.", "::1", "localhost")
 
 
 def normalizar_rota(rota: str) -> str:
@@ -108,9 +111,16 @@ def agrupar_rotas(linhas: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
-def consolidar_sessoes(sessoes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Logins do período: quem, de onde, com o quê e por quanto tempo."""
+def consolidar_sessoes(
+    sessoes: Sequence[Mapping[str, Any]], *, agora: datetime | None = None
+) -> dict[str, Any]:
+    """Logins do período: quem, de onde, com o quê e por quanto tempo.
 
+    Só entram sessões de pessoas logadas (visitantes da tela de login não são "logins"). Quem não tem
+    navegador registrado (sessões de antes da captura) fica fora dos rankings e é contado à parte.
+    """
+
+    sessoes = [s for s in sessoes if s.get("codigo_usuario") is not None]
     navegadores: Counter[str] = Counter()
     sistemas_op: Counter[str] = Counter()
     dispositivos: Counter[str] = Counter()
@@ -119,27 +129,37 @@ def consolidar_sessoes(sessoes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     ips_total: Counter[str] = Counter()
     usuarios: set[Any] = set()
     duracoes: list[int] = []
+    sem_navegador = 0
     for s in sessoes:
         agente = interpretar_agente(s.get("user_agent"))
-        nome = agente["navegador"].rsplit(" ", 1)[0] if agente["navegador"][-1:].isdigit() else agente["navegador"]
-        navegadores[nome or "Desconhecido"] += 1
-        sistemas_op[agente["sistema"] or "Desconhecido"] += 1
-        dispositivos[agente["dispositivo"]] += 1
-        motivos["Em andamento" if s.get("status") == "ATIVA" else (s.get("motivo") or "Encerrada")] += 1
-        if s.get("codigo_usuario") is not None:
-            usuarios.add(s["codigo_usuario"])
+        if agente["navegador"]:
+            nome = agente["navegador"].rsplit(" ", 1)[0] if agente["navegador"][-1:].isdigit() else agente["navegador"]
+            navegadores[nome] += 1
+        else:
+            sem_navegador += 1
+        if agente["sistema"]:
+            sistemas_op[agente["sistema"]] += 1
+        if s.get("user_agent"):
+            dispositivos[agente["dispositivo"]] += 1
+        expirada = bool(agora and s.get("expira_em") and s["expira_em"] < agora)
+        if s.get("status") == "ATIVA":
+            motivos["Expirou" if expirada else "Em andamento"] += 1
+        else:
+            motivos[s.get("motivo") or "Encerrada"] += 1
+        usuarios.add(s["codigo_usuario"])
         if s.get("ip"):
-            ips[s["ip"]].add(s.get("codigo_usuario"))
+            ips[s["ip"]].add(s["codigo_usuario"])
             ips_total[s["ip"]] += 1
         fim = s.get("encerrada_em") or s.get("ultima_atividade")
         if fim and s.get("criada_em") and s.get("status") != "ATIVA":
             duracoes.append(max(int((fim - s["criada_em"]).total_seconds()), 0))
 
     total = len(sessoes)
+    conhecidos = total - sem_navegador
 
-    def ranking(contador: Counter[str], limite: int = 6) -> list[dict[str, Any]]:
+    def ranking(contador: Counter[str], base: int, limite: int = 6) -> list[dict[str, Any]]:
         return [
-            {"nome": n, "total": q, "percentual": round(q * 100 / total, 1) if total else 0.0}
+            {"nome": n, "total": q, "percentual": round(q * 100 / base, 1) if base else 0.0}
             for n, q in contador.most_common(limite)
         ]
 
@@ -148,12 +168,19 @@ def consolidar_sessoes(sessoes: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "usuarios_unicos": len(usuarios),
         "ips_unicos": len(ips),
         "duracao_media_segundos": round(sum(duracoes) / len(duracoes)) if duracoes else None,
-        "navegadores": ranking(navegadores),
-        "sistemas_operacionais": ranking(sistemas_op),
-        "dispositivos": ranking(dispositivos),
-        "motivos": ranking(motivos),
+        "sem_navegador": sem_navegador,
+        "navegadores": ranking(navegadores, conhecidos),
+        "sistemas_operacionais": ranking(sistemas_op, conhecidos),
+        "dispositivos": ranking(dispositivos, conhecidos),
+        "motivos": ranking(motivos, total),
         "ips": [
-            {"ip": ip, "sessoes": q, "usuarios": len(ips[ip] - {None})} for ip, q in ips_total.most_common(6)
+            {
+                "ip": ip,
+                "sessoes": q,
+                "usuarios": len(ips[ip]),
+                "local": ip.startswith(_LOOPBACK),  # o proprio servidor/maquina de desenvolvimento
+            }
+            for ip, q in ips_total.most_common(6)
         ],
     }
 
@@ -235,10 +262,13 @@ class ServicoInsights:
     def __init__(self, banco: BancoSQLAlchemy) -> None:
         self._banco = banco
 
-    def obter(self, filtro: FiltroAuditoria) -> dict[str, Any]:
+    def obter(self, filtro: FiltroAuditoria, *, desde: datetime | None = None) -> dict[str, Any]:
+        """`desde` e o inicio dos dados confiaveis: nada anterior a ele entra nem no comparativo."""
+
         cond = ServicoAnaliseAuditoria._condicoes_acesso(filtro)
         duracao = filtro.fim - filtro.inicio
-        anterior = replace(filtro, inicio=filtro.inicio - duracao, fim=filtro.inicio)
+        inicio_anterior = max(filtro.inicio - duracao, desde) if desde else filtro.inicio - duracao
+        anterior = replace(filtro, inicio=min(inicio_anterior, filtro.inicio), fim=filtro.inicio)
         cond_anterior = ServicoAnaliseAuditoria._condicoes_acesso(anterior)
 
         with self._banco.leitura() as db:
@@ -314,13 +344,16 @@ class ServicoInsights:
             key=lambda r: (r["erros_5xx"], r["erros_4xx"]),
             reverse=True,
         )[:8]
+        base_ok = antes["requisicoes"] >= BASE_MINIMA_COMPARACAO
         comparativo = {
             "atual": atual,
             "anterior": antes,
-            "variacao": {chave: _variacao(atual[chave], antes[chave]) for chave in atual},
+            "base_suficiente": base_ok,
+            "variacao": {chave: _variacao(atual[chave], antes[chave]) if base_ok else None for chave in atual},
         }
-        resumo_sessoes = consolidar_sessoes(sessoes)
+        resumo_sessoes = consolidar_sessoes(sessoes, agora=filtro.fim)
         return {
+            "dados_a_partir_de": _iso(desde),
             "comparativo": comparativo,
             "mapa_calor": mapa,
             "status": {"sucesso": int(status[0]), "redirecionamento": int(status[1]), "erro_cliente": int(status[2]), "erro_servidor": int(status[3])},
@@ -367,7 +400,11 @@ class ServicoInsights:
 
     @staticmethod
     def _sessoes(db: Session, filtro: FiltroAuditoria, cond_acesso: list[Any]) -> list[dict[str, Any]]:
-        condicoes = [Sessao.criada_em >= filtro.inicio, Sessao.criada_em <= filtro.fim]
+        condicoes = [
+            Sessao.criada_em >= filtro.inicio,
+            Sessao.criada_em <= filtro.fim,
+            Sessao.codigo_usuario.is_not(None),  # visitante da tela de login nao e um login
+        ]
         if filtro.codigo_usuario is not None:
             condicoes.append(Sessao.codigo_usuario == filtro.codigo_usuario)
         if filtro.id_sistema is not None:
@@ -385,6 +422,7 @@ class ServicoInsights:
                 "user_agent": s.user_agent,
                 "status": s.status,
                 "motivo": s.motivo_encerramento,
+                "expira_em": s.expira_em,
                 "criada_em": s.criada_em,
                 "encerrada_em": s.encerrada_em,
                 "ultima_atividade": s.ultima_atividade,

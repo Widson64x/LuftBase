@@ -77,7 +77,7 @@ def test_consolida_sessoes_do_periodo() -> None:
     assert r["duracao_media_segundos"] == 60 * 60  # (30 + 90 + 60) / 3 min; a ativa não entra
     assert r["navegadores"][0] == {"nome": "Chrome", "total": 2, "percentual": 50.0}
     assert {m["nome"] for m in r["motivos"]} == {"LOGOUT_VOLUNTARIO", "TIMEOUT_INATIVIDADE", "Em andamento"}
-    assert r["ips"][0] == {"ip": "10.0.0.1", "sessoes": 3, "usuarios": 2}  # IP compartilhado por 2 pessoas
+    assert r["ips"][0] == {"ip": "10.0.0.1", "sessoes": 3, "usuarios": 2, "local": False}  # IP de 2 pessoas
 
 
 def test_sem_sessoes_nao_quebra() -> None:
@@ -194,7 +194,8 @@ def test_consulta_real_monta_todas_as_visoes() -> None:
     r = ServicoInsights(banco).obter(FiltroAuditoria(inicio=fim - timedelta(hours=2), fim=fim))
 
     assert r["comparativo"]["atual"]["requisicoes"] == 8 and r["comparativo"]["anterior"]["requisicoes"] == 1
-    assert r["comparativo"]["variacao"]["requisicoes"] == 700.0
+    # 1 requisicao antes nao e base para comparar: nada de "subiu 700%"
+    assert r["comparativo"]["base_suficiente"] is False and r["comparativo"]["variacao"]["requisicoes"] is None
     assert r["status"] == {"sucesso": 6, "redirecionamento": 0, "erro_cliente": 1, "erro_servidor": 1}
     assert r["mapa_calor"]["matriz"][1][17] + r["mapa_calor"]["matriz"][1][16] == 8  # terça-feira, 16h-17h
     lenta = r["rotas_lentas"][0]
@@ -254,3 +255,73 @@ def test_rota_de_insights_esta_protegida() -> None:
     from luftbase.web import auditoria
 
     assert getattr(auditoria.api_insights, "__wrapped__", None) is not None
+
+
+# ---- dados reais: visitantes, navegador desconhecido, sessão expirada, IP local, corte -------
+
+
+def test_visitantes_e_sem_navegador_nao_distorcem_os_numeros() -> None:
+    agora = datetime(2026, 10, 7, 12)
+    visitante = _sessao(None, CHROME, "10.0.0.9", ativa=True)
+    visitante["expira_em"] = agora + timedelta(hours=1)
+    antiga = _sessao(1, "", "127.0.0.1", ativa=True)  # sessão de antes da captura do navegador
+    antiga["expira_em"] = agora - timedelta(hours=2)  # ainda "ATIVA" no banco, mas já expirou
+    viva = _sessao(2, CHROME, "10.0.0.5", ativa=True)
+    viva["expira_em"] = agora + timedelta(hours=1)
+
+    r = consolidar_sessoes([visitante, antiga, viva], agora=agora)
+
+    assert r["total"] == 2 and r["usuarios_unicos"] == 2  # o visitante não é um login
+    assert r["sem_navegador"] == 1
+    assert [n["nome"] for n in r["navegadores"]] == ["Chrome"]  # "Desconhecido" fica fora do ranking
+    assert r["navegadores"][0]["percentual"] == 100.0  # sobre quem tem navegador registrado
+    assert {m["nome"] for m in r["motivos"]} == {"Expirou", "Em andamento"}
+    locais = {i["ip"]: i["local"] for i in r["ips"]}
+    assert locais == {"127.0.0.1": True, "10.0.0.5": False}
+
+
+def test_destaque_nao_cita_navegador_quando_ninguem_tem_registro() -> None:
+    sessoes = consolidar_sessoes([_sessao(1, "", "10.0.0.1")])
+    comp = _comparativo({"requisicoes": 0, "usuarios": 0, "erros_servidor": 0, "duracao_media_ms": 0},
+                        {"requisicoes": 0, "usuarios": 0, "erros_servidor": 0, "duracao_media_ms": 0})
+
+    d = gerar_destaques(comparativo=comp, mapa=montar_mapa_calor([]), rotas_lentas=[], rotas_erro=[], negados=0,
+                        sessoes=sessoes)
+
+    assert [x["titulo"] for x in d] == ["Tudo tranquilo"]
+
+
+def test_corte_de_dados_confiaveis_limita_periodo_e_comparativo() -> None:
+    banco, fim = _banco()
+    marco = fim - timedelta(minutes=35)  # só a bia (30 e 40 min atrás: a de 40 fica de fora) e a ana de 10-15 min
+
+    r = ServicoInsights(banco).obter(FiltroAuditoria(inicio=marco, fim=fim), desde=marco)
+
+    assert r["dados_a_partir_de"] == marco.isoformat()
+    assert r["comparativo"]["atual"]["requisicoes"] == 7  # 6 da ana + 1 erro da bia; o negado (40 min) saiu
+    assert r["comparativo"]["anterior"]["requisicoes"] == 0  # nada antes do marco entra na comparação
+    assert r["negados"]["total"] == 0
+
+
+def test_variavel_de_corte_aceita_data_valida_e_ignora_lixo(monkeypatch) -> None:
+    from luftbase.web.auditoria import dados_confiaveis_desde
+
+    monkeypatch.delenv("LUFT_AUDITORIA_DADOS_DESDE", raising=False)
+    assert dados_confiaveis_desde() is None
+    monkeypatch.setenv("LUFT_AUDITORIA_DADOS_DESDE", "2026-10-06T17:00")
+    assert dados_confiaveis_desde() == datetime(2026, 10, 6, 17, 0)
+    monkeypatch.setenv("LUFT_AUDITORIA_DADOS_DESDE", "ontem de tarde")
+    assert dados_confiaveis_desde() is None  # valor inválido não derruba a tela
+
+
+def test_variavel_de_corte_esta_na_tela_de_ambiente() -> None:
+    from luftbase.infraestrutura.variaveis_ambiente import ErroVariavel, PERMITIDAS
+
+    var = next(v for v in PERMITIDAS if v.chave == "LUFT_AUDITORIA_DADOS_DESDE")
+    assert var.validar("") == "" and var.validar(" 2026-10-06T17:00 ") == "2026-10-06T17:00"
+    try:
+        var.validar("17h")
+    except ErroVariavel:
+        pass
+    else:  # pragma: no cover
+        raise AssertionError("aceitou data inválida")

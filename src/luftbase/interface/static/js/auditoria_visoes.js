@@ -174,12 +174,13 @@
         $('auditSessUsuarios').textContent = numero.format(s.usuarios_unicos);
         $('auditSessIps').textContent = numero.format(s.ips_unicos);
         $('auditSessDuracao').textContent = duracao(s.duracao_media_segundos);
-        $('auditSessNavegadores').innerHTML = barras(s.navegadores, 'Sem logins no período.');
+        $('auditSessNavegadores').innerHTML = barras(s.navegadores, 'Sem logins no período.')
+            + (s.sem_navegador ? `<div class="audit-nota"><i class="ph-bold ph-info"></i> ${numero.format(s.sem_navegador)} sessão(ões) sem navegador registrado (anteriores à captura) ficaram fora desta lista.</div>` : '');
         $('auditSessSistemas').innerHTML = `<div class="audit-live-sep">Sistema operacional</div>${barras(s.sistemas_operacionais, 'Sem dados.')}`
             + `<div class="audit-live-sep">Dispositivo</div>${barras(s.dispositivos, 'Sem dados.', nomeDispositivo)}`;
         $('auditSessMotivos').innerHTML = barras(s.motivos, 'Sem sessões.', nomeMotivo);
         tabela('auditSessIpsTabela', s.ips, (i) =>
-            `<td class="mono">${esc(i.ip)}</td><td>${numero.format(i.sessoes)}</td><td>${i.usuarios > 1 ? `<span class="audit-status warning">${i.usuarios}</span>` : i.usuarios}</td>`,
+            `<td class="mono">${esc(i.ip)}${i.local ? ' <span class="audit-status ok" title="A própria máquina do servidor (ou de quem testa)">local</span>' : ''}</td><td>${numero.format(i.sessoes)}</td><td>${i.usuarios > 1 && !i.local ? `<span class="audit-status warning" title="Várias pessoas no mesmo IP">${i.usuarios}</span>` : i.usuarios}</td>`,
             'Sem dados.');
         tabela('auditUsuariosAtivos', d.usuarios_ativos, (u) =>
             `<td><b>${esc(u.login)}</b></td><td>${numero.format(u.requisicoes)}</td><td>${numero.format(u.rotas)}</td><td>${u.sistemas}</td><td>${u.falhas ? `<span class="audit-status warning">${numero.format(u.falhas)}</span>` : '—'}</td><td>${esc(quando(u.ultimo_acesso))}</td>`,
@@ -197,6 +198,13 @@
             if (!resposta.ok || dados.status !== 'success') throw new Error(dados.message || `HTTP ${resposta.status}`);
             if (minha !== sequencia) return;
             const d = dados.data;
+            const nota = $('auditDesdeNota');
+            if (nota) {
+                nota.hidden = !d.dados_a_partir_de;
+                if (d.dados_a_partir_de) {
+                    nota.innerHTML = `<i class="ph-bold ph-funnel-simple"></i> As análises consideram só os dados a partir de <b>${esc(quando(d.dados_a_partir_de))}</b> (configurado em LUFT_AUDITORIA_DADOS_DESDE).`;
+                }
+            }
             renderizarDestaques(d.destaques);
             renderizarDeltas(d.comparativo);
             renderizarMapa(d.mapa_calor);

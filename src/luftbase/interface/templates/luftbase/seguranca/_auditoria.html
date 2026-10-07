@@ -113,6 +113,8 @@
         <button type="button" data-visao="registros"><i class="ph-bold ph-list-magnifying-glass"></i> Registros</button>
     </nav>
 
+    <p class="audit-desde" id="auditDesdeNota" hidden></p>
+
     <div class="audit-panel" data-painel="geral">
         <section class="audit-destaques" id="auditDestaques" aria-label="Destaques do período">
             <div class="audit-destaque" data-tom="blue"><i class="ph-bold ph-sparkle"></i><div><strong>Analisando o período…</strong><span>Os destaques aparecem aqui.</span></div></div>
@@ -198,7 +200,7 @@
                 </div>
             </div>
             <article class="audit-card">
-                <div class="audit-card-title"><div><h4>Atividade ao vivo</h4><p>Últimas ações, da mais recente para a mais antiga (sem as chamadas automáticas da tela).</p></div><i class="ph-bold ph-pulse"></i></div>
+                <div class="audit-card-title"><div><h4>Atividade ao vivo</h4><p>Últimas ações, da mais recente para a mais antiga (sem as chamadas automáticas da tela).</p></div><label class="audit-live-toggle" title="Visitantes são acessos sem login: a tela de entrada e o instante da saída"><input type="checkbox" id="auditLiveVisitantes"> mostrar visitantes</label></div>
                 <div class="audit-live-feed" id="auditLiveFeed"><div class="audit-empty">Carregando…</div></div>
             </article>
         </div>

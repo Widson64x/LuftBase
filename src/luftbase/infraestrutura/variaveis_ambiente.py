@@ -17,6 +17,7 @@ import re
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 _AMBIENTES_NEGOCIO = ("producao", "homologacao", "desenvolvimento")
@@ -46,6 +47,17 @@ def _opcoes(*permitidas: str) -> Callable[[str], str]:
     return validar
 
 
+def _data_hora_opcional(valor: str) -> str:
+    texto = valor.strip()
+    if not texto:
+        return ""
+    try:
+        datetime.fromisoformat(texto)
+    except ValueError as erro:
+        raise ErroVariavel("Use data e hora no formato 2026-10-06T17:00 (ou deixe vazio).") from erro
+    return texto
+
+
 @dataclass(frozen=True, slots=True)
 class VariavelPermitida:
     chave: str
@@ -54,6 +66,11 @@ class VariavelPermitida:
 
 
 PERMITIDAS: tuple[VariavelPermitida, ...] = (
+    VariavelPermitida(
+        "LUFT_AUDITORIA_DADOS_DESDE",
+        "Auditoria: ignora nas análises o que veio antes desta data e hora (ex.: 2026-10-06T17:00). Vazio = sem corte.",
+        _data_hora_opcional,
+    ),
     VariavelPermitida(
         "LUFT_SESSAO_TTL_MINUTOS",
         "Minutos sem atividade até a sessão expirar (1 a 10080).",

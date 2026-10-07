@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import os
 from datetime import datetime, timedelta
 from io import StringIO
 from zoneinfo import ZoneInfo
@@ -87,10 +88,30 @@ def _resolver_sistema() -> int | None:
     return id_sistema
 
 
+def dados_confiaveis_desde() -> datetime | None:
+    """Marco opcional (`LUFT_AUDITORIA_DADOS_DESDE`, ISO 8601): o que veio antes e ignorado nas analises.
+
+    Serve para quando a captura era incompleta (sem IP, sem navegador...) e os numeros antigos so atrapalham,
+    sem apagar nada do banco. Vazio ou invalido = sem corte.
+    """
+
+    texto = (os.environ.get("LUFT_AUDITORIA_DADOS_DESDE") or "").strip()
+    if not texto:
+        return None
+    try:
+        marco = datetime.fromisoformat(texto)
+    except ValueError:
+        return None
+    return marco.astimezone(_FUSO).replace(tzinfo=None) if marco.tzinfo else marco
+
+
 def _montar_filtro() -> FiltroAuditoria:
     agora = datetime.now(_FUSO).replace(tzinfo=None)
     fim = _data_opcional("fim") or agora
     inicio = _data_opcional("inicio") or (fim - timedelta(hours=24))
+    marco = dados_confiaveis_desde()
+    if marco is not None and inicio < marco:
+        inicio = min(marco, fim)
     if fim < inicio:
         abort(400, description="O fim do periodo deve ser posterior ao inicio.")
     if fim - inicio > timedelta(days=90):
@@ -167,7 +188,9 @@ def api_resumo():  # type: ignore[no-untyped-def]
 def api_insights():  # type: ignore[no-untyped-def]
     """Comparativo, mapa de calor, desempenho, seguranca e sessoes do recorte filtrado."""
 
-    dados = ServicoInsights(obter_luftbase().bancos.core).obter(_montar_filtro())
+    dados = ServicoInsights(obter_luftbase().bancos.core).obter(
+        _montar_filtro(), desde=dados_confiaveis_desde()
+    )
     return jsonify({"status": "success", "data": dados})
 
 
