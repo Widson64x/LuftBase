@@ -199,7 +199,7 @@ def _banco_com_dados():
     ddl = [
         "CREATE TABLE core.tb_sistema (id_sistema INTEGER PRIMARY KEY, nome_sistema VARCHAR(100))",
         "CREATE TABLE core.tb_usuario (codigo_usuario INTEGER PRIMARY KEY, nome_usuario VARCHAR(255),"
-        " sigla_usuariogrupo VARCHAR(100))",
+        " sigla_usuariogrupo VARCHAR(100), foto_perfil TEXT)",
         "CREATE TABLE core.tb_sessao (id_sessao VARCHAR(128) PRIMARY KEY, id_sistema INTEGER, codigo_usuario INTEGER,"
         " login_usuario VARCHAR(100), ip_origem VARCHAR(50), user_agent VARCHAR(500), dados_sessao TEXT,"
         " status VARCHAR(20), total_renovacoes INTEGER DEFAULT 0, criada_em TIMESTAMP, ultima_atividade TIMESTAMP,"
@@ -215,7 +215,7 @@ def _banco_com_dados():
         for comando in ddl:
             con.exec_driver_sql(comando)
         con.exec_driver_sql("INSERT INTO core.tb_sistema VALUES (0, 'Luft-Workspace'), (3, 'Luft-Integrador')")
-        con.exec_driver_sql("INSERT INTO core.tb_usuario VALUES (1, 'Ana Souza', 'TI'), (2, 'Bia Lima', 'OPS')")
+        con.exec_driver_sql("INSERT INTO core.tb_usuario VALUES (1, 'Ana Souza', 'TI', 'data:image/webp;base64,AAAA'), (2, 'Bia Lima', 'OPS', NULL)")
         sessoes = [
             ("s1", 0, 1, "ana", CHROME, 20, "ATIVA"),
             ("s2", 3, 2, "bia", IPHONE, 40, "ATIVA"),
@@ -281,3 +281,14 @@ def test_no_escopo_de_um_sistema_aparece_quem_o_usa_mesmo_que_o_login_tenha_sido
     por_login = {o["login"]: o for o in r["online"]}
     assert set(por_login) == {"ana", "bia"}
     assert por_login["ana"]["sistema"] == "Luft-Integrador"  # onde esta agora, nao onde entrou
+
+
+def test_ao_vivo_entrega_a_foto_e_o_front_usa_o_avatar_do_botao_de_perfil() -> None:
+    from luftbase.observabilidade.tempo_real import ServicoTempoReal
+
+    r = ServicoTempoReal(_banco_com_dados()).obter()
+
+    fotos = {o["login"]: o["foto"] for o in r["online"]}
+    assert fotos["ana"].startswith("data:image/webp") and fotos["bia"] is None
+    js = (RAIZ / "static" / "js" / "auditoria_ao_vivo.js").read_text(encoding="utf-8")
+    assert "luft-avatar-img" in js and "luft-avatar-initials" in js and "luft-status-dot" in js

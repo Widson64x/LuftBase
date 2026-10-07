@@ -28,7 +28,11 @@
     // 127.0.0.1 / ::1 é a própria máquina do servidor (ou de quem testa), não um endereço de usuário.
     const ipTexto = (ip) => (!ip ? '—' : /^(127\.|::1$)/.test(ip) ? `${ip} (servidor local)` : ip);
 
-    const iniciais = (nome) => String(nome || '?').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || '?';
+    // Mesmo avatar do botão de perfil (base.html): foto, ou iniciais (primeira e última palavra do nome).
+    const iniciais = (nome) => { const n = String(nome || '').trim().split(/\s+/).filter(Boolean); return n.length ? (n[0][0] + (n.length > 1 ? n[n.length - 1][0] : '')).toUpperCase() : 'U'; };
+    const avatar = (p) => `<div class="luft-avatar shadow-sm audit-live-avatar" data-estado="${esc(p.estado)}">`
+        + (p.foto ? `<img src="${esc(p.foto)}" alt="Foto" class="luft-avatar-img">` : `<span class="luft-avatar-initials">${esc(iniciais(p.nome))}</span>`)
+        + (p.estado !== 'ocioso' ? '<span class="luft-status-dot online" title="Online"></span>' : '') + '</div>';
     const iconeDispositivo = (d) => (d === 'mobile' ? 'ph-device-mobile' : d === 'tablet' ? 'ph-device-tablet' : 'ph-desktop');
     const classeStatus = (s) => (s >= 500 ? 'srv' : s >= 400 ? 'cli' : '');
     const hora = (iso) => {
@@ -60,7 +64,7 @@
                 : '<div class="audit-live-acao mudo">Sem ação registrada nos últimos 15 min</div>';
             const situacao = p.estado === 'ativo' ? 'Ativo agora' : p.estado === 'recente' ? `Visto há ${duracao(p.inativo_segundos)}` : `Ocioso há ${duracao(p.inativo_segundos)}`;
             return `<div class="audit-live-pessoa" data-estado="${esc(p.estado)}">
-                <div class="audit-live-avatar">${esc(iniciais(p.nome))}</div>
+                ${avatar(p)}
                 <div><strong>${esc(p.nome)} <span class="mudo" style="font-weight:500">@${esc(p.login)}</span>${p.sessoes > 1 ? ` <span class="audit-live-mais" title="${esc(['Também em: ' + (p.outros_navegadores.join(', ') || 'o mesmo navegador')].join(''))}">+${p.sessoes - 1} ${p.sessoes > 2 ? 'sessões' : 'sessão'}</span>` : ''}</strong>
                     <small><i class="ph-bold ${iconeDispositivo(p.dispositivo)}"></i> ${esc(p.navegador)} · IP ${esc(ipTexto(p.ip))} · ${esc(p.sistema)}</small>${fazendo}</div>
                 <div class="audit-live-dir"><b>${esc(situacao)}</b>conectado há ${duracao(p.conectado_segundos)}${estado.podeRevogar && !p.voce ? `<button type="button" class="audit-linha-btn perigo" data-desconectar="${esc(p.codigo_usuario)}" title="Encerra todas as sessões de ${esc(p.nome)}"><i class="ph-bold ph-sign-out"></i> Desconectar</button>` : ''}${p.voce ? '<span class="audit-voce">você</span>' : ''}${estado.podeRevogar && p.voce && p.sessoes > 1 ? `<button type="button" class="audit-linha-btn perigo" data-desconectar="${esc(p.codigo_usuario)}" title="Encerra as suas outras sessões; esta continua"><i class="ph-bold ph-sign-out"></i> Encerrar minhas outras sessões</button>` : ''}</div>

@@ -2,6 +2,14 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a88] - 2026-10-07
+
+### Alterado
+
+- Auditoria > Ao vivo: "Quem esta conectado" usa o mesmo avatar do botao de perfil (foto da pessoa, ou
+  iniciais da primeira e da ultima palavra do nome, com o ponto de online), com as mesmas classes
+  `luft-avatar`.
+
 ## [0.1.0a87] - 2026-10-07
 
 ### Alterado

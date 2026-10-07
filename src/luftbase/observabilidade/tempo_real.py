@@ -115,6 +115,7 @@ def consolidar_tempo_real(
                 "login": principal.get("login") or "—",
                 "nome": principal.get("nome") or principal.get("login") or "Usuário",
                 "grupo": principal.get("grupo"),
+                "foto": principal.get("foto"),
                 "sistema": _nome_sistema(
                     nomes_sistemas, ultimo["id_sistema"] if ultimo else principal.get("id_sistema")
                 ),
@@ -210,7 +211,7 @@ class ServicoTempoReal:
                 usando = {a.codigo_usuario for a in linhas_acesso if a.codigo_usuario is not None}
                 condicoes_sessao.append(or_(Sessao.id_sistema == id_sistema, Sessao.codigo_usuario.in_(usando)))
             linhas_sessao = db.execute(
-                select(Sessao, Usuario.nome_usuario, Usuario.sigla_usuariogrupo)
+                select(Sessao, Usuario.nome_usuario, Usuario.sigla_usuariogrupo, Usuario.foto_perfil)
                 .outerjoin(Usuario, Usuario.codigo_usuario == Sessao.codigo_usuario)
                 .where(*condicoes_sessao)
                 .order_by(desc(Sessao.ultima_atividade))
@@ -222,13 +223,14 @@ class ServicoTempoReal:
                     "login": s.login_usuario,
                     "nome": nome,
                     "grupo": grupo,
+                    "foto": foto,
                     "id_sistema": s.id_sistema,
                     "ip_origem": s.ip_origem,
                     "user_agent": s.user_agent,
                     "criada_em": s.criada_em,
                     "ultima_atividade": s.ultima_atividade,
                 }
-                for s, nome, grupo in linhas_sessao
+                for s, nome, grupo, foto in linhas_sessao
             ]
             acessos = [
                 {
