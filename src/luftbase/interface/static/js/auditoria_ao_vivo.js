@@ -63,14 +63,14 @@
                 <div class="audit-live-avatar">${esc(iniciais(p.nome))}</div>
                 <div><strong>${esc(p.nome)} <span class="mudo" style="font-weight:500">@${esc(p.login)}</span>${p.sessoes > 1 ? ` <span class="audit-live-mais" title="${esc(['Também em: ' + (p.outros_navegadores.join(', ') || 'o mesmo navegador')].join(''))}">+${p.sessoes - 1} ${p.sessoes > 2 ? 'sessões' : 'sessão'}</span>` : ''}</strong>
                     <small><i class="ph-bold ${iconeDispositivo(p.dispositivo)}"></i> ${esc(p.navegador)} · IP ${esc(ipTexto(p.ip))} · ${esc(p.sistema)}</small>${fazendo}</div>
-                <div class="audit-live-dir"><b>${esc(situacao)}</b>conectado há ${duracao(p.conectado_segundos)}${estado.podeRevogar && !p.voce ? `<button type="button" class="audit-linha-btn perigo" data-desconectar="${esc(p.codigo_usuario)}" title="Encerra todas as sessões de ${esc(p.nome)}"><i class="ph-bold ph-sign-out"></i> Desconectar</button>` : ''}${p.voce ? '<span class="audit-voce">você</span>' : ''}</div>
+                <div class="audit-live-dir"><b>${esc(situacao)}</b>conectado há ${duracao(p.conectado_segundos)}${estado.podeRevogar && !p.voce ? `<button type="button" class="audit-linha-btn perigo" data-desconectar="${esc(p.codigo_usuario)}" title="Encerra todas as sessões de ${esc(p.nome)}"><i class="ph-bold ph-sign-out"></i> Desconectar</button>` : ''}${p.voce ? '<span class="audit-voce">você</span>' : ''}${estado.podeRevogar && p.voce && p.sessoes > 1 ? `<button type="button" class="audit-linha-btn perigo" data-desconectar="${esc(p.codigo_usuario)}" title="Encerra as suas outras sessões; esta continua"><i class="ph-bold ph-sign-out"></i> Encerrar minhas outras sessões</button>` : ''}</div>
             </div>`;
         }).join('');
         [...alvo.querySelectorAll('.audit-live-pessoa')].forEach((el, i) => {
             window.luftDrill?.tornarClicavel(el, { drill: { login: lista[i].login }, ir: 'registros', aba: 'acessos' }, 'Clique para ver o que esta pessoa fez · Shift+clique só filtra os gráficos');
             el.querySelector('[data-desconectar]')?.addEventListener('click', (ev) => {
                 ev.stopPropagation(); // o clique no botão não deve abrir os registros da pessoa
-                window.luftControle?.desconectarPessoa(lista[i].codigo_usuario, lista[i].nome);
+                window.luftControle?.desconectarPessoa(lista[i].codigo_usuario, lista[i].nome, !!lista[i].voce);
             });
         });
     }

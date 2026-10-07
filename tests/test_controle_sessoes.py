@@ -181,7 +181,7 @@ def test_resposta_http_traduz_resultados_e_audita(monkeypatch: pytest.MonkeyPatc
         propria = auditoria._resposta_controle(ResultadoEncerramento(0, login="ana", motivo_recusa="propria"), "x", acao="A", recurso_id="1", descricao="d")
         nada = auditoria._resposta_controle(ResultadoEncerramento(0, motivo_recusa="nao_encontrada"), "x", acao="A", recurso_id="1", descricao="d")
 
-    assert ok.get_json()["data"] == {"encerradas": 2, "pessoas": 1} and ok.status_code == 200
+    assert ok.get_json()["data"] == {"encerradas": 2, "pessoas": 1, "propria": False} and ok.status_code == 200
     assert propria[1] == 409 and "Sair" in propria[0].get_json()["message"]
     assert nada[1] == 404
     assert len(auditados) == 1 and auditados[0]["acao"] == "DESCONECTAR_PESSOA"  # só o que de fato aconteceu
@@ -264,3 +264,43 @@ def test_front_do_controle_esta_ligado_ao_modelo() -> None:
     # a ação sempre pede confirmação; "desconectar todos" exige digitar
     assert "digitar: 'DESCONECTAR'" in controle and "dialogo.showModal()" in controle
     assert "X-CSRF-Token" in controle
+
+
+def test_so_a_propria_sessao_ativa_tem_mensagem_clara() -> None:
+    servico, banco = _servico()
+    with banco.unidade_trabalho() as db:  # deixa so a sessao s_a1 ativa
+        db.connection().exec_driver_sql("UPDATE core.tb_sessao SET status = 'FINALIZADA' WHERE id_sessao <> 's_a1'")
+
+    r = servico.encerrar_todas(id_sistema=None, id_sessao_atual="s_a1")
+
+    assert r.encerradas == 0 and r.motivo_recusa == "so_a_propria"
+    assert _status(banco)["s_a1"][0] == "ATIVA"
+
+
+def test_desconectar_todos_pode_incluir_a_propria_sessao_se_pedido() -> None:
+    servico, banco = _servico()
+
+    r = servico.encerrar_todas(id_sistema=None, id_sessao_atual="s_a1", incluir_propria=True)
+
+    assert (r.encerradas, r.pessoas, r.propria_encerrada) == (3, 2, True)  # s_a1, s_a2 e s_b1
+    assert all(_status(banco)[i][0] == "REVOGADA" for i in ("s_a1", "s_a2", "s_b1"))
+    with banco.leitura() as db:
+        ordem = [e.id_sessao for e in db.execute(select(EventoSessao).order_by(EventoSessao.id_evento_sessao)).scalars()]
+    assert ordem[-1] == "s_a1"  # a sua cai por ultimo
+
+
+def test_so_a_propria_vira_409_com_a_dica_da_opcao(monkeypatch: pytest.MonkeyPatch) -> None:
+    from luftbase.observabilidade.controle_sessoes import ResultadoEncerramento
+    from luftbase.web import auditoria
+
+    monkeypatch.setattr(auditoria, "registrar_alteracao_auditoria", lambda **_: None)
+    with Flask("t").app_context():
+        resposta, codigo = auditoria._resposta_controle(
+            ResultadoEncerramento(0, motivo_recusa="so_a_propria"), "x", acao="A", recurso_id="1", descricao="d"
+        )
+        ok = auditoria._resposta_controle(
+            ResultadoEncerramento(3, 2, propria_encerrada=True), "x", acao="A", recurso_id="1", descricao="d"
+        )
+
+    assert codigo == 409 and "Incluir a minha sessão" in resposta.get_json()["message"]
+    assert ok.get_json()["data"]["propria"] is True

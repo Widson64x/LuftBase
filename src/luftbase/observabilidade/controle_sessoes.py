@@ -42,7 +42,8 @@ class ResultadoEncerramento:
     encerradas: int
     pessoas: int = 0
     login: str | None = None
-    motivo_recusa: str | None = None  # "nao_encontrada" | "propria" | None
+    motivo_recusa: str | None = None  # "nao_encontrada" | "propria" | "so_a_propria" | None
+    propria_encerrada: bool = False  # a sessao de quem pediu tambem caiu (opcao explicita)
 
 
 class ServicoControleSessoes:
@@ -75,11 +76,14 @@ class ServicoControleSessoes:
                 ).all()
             )
 
-    def _revogar(self, linhas: list[Any], id_sessao_atual: str) -> tuple[int, set[Any]]:
+    def _revogar(
+        self, linhas: list[Any], id_sessao_atual: str, *, incluir_propria: bool = False
+    ) -> tuple[int, set[Any]]:
         total = 0
         pessoas: set[Any] = set()
-        for id_sessao, codigo, _login in linhas:
-            if id_sessao == id_sessao_atual:
+        # A propria sessao fica por ultimo: assim as outras caem antes de a sua deixar de valer.
+        for id_sessao, codigo, _login in sorted(linhas, key=lambda linha: linha[0] == id_sessao_atual):
+            if id_sessao == id_sessao_atual and not incluir_propria:
                 continue
             if self._armazenamento.revogar_sessao(id_sessao, MOTIVO):
                 total += 1
@@ -107,9 +111,15 @@ class ServicoControleSessoes:
         total, pessoas = self._revogar(linhas, id_sessao_atual)
         return ResultadoEncerramento(total, len(pessoas), linhas[0][2])
 
-    def encerrar_todas(self, *, id_sistema: int | None, id_sessao_atual: str) -> ResultadoEncerramento:
-        total, pessoas = self._revogar(self._ativas(id_sistema=id_sistema), id_sessao_atual)
-        return ResultadoEncerramento(total, len(pessoas))
+    def encerrar_todas(
+        self, *, id_sistema: int | None, id_sessao_atual: str, incluir_propria: bool = False
+    ) -> ResultadoEncerramento:
+        linhas = self._ativas(id_sistema=id_sistema)
+        if not incluir_propria and all(linha[0] == id_sessao_atual for linha in linhas):
+            return ResultadoEncerramento(0, motivo_recusa="so_a_propria" if linhas else "nao_encontrada")
+        total, pessoas = self._revogar(linhas, id_sessao_atual, incluir_propria=incluir_propria)
+        propria = incluir_propria and any(linha[0] == id_sessao_atual for linha in linhas)
+        return ResultadoEncerramento(total, len(pessoas), propria_encerrada=propria)
 
 
 __all__ = ["ResultadoEncerramento", "ServicoControleSessoes", "referencia"]

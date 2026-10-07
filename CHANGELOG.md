@@ -2,6 +2,15 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a87] - 2026-10-07
+
+### Alterado
+
+- "Desconectar todos": quando so existe a sua sessao ativa, a mensagem agora diz isso (antes: "nenhuma sessao
+  ativa encontrada") e ha a opcao "Incluir a minha sessao (eu tambem serei desconectado)"; com ela a sua
+  sessao e a ultima a cair e a pagina recarrega na tela de entrada. Na sua linha do Ao vivo, com mais de uma
+  sessao, aparece "Encerrar minhas outras sessoes".
+
 ## [0.1.0a86] - 2026-10-07
 
 ### Adicionado

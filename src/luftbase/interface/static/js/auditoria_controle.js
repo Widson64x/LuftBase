@@ -25,7 +25,7 @@
     }
 
     // ---- confirmação -------------------------------------------------------------------------------
-    function confirmar({ titulo, texto, botao, perigo = true, digitar = null }) {
+    function confirmar({ titulo, texto, botao, perigo = true, digitar = null, opcao = null }) {
         const dialogo = $('auditConfirma');
         return new Promise((resolver) => {
             $('auditConfirmaTitulo').textContent = titulo;
@@ -34,6 +34,9 @@
             const campo = $('auditConfirmaCampo');
             const ok = $('auditConfirmaOk');
             campoLinha.hidden = !digitar;
+            $('auditConfirmaOpcaoLinha').hidden = !opcao;
+            $('auditConfirmaOpcao').checked = false;
+            if (opcao) $('auditConfirmaOpcaoTexto').textContent = opcao;
             campo.value = '';
             if (digitar) $('auditConfirmaDica').textContent = `Digite ${digitar} para confirmar.`;
             ok.textContent = botao;
@@ -51,7 +54,7 @@
             };
             const aoCancelar = (ev) => { ev.preventDefault(); encerrar(false); };
             campo.addEventListener('input', validar);
-            ok.onclick = () => encerrar(true);
+            ok.onclick = () => encerrar($('auditConfirmaOpcao').checked ? 'com-opcao' : true);
             $('auditConfirmaCancelar').onclick = () => encerrar(false);
             dialogo.addEventListener('cancel', aoCancelar);
             dialogo.showModal();
@@ -74,7 +77,9 @@
         return dados;
     }
 
-    function depois() {
+    function depois(dados) {
+        // Se a própria sessão caiu, recarregar leva à tela de entrada (em vez de deixar a tela “morta”).
+        if (dados?.data?.propria) { setTimeout(() => window.location.reload(), 900); return; }
         window.luftAuditoriaVivo?.();
         window.luftAuditoriaAtualizar?.();
     }
@@ -83,7 +88,7 @@
         try {
             const dados = await enviar(url, corpo);
             avisar(dados.message || 'Pronto.', 'ok');
-            depois();
+            depois(dados);
         } catch (erro) {
             avisar(erro.message, 'erro');
             depois(); // a lista pode estar velha (a sessão já terminou): atualiza para refletir a realidade
@@ -99,8 +104,12 @@
         if (sim) await executar(raiz.dataset.revogarSessaoUrl, { ref });
     }
 
-    async function desconectarPessoa(codigo, nome) {
-        const sim = await confirmar({
+    async function desconectarPessoa(codigo, nome, proprio = false) {
+        const sim = await confirmar(proprio ? {
+            titulo: 'Encerrar as minhas outras sessões?',
+            texto: 'As suas sessões em outros navegadores ou computadores serão encerradas. Esta, que você está usando, continua.',
+            botao: 'Encerrar outras sessões',
+        } : {
             titulo: `Desconectar ${nome}?`,
             texto: 'Todas as sessões desta pessoa serão encerradas agora, em qualquer navegador ou computador. Ela poderá entrar de novo normalmente.',
             botao: 'Desconectar',
@@ -111,11 +120,12 @@
     async function desconectarTodos() {
         const sim = await confirmar({
             titulo: 'Desconectar todo mundo?',
-            texto: 'Todas as sessões ativas serão encerradas, menos a sua. Todos terão de entrar de novo. Use em manutenção ou em caso de incidente.',
+            texto: 'Todas as sessões ativas serão encerradas. Por padrão a sua fica de fora. Todos terão de entrar de novo. Use em manutenção ou em caso de incidente.',
             botao: 'Desconectar todos',
             digitar: 'DESCONECTAR',
+            opcao: 'Incluir a minha sessão (eu também serei desconectado)',
         });
-        if (sim) await executar(raiz.dataset.revogarTodasUrl, { confirmacao: 'DESCONECTAR' });
+        if (sim) await executar(raiz.dataset.revogarTodasUrl, { confirmacao: 'DESCONECTAR', incluir_propria: sim === 'com-opcao' });
     }
 
     window.luftControle = { encerrarSessao, desconectarPessoa, desconectarTodos, avisar };

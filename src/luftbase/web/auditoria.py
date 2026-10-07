@@ -266,6 +266,8 @@ def _controle_sessoes() -> ServicoControleSessoes:
 def _resposta_controle(resultado, mensagem_ok: str, *, acao: str, recurso_id: str, descricao: str):  # type: ignore[no-untyped-def]
     """Traduz o resultado do servico em HTTP e deixa o rastro na auditoria."""
 
+    if resultado.motivo_recusa == "so_a_propria":
+        return jsonify({"status": "error", "message": "Não há outras sessões ativas além da sua. Marque \"Incluir a minha sessão\" se quiser se desconectar também."}), 409
     if resultado.motivo_recusa == "propria":
         return jsonify({"status": "error", "message": "Esta é a sessão que você está usando. Para sair, use o botão Sair."}), 409
     if resultado.motivo_recusa == "nao_encontrada" or resultado.encerradas == 0:
@@ -282,7 +284,7 @@ def _resposta_controle(resultado, mensagem_ok: str, *, acao: str, recurso_id: st
         {
             "status": "success",
             "message": mensagem_ok,
-            "data": {"encerradas": resultado.encerradas, "pessoas": resultado.pessoas},
+            "data": {"encerradas": resultado.encerradas, "pessoas": resultado.pessoas, "propria": resultado.propria_encerrada},
         }
     )
 
@@ -342,7 +344,9 @@ def api_revogar_todas():  # type: ignore[no-untyped-def]
     if str((request.get_json(silent=True) or {}).get("confirmacao") or "").strip().upper() != "DESCONECTAR":
         abort(400, description="Confirmacao ausente: digite DESCONECTAR.")
     resultado = _controle_sessoes().encerrar_todas(
-        id_sistema=_escopo_da_aplicacao(), id_sessao_atual=id_sessao_atual()
+        id_sistema=_escopo_da_aplicacao(),
+        id_sessao_atual=id_sessao_atual(),
+        incluir_propria=bool((request.get_json(silent=True) or {}).get("incluir_propria")),
     )
     return _resposta_controle(
         resultado,

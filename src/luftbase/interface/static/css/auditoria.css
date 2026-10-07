@@ -257,4 +257,6 @@ tr.audit-clicavel:hover { background: color-mix(in srgb, var(--luft-brand, #1d63
 .audit-toast { position: fixed; right: 24px; bottom: 24px; z-index: 1200; max-width: min(420px, 90vw); padding: 12px 16px; border-radius: 12px; font-size: .84rem; font-weight: 600; box-shadow: 0 14px 40px rgb(15 23 42 / .28); color: #065f46; background: #ecfdf5; border: 1px solid #a7f3d0; }
 .audit-toast.erro { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
 .audit-toast[hidden] { display: none; }
+.audit-dialog-opcao { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: .8rem; color: var(--luft-text-main); cursor: pointer; }
+.audit-dialog-opcao[hidden] { display: none; }
 
