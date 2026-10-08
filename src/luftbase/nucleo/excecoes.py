@@ -37,6 +37,10 @@ class ErroAutenticacao(ErroLuftBase, RuntimeError):
     """Indica indisponibilidade ou configuracao invalida da autenticacao."""
 
 
+class ErroUsuarioBloqueado(ErroLuftBase, RuntimeError):
+    """A senha esta correta, mas o acesso da pessoa foi bloqueado por um administrador."""
+
+
 class ErroAutorizacao(ErroLuftBase, RuntimeError):
     """Indica que uma decisao de autorizacao nao pode ser comprovada com seguranca."""
 

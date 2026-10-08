@@ -743,6 +743,11 @@
                             <i class="ph-bold ph-arrow-counter-clockwise"></i> Limpar Regras
                         </button>
                         {% endif %}
+                        {% if PodeBloquear %}
+                        <button type="button" class="btn btn-sm btn-outline d-flex align-items-center gap-1.5 text-danger d-none" onclick="AlternarBloqueioUsuario()" id="btnBloqueio" title="Impede (ou devolve) o login desta pessoa em todos os sistemas">
+                            <i class="ph-bold ph-prohibit"></i> <span id="btnBloqueioTxt">Bloquear acesso</span>
+                        </button>
+                        {% endif %}
 
                         <div class="relative" style="width: 220px;">
                             <i class="ph-bold ph-funnel absolute text-muted" style="left: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem;"></i>
@@ -1324,9 +1329,61 @@
             if (!resp.ok || dados.status !== 'success') throw new Error(dados.message || 'Falha');
             ESTADOS_CACHE = dados.data.estados || {};
             AplicarEstados(ESTADOS_CACHE);
+            AtualizarBloqueio(id);
         } catch (e) {
             console.error(e);
             alert('Erro ao carregar usuário.');
+        }
+    }
+
+    // Bloqueio de login da pessoa (so aparece no modo Usuario e para quem pode bloquear)
+    let BLOQUEADO_ATUAL = false;
+
+    async function AtualizarBloqueio(id) {
+        const botao = document.getElementById('btnBloqueio');
+        if (!botao) return;
+        botao.classList.add('d-none');
+        try {
+            const resp = await fetch(`{{ request.script_root }}/seguranca/api/usuarios/${id}/bloqueio`);
+            const d = await resp.json();
+            if (!resp.ok || d.status !== 'success' || !d.data.pode_alterar) return;
+            BLOQUEADO_ATUAL = !!d.data.bloqueado;
+            document.getElementById('btnBloqueioTxt').innerText = BLOQUEADO_ATUAL ? 'Desbloquear acesso' : 'Bloquear acesso';
+            document.getElementById('subtituloSelecionado').innerText = BLOQUEADO_ATUAL
+                ? `ACESSO BLOQUEADO${d.data.motivo ? ': ' + d.data.motivo : ''}`
+                : 'Regras manuais sobrepõem as permissões herdadas do grupo';
+            botao.classList.remove('d-none');
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function AlternarBloqueioUsuario() {
+        if (MODO !== 'Usuario' || !ID_ATUAL) return;
+        let motivo = '';
+        if (BLOQUEADO_ATUAL) {
+            if (!confirm(`Devolver o acesso de "${NOME_ATUAL}"?`)) return;
+        } else {
+            motivo = prompt(`Bloquear o acesso de "${NOME_ATUAL}"?
+
+A pessoa será desconectada de todos os sistemas e não conseguirá entrar.
+Informe o motivo (obrigatório):`) || '';
+            if (!motivo.trim()) return;
+        }
+        try {
+            const rota = BLOQUEADO_ATUAL ? 'desbloquear' : 'bloquear';
+            const resp = await fetch(`{{ request.script_root }}/seguranca/api/usuarios/${rota}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
+                body: JSON.stringify({IdUsuario: parseInt(ID_ATUAL), Motivo: motivo.trim()})
+            });
+            const d = await resp.json();
+            if (!resp.ok || d.status !== 'success') throw new Error(d.message || 'Falha');
+            alert(d.message);
+            await AtualizarBloqueio(ID_ATUAL);
+        } catch (e) {
+            console.error(e);
+            alert('Erro: ' + (e.message || 'Falha na comunicação'));
         }
     }
 

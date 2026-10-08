@@ -12,6 +12,23 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a91] - 2026-10-08
+
+### Adicionado
+
+- **Acesso liberado**: quem recebe a permissao base de um sistema (`PLATAFORMA.SISTEMA.ACESSAR`, `CONNECTAIR.SISTEMA.ACESSAR`...)
+  ganha um e-mail com o link do sistema e uma notificacao global so para essa pessoa. Dispara so na mudanca de "sem acesso"
+  para "com acesso" (usuario, grupo e espelhar permissoes) e nunca desfaz a concessao se o e-mail falhar. Novo `LUFT_URL_PUBLICA`
+  (opcional) para o endereco dos links.
+- **Bloqueio de login**: botao "Bloquear acesso / Desbloquear acesso" no Gerenciador de Permissoes (permissao nova
+  `SEGURANCA.USUARIOS.DESATIVAR`; rode `luftbase catalogo sincronizar`). O login confere `tb_usuario.bloqueado` (fail-closed) e
+  bloquear derruba as sessoes ativas da pessoa.
+- **Aviso de sessao encerrada**: quando um administrador derruba a sessao, a tela de entrada diz isso uma vez.
+
+### Alterado
+
+- `_resolver_estados` foi para `autorizacao/resolucao.py` (`resolver_estados`, com filtro `somente`); o catalogo passa a ter 50 permissoes.
+
 ## [0.1.0a90] - 2026-10-08
 
 ### Adicionado

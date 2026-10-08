@@ -133,6 +133,21 @@ class ArmazenamentoSessoesPostgreSQL:
                 "Nao foi possivel atualizar status do usuario ao encerrar sessao: %s", erro
             )
 
+    def motivo_encerramento(self, chave: str) -> str | None:
+        """Motivo pelo qual a sessao deixou de estar ativa (None se ativa ou desconhecida)."""
+
+        if not self._eh_chave_sessao(chave):
+            return None
+        with self._banco.leitura() as sessao_db:
+            registro = sessao_db.execute(
+                select(Sessao.status, Sessao.motivo_encerramento).where(
+                    Sessao.id_sessao == self._limpar_chave(chave)
+                )
+            ).first()
+        if registro is None or registro[0] == "ATIVA":
+            return None
+        return registro[1]
+
     def obter(self, chave: str) -> bytes | None:
         """Le o payload da sessao; se expirada, marca timeout e registra evento."""
 

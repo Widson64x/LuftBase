@@ -37,7 +37,12 @@ O modelo ORM do diretorio nunca herda de `BaseLuft`: o Alembic jamais tenta cria
 3. Pede ao LDAP para validar o par login/senha (`ldaps` na porta 636 ou `starttls` na 389; texto puro nao existe).
    Credencial errada devolve `None`; indisponibilidade do LDAP vira erro controlado, sem repetir servidor, login ou senha.
 4. Carrega o retrato do usuario no diretorio (`UsuarioAutenticado`: id, login, nome, e-mail, grupo).
-5. Sincroniza com o core: `garantir_usuario_do_diretorio` cria ou atualiza a linha em `core.tb_usuario`
+5. **Confere o bloqueio** (`core.tb_usuario.bloqueado`). Com a senha correta e a pessoa bloqueada, levanta
+   `ErroUsuarioBloqueado`: a tela de entrada responde **403** com "Seu acesso esta bloqueado. Procure um administrador."
+   (o motivo interno nao aparece) e a auditoria registra `LOGIN_BLOQUEADO`. A regra e **fail-closed**: se o banco falhar
+   ao conferir, vira `ErroAutenticacao` (503, "indisponivel"), nunca entrada liberada. Senha errada continua sendo so
+   "usuario ou senha invalidos", sem revelar o bloqueio.
+6. Sincroniza com o core: `garantir_usuario_do_diretorio` cria ou atualiza a linha em `core.tb_usuario`
    (nome, e-mail, grupo) e devolve foto, cargo, telefone, tema e idioma que a pessoa ja tinha configurado.
    Se essa sincronizacao falhar, o erro e registrado e o login **continua** (a pessoa entra com os dados do diretorio).
 
@@ -100,6 +105,15 @@ Como a sessao e compartilhada, sair de um sistema sai de todos.
 
 ## Controle administrativo
 
+- **Bloquear o login de uma pessoa**: no Gerenciador de Permissoes (`/seguranca/gerenciador`), no modo Usuario, o botao
+  "Bloquear acesso" (permissao `SEGURANCA.USUARIOS.DESATIVAR`) pede o motivo, grava `bloqueado` e `motivo_bloqueio`,
+  **derruba todas as sessoes ativas** da pessoa (motivo `BLOQUEIO_ADMIN`) e audita `USUARIO_BLOQUEADO`. "Desbloquear
+  acesso" devolve o direito de entrar. Ninguem bloqueia o proprio acesso. Rotas: `POST /seguranca/api/usuarios/bloquear`,
+  `POST /seguranca/api/usuarios/desbloquear`, `GET /seguranca/api/usuarios/<id>/bloqueio`.
+- **Aviso na tela de entrada**: quando a sessao e derrubada por um administrador (`REVOGADA_ADMIN` ou `BLOQUEIO_ADMIN`),
+  a proxima visita da pessoa cai no login com "Sua sessao foi encerrada por um administrador. Entre novamente." (ou a
+  mensagem de bloqueio), uma unica vez. Sai de `ArmazenamentoSessoesPostgreSQL.motivo_encerramento`, consultado so quando
+  o cookie e valido mas a sessao nao esta mais ativa; se a consulta falhar, apenas nao avisa.
 - A pessoa pode **desconectar as outras sessoes** no proprio perfil ([16-PERFIL-DO-USUARIO.md](16-PERFIL-DO-USUARIO.md)).
 - Quem tem `SEGURANCA.SESSOES.REVOGAR` pode encerrar uma sessao, desconectar uma pessoa ou todos
   ([15-AUDITORIA-ANALITICA-E-CONTROLE-DE-SESSOES.md](15-AUDITORIA-ANALITICA-E-CONTROLE-DE-SESSOES.md)).

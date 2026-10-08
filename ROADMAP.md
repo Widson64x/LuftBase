@@ -184,7 +184,7 @@ pessoa so descobre ao cair na tela de entrada. E quem recebe acesso a um sistema
 ### Acesso liberado: e-mail e notificacao
 
 Quando alguem recebe a permissao base de um sistema (`PLATAFORMA.SISTEMA.ACESSAR` e a equivalente de cada sistema, como
-`CONNECTAIR.SISTEMA.ACESSAR`), a pessoa e avisada de duas formas:
+`CONNECTAIR.SISTEMA.ACESSAR`; o codigo usa a marcada `eh_acesso_sistema`), a pessoa e avisada de duas formas:
 
 1. **E-mail** "Seu acesso ao <Sistema> foi liberado", com o nome do sistema e um botao/link para abri-lo. Usa o modulo de
    e-mail do LuftBase (layout padrao, modo teste, auditoria por mensagem).
@@ -197,26 +197,29 @@ Regras:
 - concessao a **grupo** avisa cada membro que ainda nao tinha acesso; copiar permissoes entre usuarios tambem avisa;
 - a pessoa precisa ter e-mail cadastrado; sem e-mail, so a notificacao e o fato fica registrado na auditoria;
 - falha de e-mail ou de notificacao **nunca desfaz** a concessao: a permissao grava e o erro vai para o log e a auditoria;
-- sem repeticao: uma chave de idempotencia por (usuario, sistema, concessao) evita avisar duas vezes.
+- sem repeticao: como so a transicao "sem acesso -> com acesso" avisa, salvar a mesma regra de novo nao envia outra vez.
 
-- [ ] Guardar o endereco de acesso de cada sistema: nova coluna `url_acesso` em `core.tb_sistema` (migracao Alembic aditiva),
-      preenchida no cadastro de sistema pelo Workspace. Hoje so existe `url_saude`, que nao serve para o link.
-- [ ] Servico de aviso de acesso (`autorizacao/aviso_acesso.py`): detecta a transicao, monta e-mail e notificacao, aplica as regras acima.
-- [ ] Ligar o servico em `salvar_vinculo` (`web/seguranca.py`), na concessao a grupo e na copia de permissoes.
-- [ ] Template de e-mail "acesso liberado" no pacote (mesmo layout dos demais).
-- [ ] Testes: transicao dispara uma vez; revogar e repetir nao dispara; so a permissao base; usuario sem e-mail;
-      falha de SMTP nao desfaz a concessao; grupo avisa os membros certos.
-- [ ] Documentar no doc 11 (autorizacao) e no doc 13 (notificacoes).
+- [x] Endereco do sistema no e-mail: nao precisou de coluna nova. Usa `Sistema.link` (ja existe no cadastro): absoluto como
+      esta; relativo, preso a `LUFT_URL_PUBLICA` (opcional) ou ao host da requisicao de quem libera o acesso.
+- [x] Servico de aviso (`autorizacao/aviso_acesso.py`): foto do acesso antes/depois, avisa so a transicao sem -> com acesso.
+- [x] Ligado em `salvar` (usuario e grupo) e em espelhar permissoes (`web/seguranca.py`).
+- [x] Modelo de e-mail `acesso_liberado.html` (mesmo layout dos demais).
+- [x] Testes: transicao dispara uma vez; so a permissao base; bloquear nao avisa; grupo avisa so quem ainda nao tinha;
+      sem e-mail; usuario bloqueado; SMTP fora nao desfaz a concessao; limite por operacao; modelo renderizado.
+- [x] Documentado nos docs 11 e 13 e em `LUFT_URL_PUBLICA` (doc 18).
+- [ ] Ensaiar em homologacao: conceder `PLATAFORMA.SISTEMA.ACESSAR` a um usuario de teste e conferir e-mail e sino.
 
 ### Bloqueio de login e aviso de sessao encerrada
 
-- [ ] Bloqueio fail-closed: login, SSO, cookie "lembrar" e renovacao recusam usuario com `bloqueado = true`; bloquear encerra as
-      sessoes ativas da pessoa. Se a leitura do banco falhar, a tela diz "indisponivel", nunca "bloqueado".
-- [ ] Tela de bloqueio e desbloqueio: motivo obrigatorio, permissao propria (`CONFIGURACOES.USUARIOS.BLOQUEAR`), auditoria
-      antes/depois e sem auto-bloqueio. Fica no Workspace, junto do cadastro de usuarios, com atalho na Auditoria > Pessoas e sessoes.
-- [ ] Aviso de sessao encerrada: quando a sessao cai por `REVOGADA_ADMIN` ou bloqueio, a entrada mostra "Sua sessao foi encerrada
-      por um administrador" (sem dizer quem).
-- [ ] Testes: bloqueio impede login e renovacao; desbloqueio restaura; auto-bloqueio recusado; escopo da permissao.
+- [x] Bloqueio fail-closed no login (`ServicoAutenticacao`): senha certa + bloqueado = 403 com mensagem sem motivo interno e
+      `LOGIN_BLOQUEADO` na auditoria; falha ao conferir = 503 "indisponivel", nunca entrada liberada.
+- [x] Bloquear derruba as sessoes ativas da pessoa (motivo `BLOQUEIO_ADMIN`); o cookie "lembrar" ja nao existe (sessao no servidor).
+- [x] Botao "Bloquear acesso" / "Desbloquear acesso" no Gerenciador de Permissoes (modo Usuario): motivo obrigatorio, permissao
+      `SEGURANCA.USUARIOS.DESATIVAR` (rode `luftbase catalogo sincronizar` nos ambientes), auditoria, sem auto-bloqueio.
+- [x] Aviso na tela de entrada ("Sua sessao foi encerrada por um administrador" / bloqueio), uma unica vez.
+- [x] Testes (`tests/test_bloqueio_login.py`) e docs 10 e 11.
+- [ ] Atalho na Auditoria > Pessoas e sessoes (hoje o botao esta so no Gerenciador de Permissoes).
+- [ ] Notificacao/e-mail para a pessoa bloqueada: nao feito de proposito (sem acesso ela nem consegue ver o sino).
 
 Aceite: quem recebe acesso a um sistema ganha e-mail e notificacao uma unica vez; usuario bloqueado nao entra por nenhum caminho; tudo auditado.
 

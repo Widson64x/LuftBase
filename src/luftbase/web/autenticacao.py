@@ -11,11 +11,19 @@ from flask import Blueprint, abort, redirect, render_template, request, session,
 from flask_login import current_user, login_required
 
 from luftbase.identidade import encerrar_sessao_global, iniciar_sessao_usuario
-from luftbase.nucleo.excecoes import ErroAutenticacao
+from luftbase.identidade.sessoes import CHAVE_AVISO_ENCERRAMENTO
+from luftbase.nucleo.excecoes import ErroAutenticacao, ErroUsuarioBloqueado
 from luftbase.observabilidade import EventoDominio, SeveridadeAuditoria
 from luftbase.plataforma import obter_luftbase
 
 AutenticacaoBp = Blueprint("Autenticacao", __name__)
+
+# Sem o motivo interno do bloqueio: quem esta do outro lado nao precisa dele para procurar o suporte.
+MENSAGEM_BLOQUEADO = "Seu acesso está bloqueado. Procure um administrador."
+MENSAGENS_ENCERRAMENTO = {
+    "REVOGADA_ADMIN": "Sua sessão foi encerrada por um administrador. Entre novamente.",
+    "BLOQUEIO_ADMIN": MENSAGEM_BLOQUEADO,
+}
 
 
 def _destino_seguro(valor: str | None) -> str | None:
@@ -64,6 +72,23 @@ def login():  # type: ignore[no-untyped-def]
                 login_informado,
                 senha_informada,
             )
+        except ErroUsuarioBloqueado:
+            with contextlib.suppress(Exception):
+                estado.auditoria.registrar_evento(
+                    EventoDominio(
+                        acao="LOGIN_BLOQUEADO",
+                        recurso="AUTENTICACAO",
+                        descricao=f"Login recusado: acesso de '{login_informado}' esta bloqueado.",
+                        severidade=SeveridadeAuditoria.MEDIA,
+                        login_usuario=login_informado or "anonimo",
+                    )
+                )
+            return (
+                render_template(
+                    "luftbase/login.html", erro=MENSAGEM_BLOQUEADO, destino=destino or ""
+                ),
+                403,
+            )
         except ErroAutenticacao:
             # Diretorio fora do ar ou lento: nao e credencial invalida nem erro 500.
             logging.getLogger("luftbase").warning(
@@ -111,6 +136,9 @@ def login():  # type: ignore[no-untyped-def]
                 )
             return redirect(destino or f"{request.script_root}/")
 
+    if erro is None:
+        # Aviso gravado quando a sessao foi derrubada por um administrador (ver `InterfaceSessaoCompartilhada`).
+        erro = MENSAGENS_ENCERRAMENTO.get(str(session.pop(CHAVE_AVISO_ENCERRAMENTO, "")))
     return render_template("luftbase/login.html", erro=erro, destino=destino or "")
 
 

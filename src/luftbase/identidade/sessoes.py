@@ -20,6 +20,9 @@ from luftbase.identidade.modelos import UsuarioAutenticado
 from luftbase.nucleo.excecoes import ErroSessao
 
 _CHAVE_USUARIO = "luftbase_usuario"
+# Guardada na sessao nova quando a anterior foi derrubada por um administrador; a tela de entrada a le.
+CHAVE_AVISO_ENCERRAMENTO = "_aviso_encerramento"
+MOTIVOS_COM_AVISO = frozenset({"REVOGADA_ADMIN", "BLOQUEIO_ADMIN"})
 
 
 class ArmazenamentoSessoes(Protocol):
@@ -116,7 +119,11 @@ class InterfaceSessaoCompartilhada(SessionInterface):
         try:
             bruto = self._armazenamento.obter(self._chave(identificador))
             if bruto is None:
-                return self.session_class(identificador=self._novo_identificador(), nova=True)
+                return self.session_class(
+                    self._aviso_de_encerramento(identificador),
+                    identificador=self._novo_identificador(),
+                    nova=True,
+                )
             envelope = json.loads(bruto.decode("utf-8"))
             if envelope.get("versao") != 1 or not isinstance(envelope.get("dados"), dict):
                 raise ValueError("Envelope invalido")
@@ -142,6 +149,22 @@ class InterfaceSessaoCompartilhada(SessionInterface):
             return sessao
         except Exception as erro:
             raise ErroSessao("Nao foi possivel carregar a sessao compartilhada.") from erro
+
+    def _aviso_de_encerramento(self, identificador: str) -> dict[str, str]:
+        """Se a sessao do cookie foi derrubada por um administrador, devolve o aviso para o login.
+
+        So roda quando o cookie e valido mas a sessao nao esta mais ativa (caminho raro). Qualquer
+        falha aqui apenas deixa de avisar; nunca impede a requisicao.
+        """
+
+        consultar = getattr(self._armazenamento, "motivo_encerramento", None)
+        if not callable(consultar):
+            return {}
+        try:
+            motivo = consultar(self._chave(identificador))
+        except Exception:
+            return {}
+        return {CHAVE_AVISO_ENCERRAMENTO: motivo} if motivo in MOTIVOS_COM_AVISO else {}
 
     def save_session(self, app: Flask, sessao: SessionMixin, response: Response) -> None:
         """Persiste JSON com TTL e atualiza somente o cookie opaco."""

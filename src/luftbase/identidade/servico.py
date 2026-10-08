@@ -7,6 +7,7 @@ from typing import Protocol
 
 from luftbase.identidade.modelos import UsuarioAutenticado
 from luftbase.identidade.repositorio_core import RepositorioUsuariosPostgreSQL
+from luftbase.nucleo.excecoes import ErroAutenticacao, ErroUsuarioBloqueado
 
 logger = logging.getLogger("luftbase.identidade")
 
@@ -43,6 +44,18 @@ class ServicoAutenticacao:
         """Acesso ao repositorio da tabela core.tb_usuario no PostgreSQL."""
         return self._repositorio_core
 
+    def _recusar_se_bloqueado(self, codigo_usuario: int, login: str) -> None:
+        """Bloqueio de acesso (fail-closed): na duvida, a pessoa nao entra."""
+
+        assert self._repositorio_core is not None
+        try:
+            bloqueado = self._repositorio_core.esta_bloqueado(codigo_usuario)
+        except Exception as erro:
+            logger.error("Nao foi possivel conferir o bloqueio de '%s': %s", login, erro)
+            raise ErroAutenticacao("Nao foi possivel conferir o bloqueio do usuario.") from erro
+        if bloqueado:
+            raise ErroUsuarioBloqueado(f"Acesso bloqueado para '{login}'.")
+
     def autenticar(self, login: str, senha: str) -> UsuarioAutenticado | None:
         """Valida a senha, carrega o retrato corporativo e sincroniza com o banco local."""
 
@@ -66,6 +79,7 @@ class ServicoAutenticacao:
             usuario = self._repositorio.obter_por_login(identificador)
 
         if usuario is not None and self._repositorio_core is not None:
+            self._recusar_se_bloqueado(usuario.id_usuario, usuario.login)
             try:
                 registro_core = self._repositorio_core.garantir_usuario_do_diretorio(
                     codigo_usuario=usuario.id_usuario,

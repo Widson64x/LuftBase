@@ -32,6 +32,7 @@ chegar ao Vault e para identificar o sistema.
 | `LUFT_SESSAO_COOKIE_CAMINHO` | `/` | Caminho do cookie (deve comecar com `/`). |
 | `LUFT_SESSAO_COOKIE_SAMESITE` | `Lax` | `Lax`, `Strict` ou `None` (so com cookie seguro). |
 | `LUFT_SESSAO_COOKIE_SEGURO` | `false` | `true` forca `Secure` em qualquer ambiente. Em **producao** o cookie ja e `Secure` mesmo com `false`, salvo `LUFT_PERMITIR_COOKIE_INSEGURO=true`. |
+| `LUFT_URL_PUBLICA` | vazio | Endereco publico da plataforma (ex.: `https://portal.luft.com.br`) usado nos links dos e-mails de acesso liberado. Vazio: usa o host da requisicao de quem libera o acesso. |
 | `LUFT_PERMITIR_COOKIE_INSEGURO` | `false` | Em producao o cookie e `Secure`. Se o site ainda e HTTP, ponha `true` (excecao temporaria, avisada no log). |
 
 ## Autorizacao

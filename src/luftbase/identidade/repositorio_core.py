@@ -27,6 +27,29 @@ class RepositorioUsuariosPostgreSQL:
         with self._banco.leitura() as sessao:
             return sessao.get(Usuario, codigo_usuario)
 
+    def esta_bloqueado(self, codigo_usuario: int) -> bool:
+        """Verdadeiro quando um administrador bloqueou o acesso da pessoa (`tb_usuario.bloqueado`)."""
+
+        with self._banco.leitura() as sessao:
+            return bool(
+                sessao.execute(
+                    select(Usuario.bloqueado).where(Usuario.codigo_usuario == codigo_usuario)
+                ).scalar_one_or_none()
+            )
+
+    def definir_bloqueio(
+        self, codigo_usuario: int, bloqueado: bool, motivo: str | None = None
+    ) -> bool:
+        """Bloqueia ou desbloqueia o login. Devolve False se a pessoa nao existe no core."""
+
+        with self._banco.unidade_trabalho() as sessao:
+            usuario = sessao.get(Usuario, codigo_usuario)
+            if usuario is None:
+                return False
+            usuario.bloqueado = bloqueado
+            usuario.motivo_bloqueio = (motivo or "").strip()[:255] or None if bloqueado else None
+            return True
+
     def obter_dados_perfil(self, codigo_usuario: int) -> dict[str, Any] | None:
         """Busca os dados cadastrais e operacionais do usuario para exibicao no perfil."""
 

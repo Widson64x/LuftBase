@@ -1,0 +1,20 @@
+{% extends "luftbase/email/base.html" %}
+{% import "luftbase/email/componentes.html" as ui_email %}
+
+{% block previa %}Seu acesso ao {{ nome_sistema }} foi liberado.{% endblock %}
+
+{% block faixa %}{{ ui_email.faixa("Acesso liberado", "sucesso") }}{% endblock %}
+
+{% block conteudo %}
+  {{ ui_email.titulo("Seu acesso foi liberado", rotulo=nome_sistema) }}
+  {{ ui_email.paragrafo("Olá" ~ (", " ~ nome if nome else "") ~ "! Você já pode usar o sistema " ~ nome_sistema ~ ".") }}
+  {% if url %}
+    {{ ui_email.botao(url, "Abrir " ~ nome_sistema) }}
+    {{ ui_email.nota("Se o botão não funcionar, copie e cole este endereço no navegador: " ~ url) }}
+  {% else %}
+    {{ ui_email.paragrafo("Entre pelo portal da Luft e procure o sistema na sua lista de aplicações.") }}
+  {% endif %}
+  {% if liberado_por %}
+    {{ ui_email.nota("Liberado por " ~ liberado_por ~ ".") }}
+  {% endif %}
+{% endblock %}

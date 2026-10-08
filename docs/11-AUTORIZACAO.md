@@ -73,6 +73,29 @@ Para multiplas chaves no menu ou cabeçalho, prefira `consultar_permissoes(chave
 - Camada 2: Triggers em `tb_modulo`, `tb_permissao`, `tb_permissaogrupo` e `tb_permissaousuario` incrementam `core.tb_revisaocache` a cada mutacao. O cache distribuido Redis (quando ativo) descarta entradas de revisoes obsoletas.
 - Quando Redis nao esta configurado (desenvolvimento ou piloto), o PostgreSQL Core responde diretamente as consultas com resolucao de CTE em poucos milissegundos.
 
+## Aviso de acesso liberado
+
+Quando alguem passa a ter a permissao **base** de um sistema (a marcada `eh_acesso_sistema`, em geral `<SIS>.SISTEMA.ACESSAR`,
+como `PLATAFORMA.SISTEMA.ACESSAR` ou `CONNECTAIR.SISTEMA.ACESSAR`), a pessoa recebe:
+
+1. um **e-mail** "Seu acesso ao <Sistema> foi liberado", com o botao para abrir o sistema (modelo
+   `luftbase/email/acesso_liberado.html`, mesmo layout dos demais; respeita o modo teste do e-mail); e
+2. uma **notificacao global** (`tb_notificacao`, sistema 0, so para essa pessoa) com o link do sistema.
+
+`web/seguranca.py` tira uma foto do acesso efetivo antes de gravar (`autorizacao/aviso_acesso.py: capturar_acesso`) e compara
+depois; so quem passou de **sem acesso** para **com acesso** e avisado, entao regravar a mesma regra, bloquear, revogar ou
+conceder outra permissao nao avisa. Vale para `salvar` (usuario ou grupo; grupo avisa cada membro que ainda nao tinha acesso)
+e para espelhar permissoes. Pessoa bloqueada ou inativa nao e avisada; sem e-mail cadastrado recebe so a notificacao; ate 300
+pessoas por operacao. **Falha de e-mail ou notificacao nunca desfaz a concessao** (vai para o log e a auditoria registra
+`ACESSO_LIBERADO_AVISO` com as contagens). O link usa `Sistema.link`: absoluto como esta; relativo, preso a `LUFT_URL_PUBLICA`
+(ou ao endereco da requisicao).
+
+## Bloqueio de login
+
+A permissao `SEGURANCA.USUARIOS.DESATIVAR` (filha de `SEGURANCA.MODULO.GERENCIAR`, sensivel) controla quem bloqueia e
+desbloqueia o login de uma pessoa ([10-IDENTIDADE-E-SESSAO.md](10-IDENTIDADE-E-SESSAO.md)). Em ambientes existentes rode
+`luftbase catalogo sincronizar` para criar a permissao.
+
 ## Migracoes
 
 - **Nunca** executar migrações durante o startup do servidor web (`Wsgi.py` ou `app.run`).

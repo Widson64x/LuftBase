@@ -66,6 +66,7 @@ class PermissaoLuftBase(StrEnum):
     SESSOES_GERENCIAR = "SEGURANCA.SESSOES.GERENCIAR"
     SESSOES_VISUALIZAR = "SEGURANCA.SESSOES.VISUALIZAR"
     SESSOES_REVOGAR = "SEGURANCA.SESSOES.REVOGAR"
+    USUARIOS_DESATIVAR = "SEGURANCA.USUARIOS.DESATIVAR"
 
     OBSERVABILIDADE_GERENCIAR = "OBSERVABILIDADE.MODULO.GERENCIAR"
     AUDITORIA_VISUALIZAR = "OBSERVABILIDADE.AUDITORIA.VISUALIZAR"
@@ -289,6 +290,12 @@ PERMISSOES_PADRAO: tuple[DefinicaoPermissao, ...] = (
         PermissaoLuftBase.SESSOES_REVOGAR,
         "Revogar sessoes autenticadas.",
         pai=PermissaoLuftBase.SESSOES_GERENCIAR,
+        sensivel=True,
+    ),
+    _permissao(
+        PermissaoLuftBase.USUARIOS_DESATIVAR,
+        "Bloquear e desbloquear o login de uma pessoa.",
+        pai=PermissaoLuftBase.SEGURANCA_GERENCIAR,
         sensivel=True,
     ),
     _permissao(

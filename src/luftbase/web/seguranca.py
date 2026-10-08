@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
 import re
 from dataclasses import dataclass
 from typing import cast
@@ -12,7 +14,13 @@ from flask_login import current_user, login_required
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
+from luftbase.autorizacao.aviso_acesso import (
+    CapturaAcesso,
+    avisar_acessos_liberados,
+    capturar_acesso,
+)
 from luftbase.autorizacao.catalogo import ACOES_PERMISSAO, PermissaoLuftBase
+from luftbase.autorizacao.resolucao import resolver_estados as _resolver_estados
 from luftbase.autorizacao.web import consultar_permissoes, exigir_permissao
 from luftbase.interface.web import validar_csrf_requisicao
 from luftbase.observabilidade import SeveridadeAuditoria, registrar_alteracao_auditoria
@@ -242,56 +250,6 @@ def _ordenar_arvore_modulo(
     return resultado
 
 
-def _resolver_estados(
-    permissoes: list[Permissao],
-    regras_usuario: dict[int, bool],
-    regras_grupo: dict[int, bool],
-) -> dict[str, dict[str, object]]:
-    """Resolve estados efetivos e explica a origem usada pela interface."""
-
-    mapa = {item.id_permissao: item for item in permissoes}
-    estados: dict[str, dict[str, object]] = {}
-    for permissao in permissoes:
-        caminho: list[Permissao] = []
-        atual: Permissao | None = permissao
-        visitados: set[int] = set()
-        while atual is not None and atual.id_permissao not in visitados and len(caminho) <= 32:
-            caminho.append(atual)
-            visitados.add(atual.id_permissao)
-            atual = mapa.get(atual.id_permissao_pai) if atual.id_permissao_pai else None
-
-        origem = "PADRAO"
-        regra_id: int | None = None
-        permitido = False
-        if len(caminho) <= 32 and all(item.ativo for item in caminho):
-            regra_usuario = next(
-                (item for item in caminho if item.id_permissao in regras_usuario), None
-            )
-            regra_grupo = next(
-                (item for item in caminho if item.id_permissao in regras_grupo), None
-            )
-            if regra_usuario is not None:
-                origem = "USUARIO"
-                regra_id = regra_usuario.id_permissao
-                permitido = regras_usuario[regra_id]
-            elif regra_grupo is not None:
-                origem = "GRUPO"
-                regra_id = regra_grupo.id_permissao
-                permitido = regras_grupo[regra_id]
-
-        regra_item = mapa.get(regra_id) if regra_id else None
-        estados[str(permissao.id_permissao)] = {
-            "permitido": permitido,
-            "origem": origem,
-            "herdada": regra_id is not None and regra_id != permissao.id_permissao,
-            "regra_id": regra_id,
-            "regra_chave": regra_item.chave_permissao if regra_item else None,
-            "regra_descricao": regra_item.descricao_permissao if regra_item else None,
-            "ativo": permissao.ativo,
-        }
-    return estados
-
-
 def _carregar_permissoes(sessao: object, sistema_id: int) -> list[Permissao]:
     return list(
         sessao.execute(  # type: ignore[attr-defined]
@@ -302,6 +260,38 @@ def _carregar_permissoes(sessao: object, sistema_id: int) -> list[Permissao]:
         .scalars()
         .all()
     )
+
+
+def _url_base_publica() -> str:
+    """Endereco publico da plataforma para links de e-mail (`LUFT_URL_PUBLICA` ou o host da requisicao)."""
+
+    return (os.environ.get("LUFT_URL_PUBLICA") or "").strip() or request.host_url
+
+
+def _avisar_acesso_liberado(antes: CapturaAcesso, estado: object) -> dict[str, int]:
+    """Avisa (notificacao + e-mail) quem ganhou acesso por causa desta mudanca. Nunca levanta."""
+
+    resultado = avisar_acessos_liberados(
+        estado.bancos,  # type: ignore[attr-defined]
+        estado.email,  # type: ignore[attr-defined]
+        antes,
+        url_base=_url_base_publica(),
+        liberado_por=str(getattr(current_user, "login", "") or ""),
+        garantir_usuario=garantir_usuario_no_core,
+    )
+    if resultado.com_acesso_novo:
+        registrar_alteracao_auditoria(
+            recurso="ACESSO_SISTEMA",
+            id_recurso=antes.id_sistema,
+            acao="ACESSO_LIBERADO_AVISO",
+            descricao=(
+                f"{resultado.com_acesso_novo} pessoa(s) ganharam acesso ao sistema "
+                f"{antes.id_sistema}; avisos enviados."
+            ),
+            dados_novos=resultado.como_dict(),
+            severidade=SeveridadeAuditoria.BAIXA,
+        )
+    return resultado.como_dict()
 
 
 @SegurancaBp.get("/gerenciador")
@@ -317,6 +307,7 @@ def visualizar_gerenciador():  # type: ignore[no-untyped-def]
         (
             PermissaoLuftBase.PERMISSOES_CONCEDER,
             PermissaoLuftBase.PERMISSOES_CRIAR,
+            PermissaoLuftBase.USUARIOS_DESATIVAR,
         )
     )
 
@@ -449,6 +440,7 @@ def visualizar_gerenciador():  # type: ignore[no-untyped-def]
         AcoesPermissao=ACOES_PERMISSAO,
         PodeEditar=bool(decisoes.get(PermissaoLuftBase.PERMISSOES_CONCEDER.value)),
         PodeCriar=bool(decisoes.get(PermissaoLuftBase.PERMISSOES_CRIAR.value)),
+        PodeBloquear=bool(decisoes.get(PermissaoLuftBase.USUARIOS_DESATIVAR.value)),
         IsMaster=is_master,
         SistemaIdSelecionado=sistema_selecionado,
         SistemasDisponiveis=sistemas_disponiveis,
@@ -584,6 +576,15 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
     chave_permissao = ""
     if tipo == "Usuario" and acao != "Resetar" and not garantir_usuario_no_core(id_alvo):
         return jsonify(status="error", message="Usuario nao encontrado no diretorio."), 404
+    with estado.bancos.core.leitura() as sessao_previa:
+        id_sistema_regra = sessao_previa.execute(
+            select(Permissao.id_sistema).where(Permissao.id_permissao == id_permissao)
+        ).scalar_one_or_none()
+    antes_acesso = (
+        capturar_acesso(estado.bancos, tipo=tipo, id_alvo=id_alvo, id_sistema=id_sistema_regra)
+        if id_sistema_regra is not None
+        else None
+    )
     with estado.bancos.core.escrita() as sessao:
         permissao = sessao.get(Permissao, id_permissao)
         if permissao is None:
@@ -642,6 +643,8 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
         dados_novos=dados_novos,
         severidade=SeveridadeAuditoria.MEDIA,
     )
+    if antes_acesso is not None:
+        _avisar_acesso_liberado(antes_acesso, estado)
     return jsonify(status="success", message="Regra salva com sucesso.")
 
 
@@ -766,6 +769,9 @@ def espelhar_permissoes():  # type: ignore[no-untyped-def]
     if tipo_destino == "Usuario" and not garantir_usuario_no_core(id_destino):
         return jsonify(status="error", message="O usuario de destino nao foi encontrado no diretorio."), 404
 
+    antes_acesso = capturar_acesso(
+        estado.bancos, tipo=tipo_destino, id_alvo=id_destino, id_sistema=sistema_id
+    )
     with estado.bancos.core.escrita() as sessao:
         regras_origem = sessao.execute(
             select(modelo_origem.id_permissao, modelo_origem.conceder)
@@ -857,11 +863,113 @@ def espelhar_permissoes():  # type: ignore[no-untyped-def]
         dados_novos={"id_destino": id_destino, "tipo_destino": tipo_destino, "total_regras": total_copiadas},
         severidade=SeveridadeAuditoria.MEDIA,
     )
+    _avisar_acesso_liberado(antes_acesso, estado)
     return jsonify(
         status="success",
         message=f"{total_copiadas} regra(s) espelhada(s) com sucesso.",
         total=total_copiadas,
     )
+
+
+@SegurancaBp.get("/api/usuarios/<int:codigo_usuario>/bloqueio")
+@login_required
+@exigir_permissao(PermissaoLuftBase.PERMISSOES_VISUALIZAR)
+def consultar_bloqueio_usuario(codigo_usuario: int):  # type: ignore[no-untyped-def]
+    """Estado do bloqueio de login de uma pessoa (sem o motivo para quem so visualiza)."""
+
+    estado = obter_luftbase()
+    with estado.bancos.core.leitura() as sessao:
+        linha = sessao.execute(
+            select(Usuario.bloqueado, Usuario.motivo_bloqueio).where(
+                Usuario.codigo_usuario == codigo_usuario
+            )
+        ).first()
+    bloqueado = bool(linha[0]) if linha else False
+    pode = bool(consultar_permissoes([PermissaoLuftBase.USUARIOS_DESATIVAR.value]).get(
+        PermissaoLuftBase.USUARIOS_DESATIVAR.value
+    ))
+    return jsonify(
+        status="success",
+        data={
+            "bloqueado": bloqueado,
+            "motivo": (linha[1] if linha and pode else None),
+            "pode_alterar": pode,
+        },
+    )
+
+
+def _alterar_bloqueio(bloquear: bool):  # type: ignore[no-untyped-def]
+    validar_csrf_requisicao()
+    dados = request.get_json(silent=True) or {}
+    try:
+        codigo = int(dados.get("IdUsuario"))
+    except (TypeError, ValueError):
+        return jsonify(status="error", message="Usuario invalido."), 400
+    if codigo <= 0:
+        return jsonify(status="error", message="Usuario invalido."), 400
+    motivo = str(dados.get("Motivo") or "").strip()
+    if bloquear and len(motivo) < 5:
+        return jsonify(status="error", message="Informe o motivo do bloqueio (minimo 5 letras)."), 400
+    if bloquear and codigo == getattr(current_user, "id_usuario", None):
+        return jsonify(status="error", message="Voce nao pode bloquear o proprio acesso."), 400
+
+    estado = obter_luftbase()
+    if not garantir_usuario_no_core(codigo):
+        return jsonify(status="error", message="Usuario nao encontrado no diretorio."), 404
+    repositorio = estado.usuarios_core
+    anterior = repositorio.esta_bloqueado(codigo)
+    if not repositorio.definir_bloqueio(codigo, bloquear, motivo):
+        return jsonify(status="error", message="Usuario nao encontrado."), 404
+
+    encerradas = 0
+    if bloquear:
+        armazenamento = estado.infraestrutura.armazenamento_sessoes
+        revogar = getattr(armazenamento, "revogar_sessao", None)
+        if callable(revogar):
+            for sessao_ativa in repositorio.listar_sessoes_usuario(codigo):
+                with contextlib.suppress(Exception):
+                    if revogar(sessao_ativa["id_sessao"], "BLOQUEIO_ADMIN"):
+                        encerradas += 1
+    estado.autorizacao.invalidar_cache()
+    registrar_alteracao_auditoria(
+        recurso="USUARIO_BLOQUEIO",
+        id_recurso=codigo,
+        acao="USUARIO_BLOQUEADO" if bloquear else "USUARIO_DESBLOQUEADO",
+        descricao=(
+            f"Login do usuario {codigo} {'bloqueado' if bloquear else 'desbloqueado'}"
+            f"{': ' + motivo if bloquear else ''}."
+        ),
+        dados_anteriores={"bloqueado": anterior},
+        dados_novos={"bloqueado": bloquear, "motivo": motivo or None, "sessoes_encerradas": encerradas},
+        severidade=SeveridadeAuditoria.ALTA if bloquear else SeveridadeAuditoria.MEDIA,
+    )
+    return jsonify(
+        status="success",
+        message=(
+            f"Acesso bloqueado. {encerradas} sessao(oes) encerrada(s)."
+            if bloquear
+            else "Acesso desbloqueado."
+        ),
+        sessoes_encerradas=encerradas,
+    )
+
+
+@SegurancaBp.post("/api/usuarios/bloquear")
+@login_required
+@exigir_permissao(PermissaoLuftBase.USUARIOS_DESATIVAR)
+def bloquear_usuario():  # type: ignore[no-untyped-def]
+    """Bloqueia o login da pessoa e derruba as sessoes ativas dela."""
+
+    return _alterar_bloqueio(True)
+
+
+@SegurancaBp.post("/api/usuarios/desbloquear")
+@login_required
+@exigir_permissao(PermissaoLuftBase.USUARIOS_DESATIVAR)
+def desbloquear_usuario():  # type: ignore[no-untyped-def]
+    """Devolve o direito de entrar."""
+
+    return _alterar_bloqueio(False)
 
 
 @SegurancaBp.post("/api/permissoes/limpar-todas")

@@ -34,11 +34,11 @@ def test_catalogo_contem_exatamente_nove_modulos() -> None:
     ]
 
 
-def test_catalogo_contem_exatamente_quarenta_e_oito_permissoes() -> None:
-    """O catalogo canonico deve conter exatamente 49 permissoes canonicas."""
-    assert len(PERMISSOES_PADRAO) == 49
+def test_catalogo_contem_exatamente_cinquenta_permissoes() -> None:
+    """O catalogo canonico deve conter exatamente 50 permissoes canonicas."""
+    assert len(PERMISSOES_PADRAO) == 50
     chaves = [p.chave.value for p in PERMISSOES_PADRAO]
-    assert len(set(chaves)) == 49
+    assert len(set(chaves)) == 50
 
 
 def test_todas_as_chaves_possuem_tres_segmentos() -> None:
@@ -282,13 +282,13 @@ def test_sincronizacao_catalogo_grupo_invalido_dispara_erro() -> None:
 
 
 def test_sincronizacao_catalogo_retorna_resumo_correto() -> None:
-    """Mock de conexao confirma contagem de 9 modulos e 49 permissoes."""
+    """Mock de conexao confirma contagem de 9 modulos e 50 permissoes."""
     conexao = MagicMock()
     conexao.scalar.side_effect = lambda _query: 1  # Retorna ID simulado
 
     resumo = sincronizar_catalogo_workspace(conexao, grupo_administrador=6)
 
     assert resumo.modulos == 9
-    assert resumo.permissoes == 49
+    assert resumo.permissoes == 50
     assert resumo.grupo_administrador == 6
-    assert conexao.execute.call_count >= 1 + 9 + 1 + 49 + 1
+    assert conexao.execute.call_count >= 1 + 9 + 1 + 50 + 1

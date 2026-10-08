@@ -38,6 +38,13 @@ id_notificacao = obter_luftbase().notificacoes.criar(
 )
 ```
 
+### Notificacao de acesso liberado
+
+Gerada pelo LuftBase (nao pela aplicacao) quando alguem recebe a permissao base de um sistema: categoria `SEGURANCA`, tipo
+`SUCESSO`, escopo **global** (sistema 0, aparece em qualquer aplicacao), destinada so a essa pessoa, com
+`metadados.acao_url` = link do sistema e `texto_link` = "Abrir <Sistema>". Regras e e-mail no
+[doc 11](11-AUTORIZACAO.md#aviso-de-acesso-liberado).
+
 ## Publicacoes
 
 Uma publicacao nasce como rascunho. `publicar()` bloqueia a linha, altera seu estado e cria
