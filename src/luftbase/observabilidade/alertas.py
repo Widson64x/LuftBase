@@ -533,11 +533,15 @@ def avaliar(
 
     agora = agora or agora_local()
     erros: list[str] = []
+    travou = False
     try:
+        # Transacao 1: trava, detecta e atualiza os alertas. O e-mail NAO sai daqui: a auditoria do envio abre
+        # outra unidade de trabalho na mesma sessao da thread, e aninhar as duas falha ("transaction is already begun").
         with bancos.core.unidade_trabalho() as db:
             controle = _obter_trava(db, agora, limites)
             if controle is None:
                 return ResultadoCiclo(executou=False)
+            travou = True
             piso = agora - timedelta(minutes=limites.janela_maxima_min)
             desde = controle.ultima_execucao_ate or (
                 agora - timedelta(minutes=limites.primeira_execucao_min)
@@ -549,31 +553,56 @@ def avaliar(
             db.flush()
 
             pendentes = pendentes_de_aviso(db, agora, limites)
-            enviado = False
+            ids_pendentes = [a.id_alerta for a in pendentes]
+            itens: list[dict[str, Any]] = []
+            assunto = ""
             if pendentes:
                 nomes = _nome_sistemas(db, (a.id_sistema for a in pendentes))
                 itens = montar_itens(pendentes, nomes, agora)
                 assunto = _assunto(pendentes, nomes)
-                enviado = _enviar(
-                    email, list(destinatarios), assunto, itens, agora, enviar_email, erros
-                )
-                if enviado:
-                    for alerta in pendentes:
-                        alerta.ultima_notificacao = agora
-                        alerta.ocorrencias_notificadas = alerta.ocorrencias
-            controle.em_execucao_ate = None
+
+        enviado = False
+        if ids_pendentes:
+            enviado = _enviar(email, list(destinatarios), assunto, itens, agora, enviar_email, erros)
+
+        # Transacao 2: registra o aviso e solta a trava (a trava segue valendo durante o envio).
+        with bancos.core.unidade_trabalho() as db:
+            if enviado:
+                for alerta in db.execute(
+                    select(Alerta).where(Alerta.id_alerta.in_(ids_pendentes))
+                ).scalars():
+                    alerta.ultima_notificacao = agora
+                    alerta.ocorrencias_notificadas = alerta.ocorrencias
+            controle = db.get(AlertaControle, CHAVE_CONTROLE)
+            if controle is not None:
+                controle.em_execucao_ate = None
+            travou = False
         return ResultadoCiclo(
             ocorrencias=len(ocorrencias),
             alertas_abertos=abertos,
             alertas_atualizados=atualizados,
             alertas_resolvidos=resolvidos,
-            avisados=len(pendentes) if enviado else 0,
+            avisados=len(ids_pendentes) if enviado else 0,
             email_enviado=enviado,
             erros=tuple(erros),
         )
     except Exception as erro:
         logger.debug("Avaliador de alertas falhou", exc_info=True)
+        if travou:
+            _soltar_trava(bancos)
         return ResultadoCiclo(erros=(f"{type(erro).__name__}: {erro}",))
+
+
+def _soltar_trava(bancos: CatalogoBancos) -> None:
+    """Depois de uma falha, nao deixa a trava presa ate expirar."""
+
+    try:
+        with bancos.core.unidade_trabalho() as db:
+            controle = db.get(AlertaControle, CHAVE_CONTROLE)
+            if controle is not None:
+                controle.em_execucao_ate = None
+    except Exception:
+        logger.debug("Nao foi possivel soltar a trava do avaliador", exc_info=True)
 
 
 def _enviar(

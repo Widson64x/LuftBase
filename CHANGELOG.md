@@ -12,6 +12,14 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a95] - 2026-10-08
+
+### Corrigido
+
+- O avaliador de alertas enviava o e-mail dentro da transacao do banco; a auditoria do envio abre outra na mesma sessao e
+  falhava ("A transaction is already begun on this Session"). Agora o e-mail sai entre duas transacoes, a trava continua valendo
+  durante o envio e e solta mesmo se o ciclo falhar.
+
 ## [0.1.0a94] - 2026-10-08
 
 ### Corrigido

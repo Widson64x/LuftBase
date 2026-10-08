@@ -484,3 +484,31 @@ def test_email_renderiza_em_comando_de_cli_com_app_e_sem_requisicao() -> None:
         )
 
     assert "1 alerta(s) para verificar" in html and "ana" in html
+
+
+def test_envio_pode_abrir_transacao_propria_sem_aninhar(bancos: Bancos) -> None:
+    """A auditoria do e-mail abre outra unidade de trabalho na mesma sessao (regressao de 08/10)."""
+
+    _log(bancos, T0 - timedelta(minutes=1), status=500)
+
+    def envio_que_audita(_para: Any, _assunto: str, _itens: Any) -> Any:
+        with bancos.core.unidade_trabalho() as db:  # aninhado = "transaction is already begun"
+            db.execute(__import__("sqlalchemy").text("SELECT 1"))
+        return type("R", (), {"sucesso": True, "erro": None})()
+
+    r = avaliar(bancos, EmailFalso(), agora=T0, enviar_email=envio_que_audita)  # type: ignore[arg-type]
+
+    assert r.email_enviado and not r.erros
+    a = _alertas(bancos)[0]
+    assert a.ultima_notificacao is not None
+
+
+def test_trava_e_solta_ao_fim_do_ciclo(bancos: Bancos) -> None:
+    from sqlalchemy import select
+
+    _log(bancos, T0 - timedelta(minutes=1), status=500)
+    avaliar(bancos, EmailFalso(), agora=T0)  # type: ignore[arg-type]
+
+    with bancos.core.leitura() as s:
+        controle = s.execute(select(AlertaControle)).scalar_one()
+    assert controle.em_execucao_ate is None
