@@ -9,11 +9,11 @@ import re
 import shutil
 import time
 from dataclasses import dataclass
-from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from luftbase.nucleo.tempo import FormatadorDeLog, de_timestamp
 from luftbase.observabilidade.sanitizacao import serializar_dados_seguro
 
 if TYPE_CHECKING:
@@ -177,7 +177,7 @@ class LoggerFisicoAuditoria:
                 "[%(asctime)s] [%(levelname)s] [%(correlacao)s] [%(login)s] "
                 "[%(acao_recurso)s] - %(message)s"
             )
-            formatter = logging.Formatter(formato, datefmt="%Y-%m-%d %H:%M:%S")
+            formatter = FormatadorDeLog(formato, datefmt="%Y-%m-%d %H:%M:%S")
             handler.setFormatter(formatter)
             handler.addFilter(_FiltroContextoAuditoria())
 
@@ -361,7 +361,7 @@ class LoggerFisicoAuditoria:
                 {
                     "nome": arquivo.name,
                     "tamanho_bytes": arquivo.stat().st_size,
-                    "modificado_em": datetime.fromtimestamp(arquivo.stat().st_mtime).isoformat(
+                    "modificado_em": de_timestamp(arquivo.stat().st_mtime).isoformat(
                         timespec="seconds"
                     ),
                     "atual": arquivo == self._caminho_arquivo,

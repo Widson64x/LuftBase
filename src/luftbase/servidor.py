@@ -36,6 +36,7 @@ from flask import Flask
 
 from luftbase._versao import __version__
 from luftbase.nucleo.excecoes import ErroConfiguracao
+from luftbase.nucleo.tempo import FormatadorDeLog
 
 FORMATO_CONSOLE = "%(asctime)s | %(levelname)-8s | %(name)-25s | %(message)s"
 FORMATO_DATA = "%Y-%m-%d %H:%M:%S"
@@ -157,7 +158,7 @@ def configurar_console(nivel: int = logging.INFO) -> None:
     raiz = logging.getLogger()
     if not any(getattr(h, _MARCA_HANDLER, False) for h in raiz.handlers):
         handler = logging.StreamHandler(sys.stderr)
-        handler.setFormatter(logging.Formatter(FORMATO_CONSOLE, datefmt=FORMATO_DATA))
+        handler.setFormatter(FormatadorDeLog(FORMATO_CONSOLE, datefmt=FORMATO_DATA))
         setattr(handler, _MARCA_HANDLER, True)
         raiz.addHandler(handler)
     if raiz.level == logging.NOTSET or raiz.level > nivel:

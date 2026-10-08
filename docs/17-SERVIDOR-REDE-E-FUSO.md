@@ -83,9 +83,13 @@ entao o mesmo codigo gravava 14:55 num e 17:55 no outro. Solucao em tres camadas
 1. `agora_local()` devolve o horario de `America/Sao_Paulo` (sem `tzinfo`, formato das colunas `timestamp`). Todo o LuftBase
    que grava ou mostra horario usa essa funcao.
 2. `aplicar_fuso_do_processo()` poe o **processo** no mesmo fuso (`TZ` + `time.tzset()` no Linux), para o codigo das
-   aplicacoes e os `%(asctime)s` dos logs concordarem. No Windows o fuso e o do sistema. Se o sistema nao tem o pacote
+   aplicacoes e os `%(asctime)s` dos logs concordarem. No Windows nada e alterado (o runtime C
+   le `TZ=America/Sao_Paulo` como UTC, o que adiantava os logs em 3 h ate a 0.1.0a89). Se o sistema nao tem o pacote
    `tzdata`, o LuftBase avisa no log e os horarios gravados continuam corretos.
-3. Cada conexao PostgreSQL abre com `options=-c timezone=<fuso>`, entao `CURRENT_TIMESTAMP` e os defaults do banco tambem
+3. Os logs do LuftBase (arquivo fisico e console) usam `FormatadorDeLog`, cujo `%(asctime)s` e sempre o horario da
+   plataforma, qualquer que seja o fuso da maquina; `de_timestamp()` converte epochs (ex.: data do arquivo). Logs
+   proprios das aplicacoes devem usar `FormatadorDeLog` em vez de `logging.Formatter`.
+4. Cada conexao PostgreSQL abre com `options=-c timezone=<fuso>`, entao `CURRENT_TIMESTAMP` e os defaults do banco tambem
    saem em Brasilia.
 
 `LUFT_FUSO_HORARIO` troca o fuso (padrao `America/Sao_Paulo`). Registros gravados **antes** da 0.1.0a70 no Linux ficaram com

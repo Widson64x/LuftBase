@@ -12,6 +12,15 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a89] - 2026-10-08
+
+### Corrigido
+
+- Horario dos logs 3 h adiantado no Windows (ex.: 12:20 as 09:20). `aplicar_fuso_do_processo()` gravava
+  `TZ=America/Sao_Paulo`, que o runtime C do Windows le como UTC; agora so mexe em `TZ` onde existe `time.tzset()`.
+- Logs fisicos e de console passam a usar `FormatadorDeLog` (horario de Brasilia independente da maquina); a data
+  de modificacao dos arquivos de log usa `de_timestamp()`.
+
 ## [0.1.0a88] - 2026-10-07
 
 ### Alterado

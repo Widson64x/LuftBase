@@ -30,18 +30,42 @@ def agora_local() -> datetime:
     return datetime.now(ZoneInfo(nome_do_fuso())).replace(tzinfo=None)
 
 
+def de_timestamp(valor: float) -> datetime:
+    """Converte um epoch (ex.: `st_mtime`, `record.created`) para o horario da plataforma."""
+
+    return datetime.fromtimestamp(valor, ZoneInfo(nome_do_fuso())).replace(tzinfo=None)
+
+
+class FormatadorDeLog(logging.Formatter):
+    """`logging.Formatter` cujo `%(asctime)s` e sempre o horario da plataforma.
+
+    O formatter padrao usa `time.localtime`, isto e, o fuso da maquina; em Windows isso nao e
+    controlavel pelo processo. Todo log gravado ou exibido pela plataforma deve usar esta classe.
+    """
+
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:  # noqa: N802
+        momento = de_timestamp(record.created)
+        if datefmt:
+            return momento.strftime(datefmt)
+        return f"{momento:%Y-%m-%d %H:%M:%S},{int(record.msecs):03d}"
+
+
 def aplicar_fuso_do_processo() -> None:
     """Poe o processo inteiro no fuso da plataforma (Linux; no Windows o fuso e do sistema).
 
-    Faz `datetime.now()`, `time.localtime()` e os `%(asctime)s` dos logs, inclusive os do codigo das
-    aplicacoes, concordarem com `agora_local()`. Idempotente.
+    No Linux faz `datetime.now()`, `time.localtime()` e os `%(asctime)s` dos logs, inclusive os do
+    codigo das aplicacoes, concordarem com `agora_local()`. No Windows nao altera nada (ver abaixo);
+    os logs do LuftBase la dependem do `FormatadorDeLog`. Idempotente.
     """
 
     fuso = nome_do_fuso()
-    os.environ["TZ"] = fuso
     tzset = getattr(time, "tzset", None)
     if tzset is None:
+        # Windows: o runtime C nao entende nomes IANA em `TZ` ("America/Sao_Paulo" vira UTC) e
+        # o fuso do processo nao muda em execucao. Nao tocar em `TZ`; os horarios gravados e os
+        # logs usam `agora_local()`/`FormatadorDeLog`, que independem do fuso da maquina.
         return
+    os.environ["TZ"] = fuso
     tzset()
     esperado = datetime.now(ZoneInfo(fuso)).utcoffset()
     local = time.localtime().tm_gmtoff
@@ -53,4 +77,11 @@ def aplicar_fuso_do_processo() -> None:
         )
 
 
-__all__ = ["FUSO_PADRAO", "agora_local", "aplicar_fuso_do_processo", "nome_do_fuso"]
+__all__ = [
+    "FUSO_PADRAO",
+    "FormatadorDeLog",
+    "agora_local",
+    "aplicar_fuso_do_processo",
+    "de_timestamp",
+    "nome_do_fuso",
+]

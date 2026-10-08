@@ -149,3 +149,25 @@ def test_nao_sobrou_datetime_now_sem_fuso_nos_pontos_que_gravam() -> None:
         "conteudo/repositorios.py",
     ):
         assert "datetime.now()" not in (raiz / relativo).read_text(encoding="utf-8"), relativo
+
+
+def test_sem_tzset_nao_mexe_na_variavel_tz(monkeypatch: pytest.MonkeyPatch) -> None:
+    # No Windows, TZ="America/Sao_Paulo" e lido pelo runtime C como UTC e adianta os logs em 3 h.
+    monkeypatch.delattr(time, "tzset", raising=False)
+    monkeypatch.setenv("TZ", "valor-original")
+
+    tempo.aplicar_fuso_do_processo()
+
+    assert os.environ["TZ"] == "valor-original"
+
+
+def test_formatador_de_log_usa_brasilia_e_nao_o_fuso_da_maquina() -> None:
+    import logging
+
+    registro = logging.LogRecord("t", logging.INFO, __file__, 1, "msg", None, None)
+    registro.created = datetime(2026, 10, 8, 12, 20, 50, tzinfo=UTC).timestamp()
+
+    formatador = tempo.FormatadorDeLog("%(asctime)s")
+
+    assert formatador.format(registro).startswith("2026-10-08 09:20:50,")
+    assert tempo.FormatadorDeLog("%(asctime)s", datefmt="%H:%M").format(registro) == "09:20"
