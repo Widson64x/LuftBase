@@ -7,6 +7,7 @@
 
     const URL_DADOS = raiz.dataset.urlDados;
     const URL_VERSAO = raiz.dataset.urlVersao;
+    const URL_LOGOS = raiz.dataset.urlLogos || '';
     const ROTULOS_AMBIENTE = { producao: 'Produção', homologacao: 'Homologação', desenvolvimento: 'Desenvolvimento' };
     const ROTULOS_STATUS = { ok: 'Operacional', alerta: 'Atenção', falha: 'Com problema', inativo: 'Inativo' };
 
@@ -38,13 +39,35 @@
         return `<span class="integ-selo-versao ${esc(versao.situacao)}"><i class="${icone}"></i> ${texto}</span>`;
     }
 
+    /** Nomes de arquivo vem do servidor; so letras, numeros, hifen e ponto (nada de caminho ou aspas). */
+    function arquivoSeguro(nome) {
+        return typeof nome === 'string' && /^[a-z0-9][a-z0-9._-]*$/i.test(nome) ? nome : '';
+    }
+
+    /**
+     * Logo do cartao: imagem colorida (`imagem`), SVG monocromatico pintado com a cor da ferramenta (`logo`,
+     * via mascara CSS) ou, sem nenhum dos dois, o icone padrao.
+     */
+    function html_logo(c, grande) {
+        const imagem = arquivoSeguro(c.imagem);
+        const logo = arquivoSeguro(c.logo);
+        const classe = `integ-logo ${grande ? 'grande' : ''}`;
+        if (imagem) {
+            return `<div class="${classe} com-imagem"><img src="${esc(URL_LOGOS + imagem)}" alt="" loading="lazy"></div>`;
+        }
+        if (logo) {
+            return `<div class="${classe} com-logo" style="--cor:${esc(c.cor)}"><span class="integ-logo-mascara" style="--logo:url('${esc(URL_LOGOS + logo + '.svg')}')"></span></div>`;
+        }
+        return `<div class="${classe}" style="--cor:${esc(c.cor)}"><i class="${esc(c.icone)}"></i></div>`;
+    }
+
     function html_cartao(c, indice) {
         const previa = c.fatos.slice(0, 3).map((f) => `<li><span>${esc(f.rotulo)}</span><span>${esc(f.valor)}</span></li>`).join('');
         const extra = c.id === 'luftbase' ? selo(versaoGithub) : '';
         return `
         <button type="button" class="integ-card" data-id="${esc(c.id)}" style="--cor:${esc(c.cor)}; animation-delay:${indice * 45}ms">
             <div class="integ-topo">
-                <div class="integ-logo" style="--cor:${esc(c.cor)}"><i class="${esc(c.icone)}"></i></div>
+                ${html_logo(c, false)}
                 <div><div class="integ-nome">${esc(c.nome)}</div><div class="integ-cat">${esc(c.categoria)}</div></div>
             </div>
             <div class="integ-status"><span class="integ-ponto ${esc(c.status)}"></span><span>${esc(c.resumo)}</span>${extra}</div>
@@ -167,7 +190,7 @@
             : '';
         document.getElementById('integModalCorpo').innerHTML = `
             <div class="integ-modal-cab">
-                <div class="integ-logo grande" style="--cor:${esc(c.cor)}"><i class="${esc(c.icone)}"></i></div>
+                ${html_logo(c, true)}
                 <div>
                     <h4>${esc(c.nome)}</h4>
                     <p>${esc(c.descricao)}</p>

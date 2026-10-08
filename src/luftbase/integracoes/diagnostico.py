@@ -116,12 +116,19 @@ def _cartao(
     fatos: list[tuple[str, str]],
     segredos: list[dict[str, Any]],
     descricao: str = "",
+    *,
+    logo: str | None = None,
+    imagem: str | None = None,
 ) -> dict[str, Any]:
+    """`logo` = nome de um SVG monocromatico em `static/img/integracoes/` (pintado com `cor`); `imagem` = arquivo colorido."""
+
     return {
         "id": identificador,
         "nome": nome,
         "categoria": categoria,
         "icone": icone,
+        "logo": logo,
+        "imagem": imagem,
         "cor": cor,
         "status": status,  # ok | alerta | falha | inativo
         "resumo": resumo,
@@ -193,6 +200,7 @@ def montar_painel(
             ],
             segs_pg,
             "Core da plataforma (usuários, permissões, auditoria) e o schema próprio da aplicação.",
+            logo="postgresql",
         )
     )
 
@@ -216,6 +224,7 @@ def montar_painel(
             ],
             [seg_dir],
             "Diretório corporativo de usuários, lido para o login.",
+            logo="microsoftsqlserver",
         )
     )
 
@@ -239,6 +248,7 @@ def montar_painel(
             ],
             [seg_redis] if seg_redis["existe"] or usa_redis else [],
             "Onde a sessão compartilhada entre os sistemas Luft fica guardada.",
+            logo="redis" if usa_redis else "postgresql",
         )
     )
 
@@ -264,6 +274,7 @@ def montar_painel(
                 ],
                 [seg_email] if seg_email else [],
                 "Conta compartilhada do ambiente usada em notificações e comunicados.",
+                logo="gmail" if gmail else None,
             )
         )
     else:
@@ -301,6 +312,7 @@ def montar_painel(
             ],
             [],
             "Autenticação dos usuários no Active Directory da empresa.",
+            logo="microsoft",
         )
     )
 
@@ -356,6 +368,7 @@ def montar_painel(
             lista_segredos,
             "Cofre de onde a aplicação lê todas as credenciais. "
             "Aqui aparecem só caminhos e nomes de campos.",
+            logo="vault",
         ),
     )
 
@@ -372,6 +385,7 @@ def montar_painel(
             [("Versão instalada", __version__)],
             [],
             "Framework Luft compartilhado por todos os sistemas.",
+            imagem="luftbase.png",
         )
     )
     componentes = listar_componentes()
@@ -387,6 +401,7 @@ def montar_painel(
             [(str(c["nome"]), str(c["versao"])) for c in componentes],
             [],
             "Versões das bibliotecas que rodam esta aplicação.",
+            logo="python",
         )
     )
     cartoes.append(

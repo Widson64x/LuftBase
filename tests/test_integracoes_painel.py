@@ -577,3 +577,69 @@ def test_login_nao_grava_mais_o_cookie_lembrar() -> None:
 
     codigo = inspect.getsource(sessoes.iniciar_sessao_usuario)
     assert "remember=False" in codigo and "remember=True" not in codigo
+
+
+def _painel_padrao() -> dict:  # type: ignore[type-arg]
+    estado = _estado()
+    return montar_painel(estado, _vault_completo(estado), versao_vault=lambda: "1.15.0")
+
+
+def test_cartoes_trazem_o_logo_da_ferramenta() -> None:
+    cartoes = {c["id"]: c for c in _painel_padrao()["cartoes"]}
+
+    assert cartoes["vault"]["logo"] == "vault"
+    assert cartoes["postgresql"]["logo"] == "postgresql"
+    assert cartoes["sqlserver"]["logo"] == "microsoftsqlserver"
+    assert cartoes["email"]["logo"] == "gmail"  # o servidor de teste e smtp.gmail.com
+    assert cartoes["ldap"]["logo"] == "microsoft"
+    assert cartoes["componentes"]["logo"] == "python"
+    assert cartoes["sessoes"]["logo"] == "postgresql"  # sessoes no PostgreSQL, nao no Redis
+    assert cartoes["luftbase"]["imagem"] == "luftbase.png"
+    assert cartoes["aplicacao"]["logo"] is None and cartoes["aplicacao"]["imagem"] is None  # cai no icone
+
+
+def test_todo_logo_citado_existe_como_arquivo_sem_script() -> None:
+    from pathlib import Path
+
+    import luftbase
+
+    pasta = Path(luftbase.__file__).parent / "interface" / "static" / "img" / "integracoes"
+    for cartao in _painel_padrao()["cartoes"]:
+        if cartao["logo"]:
+            arquivo = pasta / f"{cartao['logo']}.svg"
+            assert arquivo.is_file(), arquivo
+            texto = arquivo.read_text(encoding="utf-8").lower()
+            assert "<svg" in texto and "<script" not in texto and "onload" not in texto
+        if cartao["imagem"]:
+            assert (pasta / cartao["imagem"]).is_file()
+    assert (pasta / "luftbase-128.png").is_file()
+
+
+def test_nomes_de_arquivo_do_js_so_aceitam_caracteres_seguros() -> None:
+    from pathlib import Path
+
+    import luftbase
+
+    js = (Path(luftbase.__file__).parent / "interface" / "static" / "js" / "integracoes.js").read_text(
+        encoding="utf-8"
+    )
+    assert "arquivoSeguro" in js and "/^[a-z0-9][a-z0-9._-]*$/i" in js
+
+
+def test_logos_entram_no_pacote_instalavel() -> None:
+    """Sem isto os apps instalados (pip) ficam sem os logos: o wheel so leva o que o pyproject lista."""
+
+    import tomllib
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parents[1]
+    padroes = tomllib.loads((raiz / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["setuptools"][
+        "package-data"
+    ]["luftbase"]
+    pasta = raiz / "src" / "luftbase"
+    for arquivo in (pasta / "interface" / "static" / "img" / "integracoes").iterdir():
+        if arquivo.suffix in {".svg", ".png"}:
+            relativo = arquivo.relative_to(pasta).as_posix()
+            assert any(
+                arquivo.match(f"*/{p}") or relativo == p for p in padroes if "*" in p or p == relativo
+            ), f"{relativo} nao esta no package-data"

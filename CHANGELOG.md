@@ -12,6 +12,16 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a101] - 2026-10-08
+
+### Alterado
+
+- **Aba Integracoes com os logos das ferramentas**: Vault, PostgreSQL, SQL Server, Gmail, Login corporativo (Microsoft),
+  Componentes (Python) e Sessoes (PostgreSQL ou Redis, conforme o armazenamento). Sao SVGs do Simple Icons (CC0) pintados com a cor
+  de cada cartao; o cartao do **LuftBase** passa a usar o icone novo. Quem nao tem logo conhecido (ex.: e-mail que nao e Gmail,
+  a propria aplicacao) continua com o icone padrao. Procedencia e licenca em `static/img/integracoes/LEIAME.md`.
+- O painel devolve `logo` e `imagem` em cada cartao; o JavaScript so aceita nomes de arquivo com letras, numeros, `.`, `-` e `_`.
+
 ## [0.1.0a100] - 2026-10-08
 
 ### Alterado

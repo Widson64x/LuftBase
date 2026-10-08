@@ -1316,7 +1316,8 @@
     {% call ui.tab_panel('tab-integracoes', aba_inicial == 'tab-integracoes') %}
         <div id="integRaiz"
              data-url-dados="{{ url_for('Configuracoes.api_integracoes') }}"
-             data-url-versao="{{ url_for('Configuracoes.api_integracoes_versao_luftbase') }}">
+             data-url-versao="{{ url_for('Configuracoes.api_integracoes_versao_luftbase') }}"
+             data-url-logos="{{ url_for('luftbase_interface.static', filename='img/integracoes/') }}">
             <div class="integ-hero">
                 <div>
                     <h3>Integrações da plataforma</h3>
