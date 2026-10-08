@@ -12,6 +12,16 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a98] - 2026-10-08
+
+### Corrigido
+
+- O aviso de acesso liberado agora pega o e-mail de `core.tb_usuario` (PostgreSQL), com o diretorio como reserva, e tambem avisa
+  membros do grupo que so existem no PostgreSQL. Antes so olhava o diretorio: quem tinha e-mail no perfil e nao no diretorio
+  recebia apenas a notificacao.
+- Ao conceder a permissao de acesso, a tela explica quando ninguem foi avisado ("as N pessoas ja tinham acesso" ou "nao
+  encontrei pessoas para esta regra").
+
 ## [0.1.0a97] - 2026-10-08
 
 ### Alterado

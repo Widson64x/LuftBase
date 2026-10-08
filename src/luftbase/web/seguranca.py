@@ -268,7 +268,9 @@ def _url_base_publica() -> str:
     return (os.environ.get("LUFT_URL_PUBLICA") or "").strip() or request.host_url
 
 
-def _avisar_acesso_liberado(antes: CapturaAcesso, estado: object) -> str:
+def _avisar_acesso_liberado(
+    antes: CapturaAcesso, estado: object, *, explicar_se_ninguem: bool = False
+) -> str:
     """Avisa (notificacao + e-mail) quem ganhou acesso por causa desta mudanca. Nunca levanta."""
 
     resultado = avisar_acessos_liberados(
@@ -291,7 +293,16 @@ def _avisar_acesso_liberado(antes: CapturaAcesso, estado: object) -> str:
             dados_novos=resultado.como_dict(),
             severidade=SeveridadeAuditoria.BAIXA,
         )
-    return resultado.texto()
+    texto = resultado.texto()
+    if not texto and explicar_se_ninguem:
+        # Quem libera o acesso precisa entender por que nao saiu nada (ex.: a pessoa ja tinha acesso).
+        if not antes.pessoas:
+            return "Ninguém foi avisado: não encontrei pessoas para esta regra no diretório nem no PostgreSQL."
+        return (
+            f"Ninguém foi avisado: as {len(antes.pessoas)} pessoa(s) desta regra já tinham acesso ao sistema "
+            "(o aviso só sai quando alguém passa de sem acesso para com acesso)."
+        )
+    return texto
 
 
 @SegurancaBp.get("/gerenciador")
@@ -574,6 +585,7 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
     dados_anteriores: dict[str, object] | None = None
     dados_novos: dict[str, object] | None = None
     chave_permissao = ""
+    permissao_de_acesso = False
     if tipo == "Usuario" and acao != "Resetar" and not garantir_usuario_no_core(id_alvo):
         return jsonify(status="error", message="Usuario nao encontrado no diretorio."), 404
     with estado.bancos.core.leitura() as sessao_previa:
@@ -590,6 +602,7 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
         if permissao is None:
             return jsonify(status="error", message="Permissao nao encontrada."), 404
         chave_permissao = permissao.chave_permissao
+        permissao_de_acesso = bool(permissao.eh_acesso_sistema)
         resolver_escopo_sistema(permissao.id_sistema)
         vinculo = cast(
             PermissaoGrupo | PermissaoUsuario | None,
@@ -643,7 +656,13 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
         dados_novos=dados_novos,
         severidade=SeveridadeAuditoria.MEDIA,
     )
-    aviso = _avisar_acesso_liberado(antes_acesso, estado) if antes_acesso is not None else ""
+    aviso = (
+        _avisar_acesso_liberado(
+            antes_acesso, estado, explicar_se_ninguem=permissao_de_acesso and acao == "Permitir"
+        )
+        if antes_acesso is not None
+        else ""
+    )
     return jsonify(status="success", message="Regra salva com sucesso.", aviso=aviso)
 
 

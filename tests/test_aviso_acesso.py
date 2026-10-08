@@ -422,3 +422,95 @@ def test_rotas_devolvem_o_resumo_do_aviso_para_a_tela() -> None:
 
     codigo = Path(seguranca.__file__).read_text(encoding="utf-8")
     assert codigo.count("aviso=aviso") == 2  # salvar regra e espelhar permissoes
+
+
+def _definir_email_core(bancos: Bancos, uid: int, email: str | None) -> None:
+    with bancos.core.unidade_trabalho() as s:
+        s.execute(
+            text("UPDATE tb_usuario SET email_usuario = :e WHERE codigo_usuario = :u"),
+            {"e": email, "u": uid},
+        )
+
+
+def test_email_vem_do_postgresql_quando_o_diretorio_nao_tem(ambiente: Bancos) -> None:
+    """Caio nao tem e-mail no diretorio, mas tem em core.tb_usuario (ex.: ajustado no perfil)."""
+
+    _definir_email_core(ambiente, 3, "caio.perfil@luft.com")
+    email = EmailFalso()
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=3, id_sistema=3)  # type: ignore[arg-type]
+
+    _regra_usuario(ambiente, 3, 10)
+    resultado = _avisar(ambiente, email, antes)
+
+    assert [p["para"] for p in email.preparados] == ["caio.perfil@luft.com"]
+    assert resultado.sem_email == 0 and resultado.emails_enviados == 1
+
+
+def test_email_do_postgresql_tem_prioridade_sobre_o_diretorio(ambiente: Bancos) -> None:
+    _definir_email_core(ambiente, 1, "ana.nova@luft.com")  # o diretorio diz ana@luft.com
+    email = EmailFalso()
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+
+    _regra_usuario(ambiente, 1, 10)
+    _avisar(ambiente, email, antes)
+
+    assert [p["para"] for p in email.preparados] == ["ana.nova@luft.com"]
+
+
+def test_sem_email_no_postgresql_usa_o_do_diretorio(ambiente: Bancos) -> None:
+    _definir_email_core(ambiente, 1, None)
+    email = EmailFalso()
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+
+    _regra_usuario(ambiente, 1, 10)
+    _avisar(ambiente, email, antes)
+
+    assert [p["para"] for p in email.preparados] == ["ana@luft.com"]
+
+
+def test_membro_do_grupo_que_so_existe_no_postgresql_tambem_e_avisado(ambiente: Bancos) -> None:
+    with ambiente.core.unidade_trabalho() as s:
+        s.execute(
+            insert(Usuario).values(
+                codigo_usuario=4,
+                login_usuario="teste.ti",
+                nome_usuario="Teste TI",
+                email_usuario="teste.ti@luft.com",
+                codigo_usuariogrupo=7,
+                ativo=True,
+                bloqueado=False,
+                status_online=False,
+            )
+        )
+    email = EmailFalso()
+    antes = capturar_acesso(ambiente, tipo="Grupo", id_alvo=7, id_sistema=3)  # type: ignore[arg-type]
+
+    _regra_grupo(ambiente, 7, 10)
+    resultado = _avisar(ambiente, email, antes)
+
+    assert resultado.com_acesso_novo == 4  # Ana, Bia, Caio (diretorio) e Teste TI (so no PostgreSQL)
+    assert "teste.ti@luft.com" in [p["para"] for p in email.preparados]
+    assert 4 in [n.id_usuario_destino for n in _notificacoes(ambiente)]
+
+
+def test_tela_explica_por_que_ninguem_foi_avisado(monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from luftbase.autorizacao.aviso_acesso import CapturaAcesso, Pessoa, ResultadoAviso
+    from luftbase.web import seguranca
+
+    monkeypatch.setattr(seguranca, "avisar_acessos_liberados", lambda *a, **k: ResultadoAviso())
+    monkeypatch.setattr(seguranca, "current_user", SimpleNamespace(login="adm"))
+    monkeypatch.setattr(seguranca, "_url_base_publica", lambda: "https://x/")
+    estado = SimpleNamespace(bancos=None, email=None)
+    pessoas = (Pessoa(1, "ana", "Ana", "a@x.com", 7), Pessoa(2, "bia", "Bia", None, 7))
+
+    ja_tinham = seguranca._avisar_acesso_liberado(
+        CapturaAcesso(3, pessoas), estado, explicar_se_ninguem=True
+    )
+    ninguem = seguranca._avisar_acesso_liberado(CapturaAcesso(3, ()), estado, explicar_se_ninguem=True)
+    calado = seguranca._avisar_acesso_liberado(CapturaAcesso(3, pessoas), estado)
+
+    assert "2 pessoa(s)" in ja_tinham and "já tinham acesso" in ja_tinham
+    assert "não encontrei pessoas" in ninguem
+    assert calado == ""  # outras permissoes (nao a de acesso) nao geram mensagem

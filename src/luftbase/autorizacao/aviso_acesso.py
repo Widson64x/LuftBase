@@ -115,7 +115,65 @@ class ResultadoAviso:
 
 
 def _pessoas_do_alvo(bancos: CatalogoBancos, tipo: str, id_alvo: int) -> tuple[Pessoa, ...]:
-    """Usuario: ele mesmo. Grupo: todos os membros. Falha no diretorio = ninguem (nao bloqueia)."""
+    """Usuario: ele mesmo. Grupo: todos os membros. O e-mail vem do PostgreSQL (`core.tb_usuario`), com o diretorio
+    como reserva; quem ja entrou no sistema mas o diretorio nao listou tambem entra. Nunca levanta."""
+
+    do_diretorio = _pessoas_do_diretorio(bancos, tipo, id_alvo)
+    try:
+        return _completar_com_core(bancos, do_diretorio, tipo, id_alvo)
+    except Exception:
+        logger.exception("Aviso de acesso: falha ao ler core.tb_usuario (tipo=%s, id=%s)", tipo, id_alvo)
+        return do_diretorio
+
+
+def _completar_com_core(
+    bancos: CatalogoBancos, base: tuple[Pessoa, ...], tipo: str, id_alvo: int
+) -> tuple[Pessoa, ...]:
+    """Mescla com `core.tb_usuario`: o e-mail do PostgreSQL manda; membros so de la entram tambem."""
+
+    with bancos.core.leitura() as sessao:
+        consulta = select(
+            Usuario.codigo_usuario,
+            Usuario.login_usuario,
+            Usuario.nome_usuario,
+            Usuario.email_usuario,
+            Usuario.codigo_usuariogrupo,
+        )
+        if tipo == "Usuario":
+            consulta = consulta.where(Usuario.codigo_usuario == id_alvo)
+        else:
+            ids = [p.id_usuario for p in base]
+            filtro = Usuario.codigo_usuariogrupo == id_alvo
+            consulta = consulta.where(filtro | Usuario.codigo_usuario.in_(ids) if ids else filtro)
+        linhas = {int(linha[0]): linha for linha in sessao.execute(consulta).all()}
+
+    resultado: dict[int, Pessoa] = {p.id_usuario: p for p in base}
+    for id_usuario, linha in linhas.items():
+        _, login, nome, email, id_grupo = linha
+        email_core = (email or "").strip() or None
+        existente = resultado.get(id_usuario)
+        if existente is not None:
+            if email_core:
+                resultado[id_usuario] = Pessoa(
+                    id_usuario=existente.id_usuario,
+                    login=existente.login,
+                    nome=existente.nome,
+                    email=email_core,
+                    id_grupo=existente.id_grupo,
+                )
+        else:
+            resultado[id_usuario] = Pessoa(
+                id_usuario=id_usuario,
+                login=(login or "").strip(),
+                nome=(nome or login or "").strip(),
+                email=email_core,
+                id_grupo=id_grupo,
+            )
+    return tuple(resultado.values())
+
+
+def _pessoas_do_diretorio(bancos: CatalogoBancos, tipo: str, id_alvo: int) -> tuple[Pessoa, ...]:
+    """Pessoas segundo o diretorio corporativo. Falha no diretorio = ninguem (nao bloqueia)."""
 
     try:
         with bancos.diretorio.leitura() as sessao:
