@@ -87,7 +87,7 @@ depois; so quem passou de **sem acesso** para **com acesso** e avisado, entao re
 conceder outra permissao nao avisa. Vale para `salvar` (usuario ou grupo; grupo avisa cada membro que ainda nao tinha acesso)
 e para espelhar permissoes. Pessoa bloqueada ou inativa nao e avisada; sem e-mail cadastrado recebe so a notificacao; ate 300
 pessoas por operacao. **Falha de e-mail ou notificacao nunca desfaz a concessao** (vai para o log e a auditoria registra
-`ACESSO_LIBERADO_AVISO` com as contagens). O link usa `Sistema.link`: absoluto como esta; relativo, preso a `LUFT_URL_PUBLICA`
+`ACESSO_LIBERADO_AVISO` com as contagens). A tela do Gerenciador mostra o mesmo resumo (pessoas, notificacoes, e-mails enviados, sem e-mail cadastrado, modo teste, falhas), que sai de `ResultadoAviso.texto()`. O e-mail so existe para quem tem `Email_Usuario` no diretorio; sem ele recebe so a notificacao. O link usa `Sistema.link`: absoluto como esta; relativo, preso a `LUFT_URL_PUBLICA`
 (ou ao endereco da requisicao).
 
 ## Bloqueio de login

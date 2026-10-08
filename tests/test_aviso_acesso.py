@@ -39,6 +39,7 @@ class EmailFalso:
     """Substitui o ServicoEmail: guarda o que seria enviado."""
 
     configurado: bool = True
+    modo_teste: bool = False
     falhar_envio: bool = False
     preparados: list[dict[str, Any]] = field(default_factory=list)
 
@@ -381,3 +382,43 @@ def test_rotas_capturam_antes_e_avisam_depois_de_gravar() -> None:
             < rota.index("estado.bancos.core.escrita()")
             < rota.index("_avisar_acesso_liberado(")
         )
+
+
+def test_resumo_para_o_administrador() -> None:
+    from luftbase.autorizacao.aviso_acesso import ResultadoAviso
+
+    assert ResultadoAviso().texto() == ""  # ninguem ganhou acesso: nada a dizer
+
+    completo = ResultadoAviso(
+        com_acesso_novo=3, notificacoes=3, emails_enviados=2, sem_email=1
+    ).texto()
+    assert "3 pessoa(s)" in completo and "2 e-mail(s) enviado(s)" in completo
+    assert "1 sem e-mail cadastrado" in completo
+
+    assert "não está configurado" in ResultadoAviso(
+        com_acesso_novo=1, notificacoes=1, email_nao_configurado=True
+    ).texto()
+    assert "modo teste" in ResultadoAviso(
+        com_acesso_novo=1, notificacoes=1, emails_enviados=1, modo_teste=True
+    ).texto()
+    assert "1 falha(s)" in ResultadoAviso(com_acesso_novo=1, falhas=1).texto()
+
+
+def test_aviso_informa_sem_email_e_modo_teste(ambiente: Bancos) -> None:
+    email = EmailFalso(modo_teste=True)
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+    _regra_usuario(ambiente, 1, 10)
+
+    resultado = _avisar(ambiente, email, antes)
+
+    assert resultado.modo_teste is True
+    assert "modo teste" in resultado.texto()
+
+
+def test_rotas_devolvem_o_resumo_do_aviso_para_a_tela() -> None:
+    from pathlib import Path
+
+    from luftbase.web import seguranca
+
+    codigo = Path(seguranca.__file__).read_text(encoding="utf-8")
+    assert codigo.count("aviso=aviso") == 2  # salvar regra e espelhar permissoes

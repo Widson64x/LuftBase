@@ -77,6 +77,8 @@ class ResultadoAviso:
     sem_email: int = 0
     falhas: int = 0
     ignoradas: int = 0
+    email_nao_configurado: bool = False
+    modo_teste: bool = False
 
     def como_dict(self) -> dict[str, int]:
         return {
@@ -86,7 +88,30 @@ class ResultadoAviso:
             "sem_email": self.sem_email,
             "falhas": self.falhas,
             "ignoradas": self.ignoradas,
+            "email_nao_configurado": int(self.email_nao_configurado),
+            "modo_teste": int(self.modo_teste),
         }
+
+    def texto(self) -> str:
+        """Resumo para o administrador ver na tela logo depois de liberar o acesso (vazio se ninguem ganhou acesso)."""
+
+        if not self.com_acesso_novo:
+            return ""
+        partes = [
+            f"Acesso liberado a {self.com_acesso_novo} pessoa(s): "
+            f"{self.notificacoes} notificação(ões) e {self.emails_enviados} e-mail(s) enviado(s)."
+        ]
+        if self.sem_email:
+            partes.append(f"{self.sem_email} sem e-mail cadastrado no diretório (só a notificação).")
+        if self.email_nao_configurado:
+            partes.append("O e-mail não está configurado neste ambiente.")
+        if self.modo_teste and self.emails_enviados:
+            partes.append("E-mail em modo teste: foi para os destinatários de teste, não para as pessoas.")
+        if self.falhas:
+            partes.append(f"{self.falhas} falha(s); veja o log do servidor.")
+        if self.ignoradas:
+            partes.append(f"{self.ignoradas} pessoa(s) acima do limite não foram avisadas.")
+        return " ".join(partes)
 
 
 def _pessoas_do_alvo(bancos: CatalogoBancos, tipo: str, id_alvo: int) -> tuple[Pessoa, ...]:
@@ -364,6 +389,8 @@ def _avisar(
         sem_email=sem_email,
         falhas=falhas,
         ignoradas=ignoradas,
+        email_nao_configurado=not email.configurado,
+        modo_teste=bool(email.modo_teste),
     )
 
 

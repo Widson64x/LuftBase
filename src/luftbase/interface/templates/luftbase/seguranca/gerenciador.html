@@ -1508,6 +1508,14 @@ Informe o motivo (obrigatório):`) || '';
             });
             const d = await resp.json();
             if (!resp.ok || d.status !== 'success') throw new Error(d.message || d.erro || 'Falha');
+            if (d.aviso) {
+                // Resultado do aviso de acesso liberado (e-mail e notificacao): o administrador ve o que de fato saiu.
+                if (typeof LuftBase !== 'undefined' && typeof LuftBase.toast === 'function') {
+                    LuftBase.toast('Acesso liberado', d.aviso, 'success');
+                } else {
+                    alert(d.aviso);
+                }
+            }
             if (RECARREGAR_ATUAL) await RECARREGAR_ATUAL();
         } catch(e) { 
             console.error(e); 

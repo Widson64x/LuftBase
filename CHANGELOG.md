@@ -12,6 +12,15 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a97] - 2026-10-08
+
+### Alterado
+
+- Ao liberar um acesso (Gerenciador de Permissoes, regra de usuario/grupo ou espelhar), a tela mostra o que de fato saiu:
+  "Acesso liberado a N pessoa(s): X notificacao(oes) e Y e-mail(s) enviado(s)", quantas ficaram sem e-mail cadastrado no
+  diretorio, se o e-mail esta em modo teste ou nao configurado e se houve falha. Antes o administrador nao tinha como saber
+  por que um e-mail nao chegou.
+
 ## [0.1.0a96] - 2026-10-08
 
 ### Adicionado

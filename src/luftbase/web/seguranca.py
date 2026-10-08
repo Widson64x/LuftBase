@@ -268,7 +268,7 @@ def _url_base_publica() -> str:
     return (os.environ.get("LUFT_URL_PUBLICA") or "").strip() or request.host_url
 
 
-def _avisar_acesso_liberado(antes: CapturaAcesso, estado: object) -> dict[str, int]:
+def _avisar_acesso_liberado(antes: CapturaAcesso, estado: object) -> str:
     """Avisa (notificacao + e-mail) quem ganhou acesso por causa desta mudanca. Nunca levanta."""
 
     resultado = avisar_acessos_liberados(
@@ -291,7 +291,7 @@ def _avisar_acesso_liberado(antes: CapturaAcesso, estado: object) -> dict[str, i
             dados_novos=resultado.como_dict(),
             severidade=SeveridadeAuditoria.BAIXA,
         )
-    return resultado.como_dict()
+    return resultado.texto()
 
 
 @SegurancaBp.get("/gerenciador")
@@ -643,9 +643,8 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
         dados_novos=dados_novos,
         severidade=SeveridadeAuditoria.MEDIA,
     )
-    if antes_acesso is not None:
-        _avisar_acesso_liberado(antes_acesso, estado)
-    return jsonify(status="success", message="Regra salva com sucesso.")
+    aviso = _avisar_acesso_liberado(antes_acesso, estado) if antes_acesso is not None else ""
+    return jsonify(status="success", message="Regra salva com sucesso.", aviso=aviso)
 
 
 @SegurancaBp.get("/api/permissoes/resumo-origem")
@@ -863,11 +862,13 @@ def espelhar_permissoes():  # type: ignore[no-untyped-def]
         dados_novos={"id_destino": id_destino, "tipo_destino": tipo_destino, "total_regras": total_copiadas},
         severidade=SeveridadeAuditoria.MEDIA,
     )
-    _avisar_acesso_liberado(antes_acesso, estado)
+    aviso = _avisar_acesso_liberado(antes_acesso, estado)
     return jsonify(
         status="success",
-        message=f"{total_copiadas} regra(s) espelhada(s) com sucesso.",
+        message=f"{total_copiadas} regra(s) espelhada(s) com sucesso."
+        + (f" {aviso}" if aviso else ""),
         total=total_copiadas,
+        aviso=aviso,
     )
 
 
