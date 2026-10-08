@@ -514,3 +514,28 @@ def test_tela_explica_por_que_ninguem_foi_avisado(monkeypatch: pytest.MonkeyPatc
     assert "2 pessoa(s)" in ja_tinham and "já tinham acesso" in ja_tinham
     assert "não encontrei pessoas" in ninguem
     assert calado == ""  # outras permissoes (nao a de acesso) nao geram mensagem
+
+
+def test_lembrete_quando_a_regra_nao_e_a_de_acesso_base() -> None:
+    from luftbase.autorizacao.aviso_acesso import CapturaAcesso, Pessoa
+    from luftbase.web import seguranca
+
+    pessoas = (Pessoa(1, "ana", "Ana", None, 7), Pessoa(2, "bia", "Bia", None, 7))
+
+    sem = seguranca._lembrete_acesso_base(CapturaAcesso(3, pessoas, {1: False, 2: False}))
+    uma = seguranca._lembrete_acesso_base(CapturaAcesso(3, pessoas[:1], {1: False}))
+    todos_com_acesso = seguranca._lembrete_acesso_base(CapturaAcesso(3, pessoas, {1: True, 2: True}))
+
+    assert sem.startswith("Atenção: 2 pessoa(s)") and "não gera aviso" in sem
+    assert "Ana" in uma
+    assert todos_com_acesso == ""  # quem ja tem acesso nao precisa de lembrete
+
+
+def test_rota_so_mostra_o_lembrete_quando_nao_ha_outro_aviso() -> None:
+    from pathlib import Path
+
+    from luftbase.web import seguranca
+
+    codigo = Path(seguranca.__file__).read_text(encoding="utf-8")
+    assert "_lembrete_acesso_base(antes_acesso)" in codigo
+    assert 'acao == "Permitir" and not permissao_de_acesso and not aviso' in codigo

@@ -12,6 +12,14 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a100] - 2026-10-08
+
+### Alterado
+
+- Ao conceder uma permissao que NAO e a de acesso ao sistema a quem ainda nao tem o acesso base, a tela avisa: "Atencao: <pessoa>
+  ainda nao tem a permissao de acesso ao sistema ... esta regra nao gera aviso". Antes nada aparecia e parecia que o aviso de
+  acesso liberado tinha falhado (so a permissao base, `<SIS>.SISTEMA.ACESSAR`, gera e-mail e notificacao).
+
 ## [0.1.0a99] - 2026-10-08
 
 ### Alterado

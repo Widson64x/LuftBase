@@ -268,6 +268,23 @@ def _url_base_publica() -> str:
     return (os.environ.get("LUFT_URL_PUBLICA") or "").strip() or request.host_url
 
 
+def _lembrete_acesso_base(antes: CapturaAcesso) -> str:
+    """Quando a regra concedida NAO e a de acesso ao sistema, diz quem ainda nao tem o acesso base.
+
+    So a permissao base (`<SIS>.SISTEMA.ACESSAR`) gera e-mail e notificacao; sem este lembrete o administrador
+    concede outra permissao, nada acontece e ele nao sabe por que.
+    """
+
+    sem_acesso = [p for p in antes.pessoas if not antes.tem_acesso.get(p.id_usuario)]
+    if not sem_acesso:
+        return ""
+    quem = f"{len(sem_acesso)} pessoa(s)" if len(sem_acesso) > 1 else f"{sem_acesso[0].nome or sem_acesso[0].login}"
+    return (
+        f"Atenção: {quem} ainda não tem a permissão de acesso ao sistema (\"Acessar o sistema pelo Hub\"). "
+        "Só ela gera o e-mail e a notificação de acesso liberado; esta regra não gera aviso."
+    )
+
+
 def _avisar_acesso_liberado(
     antes: CapturaAcesso, estado: object, *, explicar_se_ninguem: bool = False
 ) -> str:
@@ -663,6 +680,8 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
         if antes_acesso is not None
         else ""
     )
+    if antes_acesso is not None and acao == "Permitir" and not permissao_de_acesso and not aviso:
+        aviso = _lembrete_acesso_base(antes_acesso)
     return jsonify(status="success", message="Regra salva com sucesso.", aviso=aviso)
 
 
