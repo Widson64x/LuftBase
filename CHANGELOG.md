@@ -12,6 +12,20 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a92] - 2026-10-08
+
+### Adicionado
+
+- **Alertas para o desenvolvedor**: erros 5xx, rajadas de 4xx, eventos criticos, lentidao e sistema parado em horario comercial
+  viram um e-mail para `widson.araujo@luftlogistics.com` (fixo no codigo) com pessoa, IP, rota, status, contagem, janela e id de
+  correlacao, sem dado sensivel. Antirruido: um alerta por problema, silencio de 15 min, fecha sozinho, e-mail unico por ciclo.
+  `LUFT_ALERTAS_ATIVO=true` (so no Workspace) liga o avaliador; `luftbase alertas avaliar|listar`; API em
+  `/auditoria/api/alertas`. Migracao aditiva `20261008_0014` (`tb_alerta`, `tb_alerta_controle`): rode `luftbase banco atualizar`
+  antes do deploy.
+- **Retencao de logs**: `luftbase banco tamanho-logs` e `luftbase banco retencao [--simular|--executar --arquivar-em PASTA]`
+  (acesso 180 dias, sessoes 365, eventos 730, alertas 180; ajustaveis por `LUFT_RETENCAO_*_DIAS`). Arquiva em CSV compactado
+  antes de apagar e preserva a trilha de alteracao ainda no prazo.
+
 ## [0.1.0a91] - 2026-10-08
 
 ### Adicionado

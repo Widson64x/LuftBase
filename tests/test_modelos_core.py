@@ -28,6 +28,8 @@ from luftbase.persistencia.core import (  # noqa: F401
 )
 
 TABELAS_ESPERADAS = {
+    "tb_alerta",
+    "tb_alerta_controle",
     "tb_sistema",
     "tb_permissao",
     "tb_permissaogrupo",
@@ -53,6 +55,8 @@ TABELAS_NOVAS = {
 }
 
 INDICES_ESPERADOS = {
+    "ix_core_alerta_status",
+    "ix_core_alerta_chave",
     "ix_core_sistema_ativo_ordem",
     "ix_core_modulo_sistema_ordem",
     "ix_core_permissao_sistema",
@@ -190,6 +194,7 @@ def test_checks_preservam_nomes_fisicos() -> None:
     }
 
     assert checks == {
+        "ck_core_alerta_status",
         "ck_core_logs_duracao",
         "ck_core_logs_status_http",
         "ck_core_logevento_severidade",

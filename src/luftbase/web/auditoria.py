@@ -513,6 +513,53 @@ def api_detalhe(tipo: str, identificador: int):  # type: ignore[no-untyped-def]
     return jsonify({"status": "success", "data": detalhe})
 
 
+@AuditoriaBp.get("/alertas")
+@login_required
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR)
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
+def api_alertas():  # type: ignore[no-untyped-def]
+    """Alertas para o desenvolvedor (abertos por padrao; `?todos=1` inclui os resolvidos)."""
+
+    from luftbase.observabilidade.alertas import listar_alertas
+
+    todos = request.args.get("todos") in {"1", "true"}
+    with obter_luftbase().bancos.core.leitura() as sessao:
+        itens = listar_alertas(sessao, somente_abertos=not todos, limite=_inteiro_opcional("limite") or 100)
+    return jsonify(status="success", data={"alertas": itens})
+
+
+@AuditoriaBp.post("/alertas/<int:id_alerta>/silenciar")
+@login_required
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR)
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
+def api_silenciar_alerta(id_alerta: int):  # type: ignore[no-untyped-def]
+    """Silencia um alerta por N horas (`horas`, 1 a 168); `horas: 0` volta a avisar."""
+
+    from luftbase.nucleo.tempo import agora_local
+    from luftbase.observabilidade.alertas import silenciar
+
+    validar_csrf_requisicao()
+    try:
+        horas = int((request.get_json(silent=True) or {}).get("horas", 0))
+    except (TypeError, ValueError):
+        abort(400, description="Horas invalidas.")
+    if not 0 <= horas <= 168:
+        abort(400, description="Informe de 0 a 168 horas.")
+    ate = agora_local() + timedelta(hours=horas) if horas else None
+    with obter_luftbase().bancos.core.escrita() as sessao:
+        achou = silenciar(sessao, id_alerta, ate)
+    if not achou:
+        abort(404, description="Alerta nao encontrado.")
+    registrar_alteracao_auditoria(
+        recurso="ALERTA",
+        id_recurso=id_alerta,
+        acao="ALERTA_SILENCIADO" if horas else "ALERTA_REATIVADO",
+        descricao=f"Alerta {id_alerta} {'silenciado por ' + str(horas) + ' h' if horas else 'reativado'}.",
+        severidade=SeveridadeAuditoria.BAIXA,
+    )
+    return jsonify(status="success", message="Alerta silenciado." if horas else "Alerta reativado.")
+
+
 @AuditoriaBp.get("/exportar")
 @login_required
 @exigir_permissao(PermissaoLuftBase.AUDITORIA_EXPORTAR)

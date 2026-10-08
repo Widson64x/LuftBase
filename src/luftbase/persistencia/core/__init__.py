@@ -1,5 +1,6 @@
 """Modelos fixos das tabelas compartilhadas no schema ``core``."""
 
+from luftbase.persistencia.core.alertas import Alerta, AlertaControle
 from luftbase.persistencia.core.auditoria import (
     Log,
     LogAcesso,
@@ -28,6 +29,8 @@ from luftbase.persistencia.core.sistemas import RepositorioSistemas
 from luftbase.persistencia.core.usuario import Usuario
 
 __all__ = [
+    "Alerta",
+    "AlertaControle",
     "EventoSessao",
     "Log",
     "LogAcesso",

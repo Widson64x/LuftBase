@@ -25,7 +25,9 @@ def test_grupo_expoe_comandos_operacionais() -> None:
         "conceder-permissoes",
         "historico",
         "pendencias",
+        "retencao",
         "registrar-base",
+        "tamanho-logs",
         "validar",
         "versao",
     }

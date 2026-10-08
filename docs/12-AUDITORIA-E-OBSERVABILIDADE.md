@@ -135,6 +135,52 @@ A revisao `20260923_0011` e deliberadamente destrutiva: descarta `tb_logacesso` 
 ambientes cuja trilha anterior tenha sido declarada descartavel. Migrations nunca rodam no
 startup da aplicacao.
 
-Antes do uso real em producao ainda devem ser definidos retencao do PostgreSQL,
-particionamento por data, arquivamento e centralizacao dos arquivos fisicos de multiplas
-instancias.
+Retencao e arquivamento estao em [Retencao dos logs](#retencao-dos-logs) abaixo. Ainda nao existem
+particionamento por data nem centralizacao dos arquivos fisicos de varias instancias.
+
+## Alertas para o desenvolvedor
+
+O avaliador (`observabilidade/alertas.py`) le a trilha (`tb_logs`, `tb_logevento`) e avisa por e-mail **quem** teve **qual**
+problema. Os destinatarios sao uma constante no codigo (`DESTINATARIOS_ALERTA`, hoje `widson.araujo@luftlogistics.com`).
+
+| Regra | Dispara quando | Agrupa por |
+|---|---|---|
+| `ERRO_5XX` | qualquer resposta 5xx | sistema, pessoa (ou IP), rota normalizada, status |
+| `ERRO_4XX_SEQUENCIA` | 10 ou mais respostas 4xx iguais em 5 min | sistema, pessoa (ou IP), status |
+| `EVENTO_CRITICO` | evento de severidade `ALTA` ou `CRITICA` | sistema, pessoa, recurso, acao |
+| `LENTIDAO` | p95 acima de 3000 ms em 10 min (minimo 20 requisicoes) | sistema |
+| `SISTEMA_SEM_ACESSO` | sem acesso ha 10 min em dia util, das 07h as 19h, com 100+ acessos nas 24 h anteriores | sistema |
+
+O aviso traz sistema, pessoa, IP, rota normalizada, status, contagem, janela e o id de correlacao para abrir o registro na
+Auditoria. **Nunca** leva parametros, corpo, senha ou token. Antirruido: o mesmo problema soma num unico alerta
+(`core.tb_alerta`), so volta a avisar depois de 15 min, fecha sozinho 30 min depois de parar e pode ser silenciado. Um unico
+e-mail por ciclo reune todos os alertas pendentes; se o envio falhar, o alerta fica pendente para o proximo ciclo.
+
+**Como roda** (um dos dois, em **um** sistema so, o Workspace; a trava em `tb_alerta_controle` impede dois executores):
+
+- thread de segundo plano: `LUFT_ALERTAS_ATIVO=true` (a cada `LUFT_ALERTAS_INTERVALO_SEGUNDOS`, padrao 60, minimo 15);
+- ou tarefa agendada a cada minuto: `flask --app <app> alertas avaliar` (ou `luftbase alertas avaliar`).
+
+Consulta: `luftbase alertas listar [--todos]`, `GET /auditoria/api/alertas` e
+`POST /auditoria/api/alertas/<id>/silenciar` (`{"horas": 0..168}`; `0` volta a avisar), ambos exigindo auditoria e dados
+sensiveis. A aba "Alertas" na tela da Auditoria ainda nao existe (so a API e o comando).
+
+## Retencao dos logs
+
+`luftbase banco tamanho-logs` mostra linhas, MB e o registro mais antigo de cada tabela. `luftbase banco retencao` aplica
+a politica (padrao: **simular**, nao apaga):
+
+| Tabela | Variavel | Padrao |
+|---|---|---|
+| `tb_logs` (acesso HTTP) | `LUFT_RETENCAO_ACESSO_DIAS` | 180 |
+| `tb_sessao` encerradas (+ `tb_sessao_evento`) | `LUFT_RETENCAO_SESSOES_DIAS` | 365 |
+| `tb_logevento` (+ `tb_logdetalhe`, a trilha de alteracao) | `LUFT_RETENCAO_EVENTOS_DIAS` | 730 |
+| `tb_alerta` resolvidos | `LUFT_RETENCAO_ALERTAS_DIAS` | 180 |
+
+Os prazos sao um ponto de partida, nao exigencia legal; confirme-os com `tamanho-logs`. Sessoes ativas nunca sao apagadas.
+
+Como `tb_logs -> tb_logevento -> tb_logdetalhe` tem `ON DELETE CASCADE`, antes de apagar um lote de acessos vencidos o comando
+**solta** (`id_log = NULL`) os eventos e detalhes que ainda estao no prazo; sem isso o CASCADE levaria a trilha de alteracao
+embora. `--executar` exige `--arquivar-em PASTA` (cada lote vai antes para `tabela-AAAAMMDD-HHMMSS.csv.gz`; se gravar o
+arquivo falhar, nada e apagado) ou `--sem-arquivo`. Apaga em lotes de 1000 com COMMIT por lote (`--lote`). A execucao e
+auditada (`RETENCAO_EXECUTADA`).

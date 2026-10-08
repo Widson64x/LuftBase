@@ -1,0 +1,16 @@
+{% extends "luftbase/email/base.html" %}
+{% import "luftbase/email/componentes.html" as ui_email %}
+
+{% block previa %}{{ itens | length }} alerta(s) da plataforma Luft.{% endblock %}
+
+{% block faixa %}{{ ui_email.faixa("Alerta da plataforma", "aviso") }}{% endblock %}
+
+{% block conteudo %}
+  {{ ui_email.titulo((itens | length) ~ " alerta(s) para verificar", rotulo="LuftBase") }}
+  {% for item in itens %}
+    {{ ui_email.paragrafo(item.titulo) }}
+    {{ ui_email.tabela_resumo(item.linhas) }}
+    {% if not loop.last %}{{ ui_email.divisor() }}{% endif %}
+  {% endfor %}
+  {{ ui_email.nota("Gerado em " ~ gerado_em ~ ". Os dados de requisicao (corpo, parametros, senhas) nunca entram neste aviso; use o id de correlacao para abrir o registro na Auditoria.") }}
+{% endblock %}

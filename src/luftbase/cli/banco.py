@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections import Counter
 
 import click
@@ -254,3 +255,97 @@ def pendencias() -> None:
     click.echo(f"pendencias={len(revisoes_pendentes)}")
     for sc in revisoes_pendentes:
         click.echo(f"  {sc.revision}: {sc.doc or ''}")
+
+
+@banco.command("tamanho-logs")
+@with_appcontext
+def tamanho_logs() -> None:
+    """Mostra linhas e tamanho (MB, no PostgreSQL) das tabelas de log e o registro mais antigo.
+
+    Use antes de definir os prazos de retencao: decida com o volume real, nao no chute.
+    """
+
+    from luftbase.observabilidade.retencao import mais_antigo, tamanho_tabelas
+
+    try:
+        with obter_luftbase().bancos.core.leitura() as sessao:
+            tamanhos = tamanho_tabelas(sessao)
+            antigos = mais_antigo(sessao)
+    except Exception as erro:
+        raise click.ClickException("Nao foi possivel medir as tabelas de log.") from erro
+    for item in tamanhos:
+        mb = "n/d" if item["mb"] is None else f"{item['mb']} MB"
+        linhas = "n/d" if item["linhas"] is None else item["linhas"]
+        click.echo(f"{item['tabela']}: linhas={linhas} tamanho={mb}")
+    for tabela, quando in antigos.items():
+        click.echo(f"mais_antigo.{tabela}={quando.isoformat(timespec='seconds') if quando else '-'}")
+
+
+@banco.command("retencao")
+@click.option("--simular", "modo", flag_value="simular", default=True, help="Mostra o que sairia (padrao).")
+@click.option("--executar", "modo", flag_value="executar", help="Apaga de verdade o que passou do prazo.")
+@click.option(
+    "--arquivar-em",
+    "pasta",
+    type=click.Path(file_okay=False, path_type=str),
+    default=None,
+    help="Pasta onde cada lote e gravado em CSV compactado ANTES de apagar.",
+)
+@click.option("--sem-arquivo", is_flag=True, help="Permite apagar sem arquivar (nao recomendado).")
+@click.option("--lote", default=1000, show_default=True, type=int, help="Linhas por COMMIT.")
+@with_appcontext
+def retencao(modo: str, pasta: str | None, sem_arquivo: bool, lote: int) -> None:
+    """Aplica a politica de retencao dos logs, sessoes e alertas resolvidos.
+
+    Prazos por variavel (LUFT_RETENCAO_ACESSO_DIAS=180, _SESSOES_DIAS=365, _EVENTOS_DIAS=730,
+    _ALERTAS_DIAS=180). O padrao e simular; com --executar e preciso --arquivar-em ou --sem-arquivo.
+    """
+
+    from pathlib import Path
+
+    from luftbase.observabilidade.retencao import Politica, executar, simular
+
+    politica = Politica.de_ambiente()
+    estado = obter_luftbase()
+    click.echo(
+        f"prazos: acesso={politica.acesso_dias}d sessoes={politica.sessoes_dias}d "
+        f"eventos={politica.eventos_dias}d alertas={politica.alertas_dias}d"
+    )
+    if modo != "executar":
+        with estado.bancos.core.leitura() as sessao:
+            itens = simular(sessao, politica)
+        for item in itens:
+            click.echo(f"{item.tabela}: vencidas={item.vencidas} (anteriores a {item.corte:%Y-%m-%d %H:%M})")
+        click.echo("modo=simular (nada foi apagado; use --executar --arquivar-em PASTA)")
+        return
+
+    if pasta is None and not sem_arquivo:
+        raise click.UsageError("Para --executar informe --arquivar-em PASTA (ou --sem-arquivo).")
+    if lote < 1:
+        raise click.UsageError("--lote deve ser maior que zero.")
+    resultado = executar(
+        estado.bancos,
+        politica,
+        pasta_arquivo=Path(pasta) if pasta else None,
+        tamanho_lote=lote,
+        ao_progresso=lambda mensagem: click.echo(f"  {mensagem}"),
+    )
+    for item in resultado.tabelas:
+        extra = f" arquivadas={item.arquivadas} em {item.arquivo}" if item.arquivo else ""
+        desligadas = f" trilha_preservada={item.desligadas}" if item.desligadas else ""
+        click.echo(f"{item.tabela}: apagadas={item.apagadas}{extra}{desligadas}")
+    with contextlib.suppress(Exception):
+        from luftbase.observabilidade import EventoDominio, SeveridadeAuditoria
+
+        estado.auditoria.registrar_evento(
+            EventoDominio(
+                acao="RETENCAO_EXECUTADA",
+                recurso="LOGS",
+                descricao=f"Retencao apagou {resultado.total_apagadas} registro(s) de log.",
+                severidade=SeveridadeAuditoria.MEDIA,
+            )
+        )
+    for erro in resultado.erros:
+        click.echo(f"erro={erro}", err=True)
+    if resultado.erros:
+        raise click.exceptions.Exit(1)

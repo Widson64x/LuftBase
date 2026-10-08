@@ -121,7 +121,7 @@ Producao hoje: Luft-Workspace e Luft-Integrador (Windows). Homologacao: os tres 
 - [x] Copiar permissoes entre usuarios em tres passos, com auditoria.
 - [x] Caminho de navegacao com a casinha levando ao Workspace.
 - [x] Provisionamento de sistemas por ambiente (schema, role, segredo) e `reprovisionar-sistema`.
-- [ ] Alertas automaticos (e-mail ou sino) para erros 5xx e acessos negados em sequencia — ver M20.
+- [x] Alertas automaticos por e-mail para erros 5xx, rajadas de 4xx, eventos criticos, lentidao e sistema parado — ver M20.
 
 ## M14 — Identidade, sessao e perfil
 
@@ -139,7 +139,7 @@ Producao hoje: Luft-Workspace e Luft-Integrador (Windows). Homologacao: os tres 
 - [x] Drill-down estilo BI (clique filtra e leva aos registros; Shift+clique so filtra).
 - [x] Controle de sessoes: encerrar uma, desconectar pessoa, desconectar todos.
 - [x] Dados confiaveis desde um marco (`LUFT_AUDITORIA_DADOS_DESDE`).
-- [ ] Retencao e arquivamento de logs antigos — ver M21.
+- [x] Retencao e arquivamento de logs antigos (comando, falta ensaiar em homologacao) — ver M21.
 - [ ] Agregador corporativo de logs para investigacoes com varios hosts (ADR-013).
 
 ## M16 — Comunicacao
@@ -225,61 +225,62 @@ Aceite: quem recebe acesso a um sistema ganha e-mail e notificacao uma unica vez
 
 ## M20 — Alertas para o desenvolvedor
 
-Por que: hoje o erro so aparece se alguem abrir a Auditoria. O desenvolvedor passa a ser avisado sozinho, com **quem** teve
-o problema e **o que** aconteceu. Reaproveita `ServicoInsights`, `tempo_real`, o e-mail e as notificacoes.
+Por que: o erro so aparecia se alguem abrisse a Auditoria. O desenvolvedor agora e avisado sozinho, com **quem** teve o problema
+e **o que** aconteceu. Destinatario fixo no codigo (`DESTINATARIOS_ALERTA` em `observabilidade/alertas.py`): `widson.araujo@luftlogistics.com`.
 
-O que dispara alerta:
+| Regra | Dispara quando | Exemplo de aviso |
+|---|---|---|
+| `ERRO_5XX` | qualquer resposta 5xx | "ERRO 5xx: ana em Luft-ConnectAir; rota /clientes/:id/editar, status 500, 3 ocorrencias" |
+| `ERRO_4XX_SEQUENCIA` | 10 ou mais respostas 4xx iguais da mesma pessoa (ou IP) em 5 min | "bia: 10 respostas 403 em 5 min (Luft-Workspace)" |
+| `EVENTO_CRITICO` | evento de severidade `ALTA` ou `CRITICA` | "widson: PERMISSAO_USUARIO/PERMISSAO_BLOQUEAR" |
+| `LENTIDAO` | p95 acima de 3000 ms em 10 min (minimo 20 requisicoes) | "p95 de 5000 ms em 25 requisicoes" |
+| `SISTEMA_SEM_ACESSO` | 10 min sem acesso em dia util, 07h-19h, em sistema com 100+ acessos nas 24 h anteriores | "nenhum acesso ha mais de 10 min" |
 
-| Gatilho | Exemplo de aviso |
-|---|---|
-| Erro 5xx | "widson.araujo: 3 erros 500 em /planejamento/salvar nos ultimos 10 min (Luft-ConnectAir)" |
-| Erro 4xx em sequencia (401, 403, 404, 422) | "maria.silva: 8 respostas 403 em 5 min; ultima rota /configuracoes/usuarios (Luft-Workspace)" |
-| Evento critico | acao com severidade `ALTA` ou `CRITICA` na trilha de eventos |
-| Aplicacao fora do ar ou lenta | sem acesso por N min em horario comercial; p95 acima do limite |
-| Falha tecnica | falha ao gravar o log fisico, falha de e-mail, falha de conexao com o banco |
+O aviso traz sistema, pessoa (ou IP), rota normalizada, status, contagem, janela e id de correlacao. **Nunca** leva parametros,
+corpo, senha ou token (teste garante). Antirruido: o mesmo problema soma num unico alerta, so volta a avisar depois de 15 min,
+fecha sozinho 30 min depois de parar e pode ser silenciado; um unico e-mail por ciclo reune tudo; se o e-mail falhar, o alerta
+fica pendente para o proximo ciclo.
 
-Cada aviso traz: sistema, ambiente, usuario (login), IP, rota normalizada, status, contagem, janela, primeira e ultima ocorrencia
-e o id de correlacao para abrir direto no registro da Auditoria. **Nunca** inclui corpo de requisicao, senha, token nem dado
-de formulario (reaproveita a sanitizacao existente).
+Como roda (decisao revista: thread opt-in no lugar de depender de agendador do servidor; o comando agendado continua valendo):
+`LUFT_ALERTAS_ATIVO=true` **so no Workspace** liga o avaliador em segundo plano (a cada 60 s); ou `luftbase alertas avaliar`
+agendado. A trava em `tb_alerta_controle` impede dois executores ao mesmo tempo.
 
-Como funciona:
-- Um unico erro isolado gera **um aviso imediato** para 5xx e eventos criticos; 4xx so alerta em **sequencia** (limite abaixo),
-  porque um 404 solto e ruido.
-- Antirruido: alerta aberto nao se repete antes do intervalo de silencio; ocorrencias novas somam no mesmo alerta e viram um
-  resumo; fecha sozinho quando a condicao some.
-- Limites iniciais assumidos (ajustaveis no Painel): 5xx = qualquer ocorrencia, resumo a cada 15 min; 4xx = 10 respostas iguais
-  do mesmo usuario em 5 min; lentidao = p95 acima de 3 s por 10 min; fora do ar = 10 min sem acesso, das 07h as 19h.
-- Destino: **e-mail do desenvolvedor** (lista configuravel por sistema) e **notificacao no sino** para quem tem a permissao
-  `AUDITORIA.ALERTAS.RECEBER`. O seu e-mail entra como destinatario inicial.
-- Roda como **tarefa agendada** no servidor (`luftbase alertas avaliar`, a cada minuto): um unico executor, sem trava no banco,
-  fora do request, com janela curta e os indices que a Auditoria ja usa. Nunca atrasa nem derruba uma requisicao.
+- [x] Regras e limites em codigo (`observabilidade/alertas.py`, `Limites`).
+- [x] Tabela `core.tb_alerta` e `core.tb_alerta_controle` (migracao aditiva `20261008_0014`, com grants condicionais aos papeis).
+- [x] Avaliador (`avaliar`) com trava, janela incremental, antirruido, resolucao automatica e silenciar.
+- [x] E-mail unico por ciclo (modelo `luftbase/email/alertas.html`), com modo teste respeitado.
+- [x] Thread opt-in (`LUFT_ALERTAS_ATIVO`) e comandos `luftbase alertas avaliar` e `listar`.
+- [x] API `GET /auditoria/api/alertas` e `POST /auditoria/api/alertas/<id>/silenciar` (auditoria + dados sensiveis).
+- [x] Testes com relogio injetado (`tests/test_alertas.py`, `tests/test_avaliador_alertas.py`): dispara, soma, nao repete, fecha,
+      trava, falha de e-mail, silencio, nao vaza dado sensivel.
+- [x] Docs 12, 18 e 20.
+- [ ] Ensaiar em homologacao: `banco atualizar`, `LUFT_ALERTAS_ATIVO=true` no Workspace, forcar um 500 e conferir o e-mail.
+- [ ] Aba "Alertas" na tela da Auditoria (hoje so API e comando).
+- [ ] Limites editaveis no Painel (hoje sao constantes em `Limites`).
+- [ ] Alerta de falha tecnica (log fisico, conexao com o banco): nao feito.
+- [ ] Sino para quem tem permissao de receber alertas: nao feito de proposito; so o e-mail do desenvolvedor, como combinado.
 
-- [ ] Regras declarativas (`observabilidade/alertas.py`) com janela, limite e escopo por sistema.
-- [ ] Tabela `core.tb_alerta` (regra, sistema, usuario, rota, status, contagem, aberto_em, ultima_ocorrencia, resolvido_em,
-      ultima_notificacao); migracao Alembic aditiva.
-- [ ] Avaliador `luftbase alertas avaliar` e a receita para agendar no Windows (Agendador de Tarefas) e no Linux (systemd timer).
-- [ ] Mensagem do alerta com usuario, rota, contagem e correlacao, sem dado sensivel.
-- [ ] Destinos: e-mail por sistema e sino por permissao; modo teste do e-mail respeitado.
-- [ ] Aba "Alertas" na Auditoria: abertos, historico, silenciar por X horas, ligar/desligar regra e editar limite.
-- [ ] Testes com relogio injetavel: dispara, soma, nao repete, fecha, respeita escopo e nao vaza dado sensivel.
-- [ ] Documentar no doc 12 e variaveis novas no doc 18.
-
-Aceite: um pico simulado de 5xx e outro de 403 em homologacao geram um alerta cada, com usuario e rota, enviados por e-mail e sino,
-e fecham sozinhos.
+Aceite: um pico simulado de 5xx e outro de 403 em homologacao geram um alerta cada, com usuario e rota, por e-mail, e fecham sozinhos.
 
 ## M21 — Retencao e arquivamento de logs
 
 Por que: o log fisico rotaciona (30 arquivos diarios), mas `tb_logs`, `tb_logevento`, `tb_logdetalhe`, `tb_sessao` e
-`tb_sessao_evento` crescem sem limite e sao a base das consultas da Auditoria.
+`tb_sessao_evento` cresciam sem limite e sao a base das consultas da Auditoria.
 
-- [ ] Medir antes: `luftbase banco tamanho-logs` (linhas e MB por tabela e crescimento por semana).
-- [ ] Politica por tabela em variaveis (`LUFT_RETENCAO_*_DIAS`, doc 18). Valores iniciais assumidos ate a medicao:
-      acesso HTTP 180 dias, sessoes 365, eventos e retrato antes/depois (trilha de alteracao) 730 (ajustar se houver exigencia legal).
-- [ ] Arquivar antes de apagar: exportar o lote vencido para tabelas `*_arquivo` em schema separado e so entao remover, em lotes
-      pequenos com `COMMIT` por lote, na ordem `tb_logdetalhe` -> `tb_logevento` -> `tb_logs`, sem quebrar a trilha encadeada.
-- [ ] Comando `luftbase banco retencao [--simular|--executar]`: o padrao e simular (nao apaga); a execucao e auditada e agendavel.
-- [ ] A Auditoria avisa quando o periodo pedido passa da retencao (mesma ideia de `LUFT_AUDITORIA_DADOS_DESDE`).
-- [ ] Testes da ordem de remocao, do lote e do modo simular; ensaio em homologacao antes de producao.
+- [x] Medir antes: `luftbase banco tamanho-logs` (linhas, MB no PostgreSQL e registro mais antigo por tabela).
+- [x] Politica por tabela em variaveis (`LUFT_RETENCAO_*_DIAS`): acesso HTTP 180 dias, sessoes encerradas 365, eventos e retrato
+      antes/depois (trilha de alteracao) 730, alertas resolvidos 180. Sao ponto de partida; ajustar com os numeros reais.
+- [x] Arquivar antes de apagar em **CSV compactado** por pasta (`--arquivar-em`), e nao em tabelas `*_arquivo` (muda em relacao
+      ao plano: nao exige criar schema nem permissao nova no banco). Se gravar o arquivo falhar, nada e apagado.
+- [x] Trilha encadeada preservada: antes de apagar acessos vencidos, os eventos e detalhes ainda no prazo sao soltos
+      (`id_log = NULL`) para o `ON DELETE CASCADE` nao os levar.
+- [x] Comando `luftbase banco retencao [--simular|--executar]`: padrao simular; `--executar` exige `--arquivar-em` ou
+      `--sem-arquivo`; lotes de 1000 com COMMIT por lote; execucao auditada. Sessoes ativas nunca sao apagadas.
+- [x] Testes (`tests/test_retencao.py`) com SQLite: o que vence, trilha preservada, arquivo, falha de arquivo, lotes, CLI.
+      O `CASCADE` do PostgreSQL nao e exercitado em SQLite; o ensaio em homologacao cobre isso.
+- [ ] Ensaiar em homologacao: `tamanho-logs`, `retencao` (simular) e so depois `--executar --arquivar-em`.
+- [ ] A Auditoria avisar quando o periodo pedido passa da retencao: nao feito.
+- [ ] Agendar a execucao semanal (receita no servidor) depois do ensaio.
 
 Aceite: `--simular` em homologacao lista o volume por tabela; `--executar` reduz o tamanho sem quebrar a Auditoria nem a trilha.
 

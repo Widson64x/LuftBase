@@ -79,6 +79,12 @@ A conta SMTP, o modo teste e os destinatarios de teste ficam no Vault (`luft/<am
 | `LUFT_AUDITORIA_DADOS_DESDE` | vazio | Instante ISO 8601 (ex.: `2026-10-06T17:00`) antes do qual a Auditoria ignora os dados ([doc 15](15-AUDITORIA-ANALITICA-E-CONTROLE-DE-SESSOES.md)). |
 | `LUFT_BASE_REPOSITORIO` | `Widson64x/LuftBase` | Repositorio consultado pelo verificador de versao. |
 | `LUFT_GITHUB_TOKEN` | vazio | Token opcional para o verificador de versao (o repositorio e publico). |
+| `LUFT_ALERTAS_ATIVO` | `false` | `true` liga o avaliador de alertas em segundo plano. Ligue **so no Workspace** ([doc 12](12-AUDITORIA-E-OBSERVABILIDADE.md#alertas-para-o-desenvolvedor)). |
+| `LUFT_ALERTAS_INTERVALO_SEGUNDOS` | `60` | Intervalo do avaliador (minimo 15). |
+| `LUFT_RETENCAO_ACESSO_DIAS` | `180` | Quanto tempo `tb_logs` (acesso HTTP) fica no banco ([doc 12](12-AUDITORIA-E-OBSERVABILIDADE.md#retencao-dos-logs)). |
+| `LUFT_RETENCAO_SESSOES_DIAS` | `365` | Idem para sessoes encerradas e seus eventos. |
+| `LUFT_RETENCAO_EVENTOS_DIAS` | `730` | Idem para `tb_logevento` e `tb_logdetalhe` (trilha de alteracao). |
+| `LUFT_RETENCAO_ALERTAS_DIAS` | `180` | Idem para alertas resolvidos. |
 
 ## Quais dessas o painel pode editar
 

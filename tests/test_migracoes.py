@@ -1,5 +1,6 @@
 """Testes do historico Alembic empacotado."""
 
+import re
 from io import StringIO
 
 from alembic import command
@@ -13,8 +14,9 @@ def test_historico_possui_baseline_e_evolucao() -> None:
     scripts = ScriptDirectory.from_config(configuracao)
 
     assert scripts.get_base() == "20260915_0001"
-    assert scripts.get_current_head() == "20260923_0013"
+    assert scripts.get_current_head() == "20261008_0014"
     assert [revisao.revision for revisao in scripts.walk_revisions()] == [
+        "20261008_0014",
         "20260923_0013",
         "20260923_0012",
         "20260923_0011",
@@ -43,7 +45,7 @@ def test_upgrade_offline_recria_o_core_hierarquico_completo() -> None:
     command.upgrade(configuracao, "head", sql=True)
 
     sql = saida.getvalue().lower()
-    assert sql.count("create table core.") == 28
+    assert sql.count("create table core.") == 30
     assert "create table core.alembic_version" in sql
     assert "create table core.tb_sistema" in sql
     assert "create table core.tb_modulo" in sql
@@ -56,6 +58,8 @@ def test_upgrade_offline_recria_o_core_hierarquico_completo() -> None:
     assert "create table core.tb_logs" in sql
     assert "create table core.tb_logevento" in sql
     assert "create table core.tb_logdetalhe" in sql
+    assert re.search(r"create table core\.tb_alerta\s*\(", sql)
+    assert "create table core.tb_alerta_controle" in sql
     assert "fk_core_sessao_usuario" in sql
     assert "fk_core_logevento_log" in sql
     assert "fk_core_logdetalhe_log" in sql
