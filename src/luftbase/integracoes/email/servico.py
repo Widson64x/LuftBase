@@ -57,10 +57,16 @@ def _ambiente_jinja_pacote():  # type: ignore[no-untyped-def]
 def renderizar_template_email(template: str, contexto: Mapping[str, object]) -> str:
     """Usa o Jinja da aplicacao quando ha contexto Flask; senao, so os templates do LuftBase."""
 
-    from flask import has_app_context, render_template
+    from flask import current_app, has_app_context, has_request_context, render_template
 
     if has_app_context():
-        return render_template(template, **contexto)
+        if has_request_context():
+            return render_template(template, **contexto)
+        # Comando de CLI (`flask alertas avaliar`...): ha app mas nao ha requisicao, e os context
+        # processors do LuftBase leem a sessao. Uma requisicao de teste vazia basta e mantem os
+        # templates da propria aplicacao disponiveis.
+        with current_app.test_request_context():
+            return render_template(template, **contexto)
     return str(_ambiente_jinja_pacote().get_template(template).render(**contexto))
 
 

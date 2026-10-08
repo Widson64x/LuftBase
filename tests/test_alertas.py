@@ -451,3 +451,36 @@ def test_rotas_de_alertas_exigem_permissao_de_dados_sensiveis() -> None:
     for nome in ("def api_alertas", "def api_silenciar_alerta"):
         cabecalho = codigo[codigo.rindex("@AuditoriaBp", 0, codigo.index(nome)) : codigo.index(nome)]
         assert "AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR" in cabecalho and "@login_required" in cabecalho
+
+
+def test_email_renderiza_em_comando_de_cli_com_app_e_sem_requisicao() -> None:
+    """`flask alertas avaliar` tem contexto de app mas nao de requisicao (regressao de 08/10)."""
+
+    from flask import Flask
+
+    from luftbase import PlataformaLuft
+    from luftbase.infraestrutura.fabrica import FabricaInfraestruturaMemoria
+
+    app = Flask(__name__)
+    app.config.update(
+        LUFT_SISTEMA_ID=0,
+        LUFT_AMBIENTE="desenvolvimento",
+        LUFT_VAULT_ENDERECO="http://vault:8200",
+        LUFT_LDAP_SERVIDOR="ad.luft",
+        LUFT_LDAP_DOMINIO="luftfarma",
+    )
+    PlataformaLuft(FabricaInfraestruturaMemoria()).inicializar(app)
+
+    from luftbase.integracoes.email.servico import renderizar_template_email
+
+    with app.app_context():
+        html = renderizar_template_email(
+            alertas.TEMPLATE_EMAIL,
+            {
+                "itens": [{"titulo": "Erro 5xx", "linhas": [("Usuario", "ana")]}],
+                "gerado_em": "08/10/2026 11:47:00",
+                "luft_email": {"ambiente": "x", "gerado_em": "", "cid_logo": "", "ano": 2026},
+            },
+        )
+
+    assert "1 alerta(s) para verificar" in html and "ana" in html

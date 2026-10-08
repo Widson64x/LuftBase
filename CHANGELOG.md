@@ -12,6 +12,13 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a94] - 2026-10-08
+
+### Corrigido
+
+- E-mail renderizado dentro de comando de CLI (`flask alertas avaliar`) falhava com "Working outside of request context": ha
+  contexto de app mas nao de requisicao, e os context processors leem a sessao. Agora usa uma requisicao de teste vazia.
+
 ## [0.1.0a93] - 2026-10-08
 
 ### Corrigido
