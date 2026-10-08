@@ -122,18 +122,22 @@ Meta inicial: 100 usuarios simultaneos, p95 de ate 3000 ms e menos de 1% de erro
 - SQL manual de apoio (ex.: limpar sessoes antigas, ajustar permissoes provisorias) fica em `scripts/` do Workspace; todos
   mostram primeiro um bloco de **conferir** e rodam em transacao com `COMMIT`/`ROLLBACK`.
 
-## Subir a 0.1.0a92 (alertas e retencao): ordem no ambiente
+## Subir a 0.1.0a92 ou mais novo (alertas e retencao): ordem no ambiente
 
-1. `luftbase banco pendencias` e `luftbase banco atualizar --confirmar ATUALIZAR_CORE` **antes** do deploy do app novo: a
-   revisao `20261008_0014` so cria `core.tb_alerta` e `core.tb_alerta_controle` (aditiva) e da permissao aos papeis
-   `luft_workspace_app` e `luft_core_security_admin` quando existirem. Em outro papel, conceda `SELECT, INSERT, UPDATE` nessas
-   duas tabelas e `USAGE, SELECT` na sequencia `core.tb_alerta_id_alerta_seq`.
-2. `luftbase catalogo sincronizar` (cria a permissao `SEGURANCA.USUARIOS.DESATIVAR`, do bloqueio de login, vinda da 0.1.0a91).
-3. No `.env` do **Workspace**: `LUFT_ALERTAS_ATIVO=true`. O e-mail do Vault precisa estar configurado; sem ele o alerta fica
-   pendente e `luftbase alertas avaliar` mostra o motivo.
-4. Conferir: `luftbase alertas avaliar` (sai com erro se algo falhou) e `luftbase alertas listar`.
-5. Retencao: rode `luftbase banco tamanho-logs`, depois `luftbase banco retencao` (simular). So entao
-   `luftbase banco retencao --executar --arquivar-em <pasta>`, em horario calmo; agende (semanal) quando os numeros fizerem sentido.
+Os comandos do LuftBase vivem dentro do app Flask, entao rodam como `flask --app App:CriarApp <grupo> <comando>` na pasta do
+sistema, com o `.venv` do servidor (Linux: `.venv/bin/flask`; Windows: `.venv\Scriptslask`). Abaixo, `FLASK` significa isso.
+
+1. `FLASK banco pendencias` para ver o que falta. A revisao `20261008_0014` cria `core.tb_alerta` e `core.tb_alerta_controle`
+   (aditiva) e da permissao aos papeis `luft_workspace_app` e `luft_core_security_admin` quando existirem.
+2. Aplique com um **usuario de migracao** (o usuario da aplicacao nao cria tabelas):
+   `FLASK bootstrap --atualizar --ambiente <ambiente>`. Ele pergunta host, porta, banco, usuario e senha, mostra o `destino=` e
+   exige digitar a confirmacao. Nao acessa o Vault, nao altera roles e **ja sincroniza o catalogo do Workspace** (inclui a
+   permissao `SEGURANCA.USUARIOS.DESATIVAR`), entao `catalogo sincronizar` so e preciso para outros sistemas.
+3. Reinicie o servico. No `.env` do **Workspace**: `LUFT_ALERTAS_ATIVO=true` (a thread so sobe no servidor, nunca em comandos).
+   O e-mail do Vault precisa estar configurado; sem ele o alerta fica pendente e `FLASK alertas avaliar` mostra o motivo.
+4. Conferir: `FLASK alertas avaliar` (sai com erro se algo falhou) e `FLASK alertas listar`.
+5. Retencao: `FLASK banco tamanho-logs`, depois `FLASK banco retencao` (simular). So entao
+   `FLASK banco retencao --executar --arquivar-em <pasta>`, em horario calmo; agende (semanal) quando os numeros fizerem sentido.
 
 ## Quando algo da errado
 

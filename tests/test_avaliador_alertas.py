@@ -142,7 +142,7 @@ def test_plataforma_nao_liga_o_avaliador_sem_a_variavel(monkeypatch: pytest.Monk
     assert ligou == []
 
 
-def test_plataforma_liga_o_avaliador_com_a_variavel(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_servidor_liga_o_avaliador_mas_a_plataforma_sozinha_nao(monkeypatch: pytest.MonkeyPatch) -> None:
     from luftbase import PlataformaLuft
     from luftbase.infraestrutura.fabrica import FabricaInfraestruturaMemoria
 
@@ -161,5 +161,9 @@ def test_plataforma_liga_o_avaliador_com_a_variavel(monkeypatch: pytest.MonkeyPa
     )
 
     PlataformaLuft(FabricaInfraestruturaMemoria()).inicializar(app)
+    assert ligou == []  # comandos de CLI carregam o app e nao podem iniciar a thread
 
+    from luftbase import servidor
+
+    servidor._iniciar_alertas(app)
     assert len(ligou) == 1

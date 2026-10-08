@@ -252,6 +252,16 @@ def ambiente_de_producao() -> bool:
     }
 
 
+def _iniciar_alertas(app: Flask) -> None:
+    """Liga o avaliador de alertas so quando o processo e um servidor (nunca em comandos de CLI)."""
+
+    from luftbase.observabilidade.avaliador_alertas import iniciar_se_ativo
+
+    estado = app.extensions.get("luftbase")
+    if estado is not None:
+        iniciar_se_ativo(estado.bancos, estado.email)
+
+
 def executar(
     alvo: str | Flask | Callable[[], Flask],
     *,
@@ -267,6 +277,7 @@ def executar(
         host=host, porta=porta, prefixo=prefixo, threads=threads
     )
     app = resolver_aplicacao(alvo)
+    _iniciar_alertas(app)
 
     from waitress import serve  # type: ignore[import-untyped]
 
@@ -313,6 +324,7 @@ def executar_desenvolvimento(
         return
 
     app = resolver_aplicacao(alvo)
+    _iniciar_alertas(app)
     anunciar(app, configuracao, servidor="Flask, desenvolvimento" if depuracao else "Flask")
     app.run(
         host=configuracao.host,

@@ -572,7 +572,7 @@ def avaliar(
             erros=tuple(erros),
         )
     except Exception as erro:
-        logger.exception("Avaliador de alertas falhou")
+        logger.debug("Avaliador de alertas falhou", exc_info=True)
         return ResultadoCiclo(erros=(f"{type(erro).__name__}: {erro}",))
 
 

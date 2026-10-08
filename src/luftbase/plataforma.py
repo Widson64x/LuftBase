@@ -503,11 +503,6 @@ class PlataformaLuft:
         from luftbase.cli import registrar_comandos
 
         registrar_comandos(app)
-
-        # Alertas para o desenvolvedor: so liga com LUFT_ALERTAS_ATIVO=true (no Workspace).
-        from luftbase.observabilidade.avaliador_alertas import iniciar_se_ativo
-
-        iniciar_se_ativo(estado.bancos, estado.email)
         return estado
 
     @staticmethod

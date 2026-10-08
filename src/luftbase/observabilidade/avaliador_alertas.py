@@ -71,13 +71,20 @@ class AvaliadorEmSegundoPlano:
         # Primeiro ciclo logo depois da subida do servidor, sem disputar a inicializacao.
         if self._parar.wait(5):
             return
+        ultima_falha = ""
         while not self._parar.is_set():
             try:
                 resultado = avaliar(self._bancos, self._email)
-                for erro in resultado.erros:
-                    logger.warning("Alertas: %s", erro)
-            except Exception:
-                logger.exception("Falha inesperada no avaliador de alertas")
+                falha = "; ".join(e.splitlines()[0][:200] for e in resultado.erros)
+                if falha and falha != ultima_falha:
+                    # So avisa quando a falha muda: uma tabela ausente nao deve encher o log a cada ciclo.
+                    logger.warning("Alertas: %s", falha)
+                ultima_falha = falha
+            except Exception as erro:
+                texto = f"{type(erro).__name__}: {str(erro).splitlines()[0][:200]}"
+                if texto != ultima_falha:
+                    logger.exception("Falha inesperada no avaliador de alertas")
+                ultima_falha = texto
             self._parar.wait(self._intervalo)
 
 

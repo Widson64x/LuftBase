@@ -12,6 +12,19 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a93] - 2026-10-08
+
+### Corrigido
+
+- O avaliador de alertas subia em qualquer processo que carregasse o app, inclusive comandos de CLI (`bootstrap`, `banco ...`),
+  e despejava um traceback por ciclo enquanto as tabelas nao existiam. Agora so sobe no servidor (`servidor.executar`) e repete
+  no log apenas quando a falha muda.
+
+### Documentacao
+
+- Doc 20: os comandos sao `flask --app App:CriarApp <grupo> <comando>` (nao `luftbase ...`); `bootstrap --atualizar` ja
+  sincroniza o catalogo do Workspace.
+
 ## [0.1.0a92] - 2026-10-08
 
 ### Adicionado
