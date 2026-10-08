@@ -453,8 +453,8 @@ class RepositorioNotificacoes:
         id_usuario: int,
         id_grupo: int | None,
         apenas_lidas: bool = False,
-    ) -> int:
-        """Some com todas as notificacoes visiveis da pessoa (ou so as lidas). Devolve quantas sumiram."""
+    ) -> list[int]:
+        """Some com todas as notificacoes visiveis da pessoa (ou so as lidas). Devolve os ids que sumiram."""
 
         lida_efetiva = case(
             (Notificacao.id_usuario_destino == id_usuario, Notificacao.lida),
@@ -474,16 +474,30 @@ class RepositorioNotificacoes:
         if apenas_lidas:
             consulta = consulta.where(lida_efetiva.is_(True))
         with self._banco.unidade_trabalho() as sessao:
-            ids = list(sessao.execute(consulta).scalars())
+            ids = [int(i) for i in sessao.execute(consulta).scalars()]
             if not ids:
-                return 0
+                return []
             sessao.execute(
                 insert(NotificacaoOculta).on_conflict_do_nothing(
                     index_elements=(NotificacaoOculta.id_notificacao, NotificacaoOculta.id_usuario)
                 ),
                 [{"id_notificacao": i, "id_usuario": id_usuario} for i in ids],
             )
-            return len(ids)
+            return ids
+
+    def restaurar(self, *, id_usuario: int, ids: list[int]) -> int:
+        """Desfaz o "limpar": as notificacoes voltam a aparecer so para esta pessoa. Devolve quantas voltaram."""
+
+        if not ids:
+            return 0
+        with self._banco.unidade_trabalho() as sessao:
+            resultado = sessao.execute(
+                delete(NotificacaoOculta).where(
+                    NotificacaoOculta.id_usuario == id_usuario,
+                    NotificacaoOculta.id_notificacao.in_(ids),
+                )
+            )
+            return int(resultado.rowcount or 0)
 
     def contar_nao_lidas(
         self,

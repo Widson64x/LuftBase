@@ -8,7 +8,7 @@ sistemas (SSO), permissoes, auditoria, notificacoes e comunicados, temas, perfil
 Painel de Controle para a equipe de TI. As aplicacoes consumidoras cuidam so do que e delas.
 
 - Repositorio: <https://github.com/Widson64x/LuftBase> (publico)
-- Versao atual: **0.1.0a98** (alpha) — veja o [CHANGELOG](CHANGELOG.md)
+- Versao atual: **0.1.0a99** (alpha) — veja o [CHANGELOG](CHANGELOG.md)
 - Python 3.11 ou superior; mais de 740 testes automatizados
 
 ## Quem usa

@@ -93,9 +93,16 @@ def _ocultar(self, id_usuario, id_grupo, id_notificacao):  # type: ignore[no-unt
 def _ocultar_todas(self, id_usuario, id_grupo, *, apenas_lidas=False):  # type: ignore[no-untyped-def]
     del id_usuario, id_grupo
     self.ocultou_todas.append(apenas_lidas)
-    return 3
+    return [7, 8, 9]
 
 
+def _restaurar(self, id_usuario, ids):  # type: ignore[no-untyped-def]
+    del id_usuario
+    self.restauradas = list(ids)
+    return len(ids)
+
+
+ServicoNotificacoesFalso.restaurar = _restaurar  # type: ignore[attr-defined]
 ServicoNotificacoesFalso.ocultar = _ocultar  # type: ignore[attr-defined]
 ServicoNotificacoesFalso.ocultar_todas = _ocultar_todas  # type: ignore[attr-defined]
 ServicoNotificacoesFalso.contar_nao_lidas = lambda self, u, g: 1  # type: ignore[attr-defined]  # noqa: E731
@@ -313,5 +320,33 @@ def test_ocultar_todas_e_so_as_lidas(monkeypatch) -> None:  # type: ignore[no-un
         "/_luftbase/notificacoes/ocultar-todas?apenas_lidas=1", headers={"X-CSRF-Token": token}
     )
 
-    assert todas.json["total_ocultadas"] == 3 and lidas.status_code == 200
+    assert todas.json["total_ocultadas"] == 3 and todas.json["ids"] == [7, 8, 9]
+    assert lidas.status_code == 200
     assert notificacoes.ocultou_todas == [False, True]
+
+
+def test_restaurar_desfaz_o_limpar_so_para_quem_pediu(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    app, notificacoes = _criar_app(monkeypatch)
+    cliente = app.test_client()
+    token = _autenticar(cliente)
+
+    resposta = cliente.post(
+        "/_luftbase/notificacoes/restaurar", json={"ids": [7, 8]}, headers={"X-CSRF-Token": token}
+    )
+
+    assert resposta.status_code == 200
+    assert resposta.json == {"status": "success", "restauradas": 2, "contagem": 1}
+    assert notificacoes.restauradas == [7, 8]
+
+
+def test_restaurar_valida_o_corpo_e_exige_csrf(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    app, _ = _criar_app(monkeypatch)
+    cliente = app.test_client()
+    token = _autenticar(cliente)
+    cab = {"X-CSRF-Token": token}
+
+    assert cliente.post("/_luftbase/notificacoes/restaurar", json={"ids": [1]}).status_code == 403
+    assert cliente.post("/_luftbase/notificacoes/restaurar", json={}, headers=cab).status_code == 400
+    assert cliente.post(
+        "/_luftbase/notificacoes/restaurar", json={"ids": ["x"]}, headers=cab
+    ).status_code == 400

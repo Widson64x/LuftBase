@@ -185,13 +185,42 @@ def registrar_rotas_conteudo(app: Flask) -> None:
             from luftbase.plataforma import obter_luftbase
 
             servico = obter_luftbase().notificacoes
-            total = servico.ocultar_todas(
+            ids = servico.ocultar_todas(
                 usuario.id_usuario, usuario.id_grupo, apenas_lidas=apenas_lidas
             )
             contagem = servico.contar_nao_lidas(usuario.id_usuario, usuario.id_grupo)
         except ErroConteudo as erro:
             abort(400, description=str(erro))
-        return {"status": "success", "total_ocultadas": total, "contagem": contagem}, 200
+        return {
+            "status": "success",
+            "total_ocultadas": len(ids),
+            "ids": ids,
+            "contagem": contagem,
+        }, 200
+
+    @bp.route("/notificacoes/restaurar", methods=["POST"])
+    def restaurar_notificacoes():  # type: ignore[no-untyped-def]
+        """Desfaz o "limpar" (botao Desfazer): `{"ids": [...]}`. So afeta a lista de quem pediu."""
+
+        usuario = _usuario_atual()
+        validar_csrf_requisicao()
+        dados = request.get_json(silent=True) or {}
+        bruto = dados.get("ids")
+        if not isinstance(bruto, list):
+            abort(400, description="Informe a lista de ids.")
+        try:
+            ids = [int(i) for i in bruto]
+        except (TypeError, ValueError):
+            abort(400, description="Ids invalidos.")
+        try:
+            from luftbase.plataforma import obter_luftbase
+
+            servico = obter_luftbase().notificacoes
+            restauradas = servico.restaurar(usuario.id_usuario, ids)
+            contagem = servico.contar_nao_lidas(usuario.id_usuario, usuario.id_grupo)
+        except ErroConteudo as erro:
+            abort(400, description=str(erro))
+        return {"status": "success", "restauradas": restauradas, "contagem": contagem}, 200
 
     @bp.get("/notificacoes/eventos")
     def eventos_notificacoes():  # type: ignore[no-untyped-def]

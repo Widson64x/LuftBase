@@ -1,0 +1,476 @@
+/* ==========================================================================
+   PAINEL DE NOTIFICAÇÕES — visual v2 (carregado depois de notificacoes.css).
+   Os seletores usam #luft-notif-drawer para vencer as regras antigas sem !important.
+   ========================================================================== */
+
+#luft-notif-drawer {
+    width: 440px;
+    background: var(--luft-bg-panel, #ffffff);
+}
+
+/* ---------- Cabeçalho ---------- */
+#luft-notif-drawer .luft-notif-header {
+    padding: 18px 20px 14px;
+    border-bottom: none;
+    gap: 12px;
+}
+
+#luft-notif-drawer .luft-notif-header-left {
+    gap: 12px;
+    min-width: 0;
+}
+
+.luft-notif-header-icone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    font-size: 1.35rem;
+    color: var(--luft-primary-600, #2563eb);
+    background: var(--luft-primary-50, rgba(59, 130, 246, 0.1));
+}
+
+.luft-notif-header-textos {
+    min-width: 0;
+}
+
+#luft-notif-drawer .luft-notif-header-title {
+    font-size: 1.1rem;
+    line-height: 1.2;
+}
+
+.luft-notif-resumo {
+    margin: 2px 0 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--luft-primary-600, #2563eb);
+}
+
+.luft-notif-resumo.em-dia {
+    color: #059669;
+}
+
+/* O número já aparece no resumo e na aba; o selo do cabeçalho some para não repetir. */
+#luft-notif-drawer .luft-notif-header-badge {
+    display: none !important;
+}
+
+#luft-notif-drawer .luft-notif-header-actions {
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* Botões de ação do cabeçalho: só o ícone (o texto vai no tooltip), para o título respirar. */
+#luft-notif-drawer .luft-notif-action-btn {
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 1.05rem;
+    border-radius: 10px;
+}
+
+#luft-notif-drawer .luft-notif-action-btn span,
+.luft-notif-caret {
+    display: none;
+}
+
+#luft-notif-drawer:focus,
+#luft-notif-drawer:focus-visible {
+    outline: none !important;
+    box-shadow: -8px 0 40px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- Menu "Limpar" ---------- */
+.luft-notif-menu-wrap {
+    position: relative;
+}
+
+.luft-notif-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 5;
+    width: 270px;
+    padding: 6px;
+    background: var(--luft-bg-panel, #ffffff);
+    border: 1px solid var(--luft-border, rgba(0, 0, 0, 0.1));
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+    animation: luft-notif-surgir 0.16s ease-out;
+}
+
+.luft-notif-menu[hidden] {
+    display: none;
+}
+
+.luft-notif-menu button {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    text-align: left;
+    color: var(--luft-text-main, #1a1a2e);
+    background: none;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.luft-notif-menu button:hover,
+.luft-notif-menu button:focus-visible {
+    background: var(--luft-bg-app, #f1f5f9);
+    outline: none;
+}
+
+.luft-notif-menu button > i {
+    margin-top: 2px;
+    font-size: 1.05rem;
+    color: var(--luft-text-muted, #64748b);
+}
+
+.luft-notif-menu button span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.luft-notif-menu strong {
+    font-size: 0.82rem;
+}
+
+.luft-notif-menu small {
+    font-size: 0.72rem;
+    color: var(--luft-text-muted, #64748b);
+}
+
+/* ---------- Abas (estilo segmentado) ---------- */
+#luft-notif-drawer .luft-notif-tabs {
+    gap: 4px;
+    margin: 0 20px 12px;
+    padding: 4px;
+    border-bottom: none;
+    background: var(--luft-bg-app, #f1f5f9);
+    border-radius: 12px;
+}
+
+#luft-notif-drawer .luft-notif-tab {
+    flex: 1;
+    padding: 8px 12px;
+    border-bottom: none;
+    border-radius: 9px;
+    text-align: center;
+}
+
+#luft-notif-drawer .luft-notif-tab.ativo {
+    color: var(--luft-primary-600, #2563eb);
+    background: var(--luft-bg-panel, #ffffff);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+/* ---------- Filtro por tipo ---------- */
+.luft-notif-filtros {
+    display: flex;
+    gap: 6px;
+    padding: 0 20px 10px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+}
+
+.luft-notif-filtros[hidden] {
+    display: none;
+}
+
+.luft-notif-filtros::-webkit-scrollbar {
+    display: none;
+}
+
+.luft-notif-chip {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--luft-text-muted, #64748b);
+    background: transparent;
+    border: 1px solid var(--luft-border, rgba(0, 0, 0, 0.1));
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.luft-notif-chip:hover {
+    color: var(--luft-text-main, #1a1a2e);
+    border-color: var(--luft-primary-200, rgba(59, 130, 246, 0.35));
+}
+
+.luft-notif-chip.ativo {
+    color: #ffffff;
+    background: var(--luft-primary-500, #3b82f6);
+    border-color: var(--luft-primary-500, #3b82f6);
+}
+
+/* ---------- Lista ---------- */
+#luft-notif-drawer .luft-notif-list {
+    padding: 0 0 12px;
+    border-top: 1px solid var(--luft-border, rgba(0, 0, 0, 0.06));
+}
+
+.luft-notif-grupo {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 12px 20px 6px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--luft-text-muted, #94a3b8);
+    background: var(--luft-bg-panel, #ffffff);
+}
+
+/* ---------- Item ---------- */
+#luft-notif-drawer .luft-notif-item {
+    display: flex;
+    gap: 12px;
+    margin: 2px 10px;
+    padding: 12px;
+    cursor: default;
+    border: 1px solid transparent;
+    border-left: 1px solid transparent;
+    border-radius: 14px;
+    transition: background 0.15s ease, border-color 0.15s ease, opacity 0.18s ease, transform 0.18s ease;
+}
+
+#luft-notif-drawer .luft-notif-item:hover {
+    background: var(--luft-bg-app, #f8fafc);
+}
+
+#luft-notif-drawer .luft-notif-item.nao-lida {
+    background: var(--luft-primary-50, rgba(59, 130, 246, 0.07));
+    border-color: var(--luft-primary-100, rgba(59, 130, 246, 0.16));
+}
+
+#luft-notif-drawer .luft-notif-item.nao-lida:hover {
+    background: var(--luft-primary-100, rgba(59, 130, 246, 0.11));
+}
+
+/* O ponto de "não lida" agora fica ao lado do título; o antigo (pulsante) sai. */
+#luft-notif-drawer .luft-notif-item.nao-lida::after {
+    display: none;
+}
+
+#luft-notif-drawer .luft-notif-item.nao-lida .luft-notif-title::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 7px;
+    vertical-align: 1px;
+    border-radius: 50%;
+    background: var(--luft-primary-500, #3b82f6);
+}
+
+#luft-notif-drawer .luft-notif-item.saindo {
+    opacity: 0;
+    transform: translateX(24px);
+}
+
+.luft-notif-topline {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+#luft-notif-drawer .luft-notif-title {
+    margin: 0 0 3px;
+    padding-right: 0;
+    font-size: 0.86rem;
+}
+
+#luft-notif-drawer .luft-notif-time {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--luft-text-muted, #94a3b8);
+    white-space: nowrap;
+}
+
+#luft-notif-drawer .luft-notif-message {
+    margin: 0 0 8px;
+    font-size: 0.8rem;
+    -webkit-line-clamp: 3;
+}
+
+.luft-notif-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+#luft-notif-drawer .luft-notif-meta-tag {
+    padding: 2px 8px;
+    font-size: 0.64rem;
+    border-radius: 999px;
+}
+
+/* Botão de ação em destaque (ex.: "Abrir Luft-Workspace") */
+.luft-notif-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #ffffff !important;
+    text-decoration: none !important;
+    background: var(--luft-primary-500, #2563eb);
+    border-radius: 999px;
+    transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.luft-notif-cta:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
+/* Ações do item: aparecem ao passar o mouse (sempre visíveis em tela de toque) */
+.luft-notif-acoes {
+    display: inline-flex;
+    gap: 4px;
+    margin-left: auto;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+#luft-notif-drawer .luft-notif-item:hover .luft-notif-acoes,
+#luft-notif-drawer .luft-notif-item:focus-within .luft-notif-acoes {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .luft-notif-acoes {
+        opacity: 1;
+    }
+}
+
+.luft-notif-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+    color: var(--luft-text-muted, #64748b);
+    background: var(--luft-bg-app, #f1f5f9);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.luft-notif-icon-btn:hover,
+.luft-notif-icon-btn:focus-visible {
+    color: #ffffff;
+    background: var(--luft-primary-500, #3b82f6);
+    outline: none;
+}
+
+.luft-notif-icon-btn.perigo:hover,
+.luft-notif-icon-btn.perigo:focus-visible {
+    background: #ef4444;
+}
+
+/* ---------- Esqueleto e vazio ---------- */
+#luft-notif-drawer .luft-notif-skeleton {
+    padding: 14px 22px;
+}
+
+#luft-notif-drawer .luft-notif-empty {
+    padding: 56px 28px;
+}
+
+/* ---------- Aviso com "Desfazer" ---------- */
+.luft-notif-snackbar {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px 12px 16px;
+    font-size: 0.82rem;
+    color: #f8fafc;
+    background: #1e293b;
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.35);
+    animation: luft-notif-subir 0.22s ease-out;
+}
+
+.luft-notif-snackbar[hidden] {
+    display: none;
+}
+
+.luft-notif-snackbar button {
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #93c5fd;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.luft-notif-snackbar button:hover {
+    background: rgba(147, 197, 253, 0.14);
+}
+
+@keyframes luft-notif-subir {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes luft-notif-surgir {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Telas pequenas ---------- */
+@media (max-width: 480px) {
+    #luft-notif-drawer {
+        width: 100vw;
+        max-width: 100vw;
+    }
+
+    #luft-notif-drawer .luft-notif-action-btn span {
+        display: none;
+    }
+
+    #luft-notif-drawer .luft-notif-header {
+        padding: 14px 14px 10px;
+    }
+
+    #luft-notif-drawer .luft-notif-tabs {
+        margin: 0 14px 10px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #luft-notif-drawer *,
+    .luft-notif-snackbar,
+    .luft-notif-menu {
+        animation: none !important;
+        transition: none !important;
+    }
+}

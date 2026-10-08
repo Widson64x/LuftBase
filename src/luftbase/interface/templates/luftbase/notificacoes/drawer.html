@@ -2,6 +2,7 @@
 {# ================================================================
    DRAWER DE NOTIFICAÇÕES — LuftBase
    Inclua este template no base.html quando notificações estiverem ativas.
+   Comportamento em static/js/notificacoes_v2.js, visual em static/css/notificacoes_v2.css.
    ================================================================ #}
 
 <!-- Configuração do módulo de notificações -->
@@ -15,44 +16,64 @@
 <!-- Backdrop -->
 <div id="luft-notif-backdrop" class="luft-notif-backdrop"></div>
 
-<!-- Drawer Panel -->
-<div id="luft-notif-drawer" class="luft-notif-drawer">
+<!-- Painel lateral de notificações -->
+<div id="luft-notif-drawer" class="luft-notif-drawer" role="dialog" aria-modal="true" aria-label="Notificações" tabindex="-1">
 
-    <!-- Header -->
+    <!-- Cabeçalho -->
     <div class="luft-notif-header">
         <div class="luft-notif-header-left">
-            <h3 class="luft-notif-header-title">Notificações</h3>
+            <div class="luft-notif-header-icone" aria-hidden="true"><i class="ph-fill ph-bell-ringing"></i></div>
+            <div class="luft-notif-header-textos">
+                <h3 class="luft-notif-header-title">Notificações</h3>
+                <p id="luft-notif-resumo" class="luft-notif-resumo">Carregando…</p>
+            </div>
             <span class="luft-notif-header-badge" data-count="0">0</span>
         </div>
         <div class="luft-notif-header-actions">
-            <button id="luft-notif-mark-all-btn" class="luft-notif-action-btn" title="Marcar todas como lidas">
+            <button id="luft-notif-mark-all-btn" class="luft-notif-action-btn" type="button" title="Marcar todas como lidas" aria-label="Marcar todas como lidas">
                 <i class="ph-bold ph-checks"></i>
                 <span>Ler todas</span>
             </button>
-            <button id="luft-notif-clear-btn" class="luft-notif-action-btn luft-notif-action-clear" title="Limpar a minha lista (as notificações continuam registradas)">
-                <i class="ph-bold ph-broom"></i>
-                <span>Limpar</span>
-            </button>
-            <button id="luft-notif-close-btn" class="luft-notif-close-btn" title="Fechar">
+            <div class="luft-notif-menu-wrap">
+                <button id="luft-notif-clear-btn" class="luft-notif-action-btn luft-notif-action-clear" type="button"
+                        aria-haspopup="true" aria-expanded="false" aria-label="Limpar a minha lista" title="Limpar a minha lista (as notificações continuam registradas no sistema)">
+                    <i class="ph-bold ph-broom"></i>
+                    <span>Limpar</span>
+                    <i class="ph-bold ph-caret-down luft-notif-caret"></i>
+                </button>
+                <div id="luft-notif-clear-menu" class="luft-notif-menu" role="menu" hidden>
+                    <button type="button" role="menuitem" data-limpar="lidas">
+                        <i class="ph-bold ph-check-circle"></i>
+                        <span><strong>Limpar as lidas</strong><small>Mantém as que você ainda não leu</small></span>
+                    </button>
+                    <button type="button" role="menuitem" data-limpar="todas">
+                        <i class="ph-bold ph-trash-simple"></i>
+                        <span><strong>Limpar todas</strong><small>Some só para você; dá para desfazer</small></span>
+                    </button>
+                </div>
+            </div>
+            <button id="luft-notif-close-btn" class="luft-notif-close-btn" type="button" title="Fechar" aria-label="Fechar notificações">
                 <i class="ph-bold ph-x"></i>
             </button>
         </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="luft-notif-tabs">
-        <button class="luft-notif-tab ativo" data-filtro="todas">
+    <!-- Abas -->
+    <div class="luft-notif-tabs" role="tablist">
+        <button class="luft-notif-tab ativo" type="button" role="tab" data-filtro="todas">
             Todas
         </button>
-        <button class="luft-notif-tab" data-filtro="nao_lidas">
+        <button class="luft-notif-tab" type="button" role="tab" data-filtro="nao_lidas">
             Não lidas
             <span class="luft-notif-tab-count">0</span>
         </button>
     </div>
 
+    <!-- Filtro por tipo (aparece só quando há mais de um tipo na lista) -->
+    <div id="luft-notif-filtros" class="luft-notif-filtros" hidden></div>
+
     <!-- Lista de notificações -->
     <div id="luft-notif-list" class="luft-notif-list">
-        <!-- Conteúdo será renderizado via JavaScript -->
         <div class="luft-notif-empty">
             <div class="luft-notif-empty-icon">
                 <i class="ph-thin ph-bell-slash"></i>
@@ -62,11 +83,17 @@
         </div>
     </div>
 
-    <!-- Footer: Carregar mais -->
+    <!-- Rodapé: Carregar mais -->
     <div id="luft-notif-load-more" class="luft-notif-load-more" style="display: none;">
-        <button id="luft-notif-load-more-btn" class="luft-notif-load-more-btn">
+        <button id="luft-notif-load-more-btn" class="luft-notif-load-more-btn" type="button">
             <i class="ph-bold ph-arrow-down"></i>
             Carregar mais
         </button>
+    </div>
+
+    <!-- Aviso com "Desfazer" depois de limpar -->
+    <div id="luft-notif-snackbar" class="luft-notif-snackbar" role="status" aria-live="polite" hidden>
+        <span id="luft-notif-snackbar-texto"></span>
+        <button id="luft-notif-snackbar-desfazer" type="button">Desfazer</button>
     </div>
 </div>

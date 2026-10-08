@@ -12,6 +12,21 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a99] - 2026-10-08
+
+### Alterado
+
+- **Painel de notificacoes redesenhado**: mais recente primeiro e agrupado por dia (Hoje, Ontem, Esta semana, Anteriores); resumo
+  no cabecalho ("2 nao lidas" / "Tudo em dia"); abas em formato segmentado; filtro por tipo (aparece com mais de um tipo);
+  botao de acao em destaque ("Abrir Luft-Workspace"); icones de ler e limpar por item; estados vazios mais claros; tela cheia no
+  celular. Antes a lista aparecia com as mais antigas no topo e o "Carregar mais" repetia as mesmas notificacoes (o servidor ignora
+  `pagina`); agora o limite cresce de 20 em 20 ate 100.
+- **Limpar com menu e Desfazer**: "Limpar as lidas" ou "Limpar todas", sem janela de confirmacao; um aviso de 8 s oferece
+  "Desfazer" (`POST /_luftbase/notificacoes/restaurar`). `ocultar-todas` agora devolve os `ids` limpos.
+- Links de notificacao so viram botao se forem caminho do proprio site ou `http(s)` (`javascript:` e afins sao descartados).
+- O painel passou para arquivos novos (`notificacoes_v2.js` e `notificacoes_v2.css`), o antigo `notificacoes.js` saiu: o nome novo
+  evita que um navegador com cache antigo misture a tela nova com o JavaScript velho.
+
 ## [0.1.0a98] - 2026-10-08
 
 ### Corrigido

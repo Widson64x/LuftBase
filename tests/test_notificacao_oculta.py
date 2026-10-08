@@ -115,12 +115,12 @@ def test_ocultar_todas_e_so_as_lidas(repo) -> None:  # type: ignore[no-untyped-d
     r.marcar_lida(id_sistema=0, id_usuario=1, id_grupo=None, id_notificacao=lida)
 
     so_lidas = r.ocultar_todas(id_sistema=0, id_usuario=1, id_grupo=None, apenas_lidas=True)
-    assert so_lidas == 1 and _titulos(r, 1) == ["Nao lida"]
+    assert so_lidas == [lida] and _titulos(r, 1) == ["Nao lida"]
 
     todas = r.ocultar_todas(id_sistema=0, id_usuario=1, id_grupo=None)
-    assert todas == 1 and _titulos(r, 1) == []
+    assert len(todas) == 1 and _titulos(r, 1) == []
     assert _titulos(r, 2) == ["Lida", "Nao lida"]  # a outra pessoa nao foi afetada
-    assert r.ocultar_todas(id_sistema=0, id_usuario=1, id_grupo=None) == 0
+    assert r.ocultar_todas(id_sistema=0, id_usuario=1, id_grupo=None) == []
 
 
 def test_filtro_de_visibilidade_consulta_a_tabela_de_ocultas() -> None:
@@ -131,3 +131,30 @@ def test_filtro_de_visibilidade_consulta_a_tabela_de_ocultas() -> None:
     )
 
     assert "tb_notificacao_oculta" in sql
+
+
+def test_restaurar_traz_de_volta_so_para_quem_desfez(repo) -> None:  # type: ignore[no-untyped-def]
+    r, _ = repo
+    a = _criar(r, "A")
+    b = _criar(r, "B")
+    r.ocultar_todas(id_sistema=0, id_usuario=1, id_grupo=None)
+    r.ocultar_todas(id_sistema=0, id_usuario=2, id_grupo=None)
+
+    assert r.restaurar(id_usuario=1, ids=[a]) == 1
+
+    assert _titulos(r, 1) == ["A"]  # voltou so a que foi desfeita
+    assert _titulos(r, 2) == []  # a limpeza da outra pessoa nao foi afetada
+    assert r.restaurar(id_usuario=1, ids=[a]) == 0  # idempotente
+    assert r.restaurar(id_usuario=1, ids=[]) == 0
+    assert b  # (so para usar a variavel)
+
+
+def test_servico_restaurar_valida_os_ids() -> None:
+    from luftbase.conteudo.servicos import ServicoNotificacoes
+    from luftbase.nucleo.excecoes import ErroConteudo
+
+    servico = ServicoNotificacoes(0, object(), object())  # type: ignore[arg-type]
+
+    for ruins in ([], [0], [-1], list(range(1, 502))):
+        with pytest.raises(ErroConteudo):
+            servico.restaurar(1, ruins)

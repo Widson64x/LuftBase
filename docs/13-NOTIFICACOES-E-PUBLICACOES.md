@@ -52,7 +52,8 @@ a notificacao continua em `tb_notificacao` e segue aparecendo para as demais pes
 `core.tb_notificacao_oculta` (`id_notificacao`, `id_usuario`, `data_ocultacao`), vale para notificacao pessoal, de grupo e global, e
 `filtro_notificacao_visivel` a aplica em todas as consultas (lista, contagem de nao lidas, marcar como lida). A notificacao
 limpa tambem sai da contagem do sino. Limpar de novo a mesma notificacao e idempotente; limpar a de outra pessoa responde 404.
-Se a notificacao expirar ou for removida, a linha de `tb_notificacao_oculta` vai junto (`ON DELETE CASCADE`).
+O botao **Limpar** tem um menu ("Limpar as lidas" / "Limpar todas") e, depois de limpar, um aviso de 8 s oferece **Desfazer**
+(`POST /_luftbase/notificacoes/restaurar` com `{"ids": [...]}`, de 1 a 500 ids, so afeta a lista de quem pediu). Se a notificacao expirar ou for removida, a linha de `tb_notificacao_oculta` vai junto (`ON DELETE CASCADE`).
 
 Em todo sistema que le notificacoes o papel do banco precisa de acesso a essa tabela (a migracao `20261008_0015` concede a todos os
 papeis `luft_*_app`); sem isso a lista de notificacoes falha.
@@ -99,7 +100,7 @@ Todas as rotas exigem uma sessao Flask-Login valida:
 
 - `GET /_luftbase/notificacoes`;
 - `PUT /_luftbase/notificacoes/<id>/leitura`;
-- `POST /_luftbase/notificacoes/<id>/ocultar` e `POST /_luftbase/notificacoes/ocultar-todas` (`?apenas_lidas=1` limpa so as lidas);
+- `POST /_luftbase/notificacoes/<id>/ocultar`, `POST /_luftbase/notificacoes/ocultar-todas` (`?apenas_lidas=1` limpa so as lidas; devolve os `ids`) e `POST /_luftbase/notificacoes/restaurar`;
 - `GET /_luftbase/notificacoes/eventos`;
 - `GET /_luftbase/publicacoes`;
 - `GET /_luftbase/publicacoes/<id>`;

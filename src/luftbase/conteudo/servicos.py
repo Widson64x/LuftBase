@@ -76,8 +76,11 @@ class PortaNotificacoes(Protocol):
         id_usuario: int,
         id_grupo: int | None,
         apenas_lidas: bool = False,
-    ) -> int:
-        """Some com as notificacoes visiveis da pessoa."""
+    ) -> list[int]:
+        """Some com as notificacoes visiveis da pessoa e devolve os ids."""
+
+    def restaurar(self, *, id_usuario: int, ids: list[int]) -> int:
+        """Desfaz o limpar de algumas notificacoes."""
 
     def contar_nao_lidas(
         self,
@@ -249,9 +252,16 @@ class ServicoNotificacoes:
             id_notificacao=id_notificacao,
         )
 
+    def restaurar(self, id_usuario: int, ids: list[int]) -> int:
+        """Desfaz o "limpar": as notificacoes voltam a aparecer para esta pessoa."""
+
+        if not ids or len(ids) > 500 or any(i <= 0 for i in ids):
+            raise ErroConteudo("Informe de 1 a 500 identificadores positivos.")
+        return self._repositorio.restaurar(id_usuario=id_usuario, ids=ids)
+
     def ocultar_todas(
         self, id_usuario: int, id_grupo: int | None, *, apenas_lidas: bool = False
-    ) -> int:
+    ) -> list[int]:
         """Limpa as notificacoes da lista da pessoa (todas, ou so as ja lidas)."""
 
         return self._repositorio.ocultar_todas(

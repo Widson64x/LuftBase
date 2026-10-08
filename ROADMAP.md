@@ -147,6 +147,7 @@ Producao hoje: Luft-Workspace e Luft-Integrador (Windows). Homologacao: os tres 
 - [x] Notas de atualizacao com markdown seguro, imagens, destaques e cards.
 - [x] Nota global de lancamento, idempotente, com correcao de texto sem renotificar.
 - [x] Limpar notificacoes da propria lista (botao Limpar e X por item) sem apagar a notificacao para as demais pessoas.
+- [x] Painel de notificacoes redesenhado (agrupado por dia, filtro por tipo, botao de acao, limpar com menu e desfazer).
 - [x] E-mail de acesso liberado redesenhado (centralizado, com selo, cartao de detalhes e botao).
 
 ## M17 — Documentacao
