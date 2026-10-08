@@ -315,7 +315,7 @@ def test_variavel_de_corte_aceita_data_valida_e_ignora_lixo(monkeypatch) -> None
 
 
 def test_variavel_de_corte_esta_na_tela_de_ambiente() -> None:
-    from luftbase.infraestrutura.variaveis_ambiente import ErroVariavel, PERMITIDAS
+    from luftbase.infraestrutura.variaveis_ambiente import PERMITIDAS, ErroVariavel
 
     var = next(v for v in PERMITIDAS if v.chave == "LUFT_AUDITORIA_DADOS_DESDE")
     assert var.validar("") == "" and var.validar(" 2026-10-06T17:00 ") == "2026-10-06T17:00"

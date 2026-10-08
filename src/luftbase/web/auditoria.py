@@ -14,13 +14,13 @@ from flask_login import current_user, login_required
 
 from luftbase.autorizacao import PermissaoLuftBase
 from luftbase.autorizacao.web import consultar_permissoes, exigir_permissao
+from luftbase.interface.web import id_sessao_atual, validar_csrf_requisicao
+from luftbase.observabilidade import SeveridadeAuditoria, registrar_alteracao_auditoria
 from luftbase.observabilidade.analise import (
     FiltroAuditoria,
     PaginaAuditoria,
     ServicoAnaliseAuditoria,
 )
-from luftbase.interface.web import id_sessao_atual, validar_csrf_requisicao
-from luftbase.observabilidade import SeveridadeAuditoria, registrar_alteracao_auditoria
 from luftbase.observabilidade.controle_sessoes import ServicoControleSessoes
 from luftbase.observabilidade.filtros import NAVEGADORES
 from luftbase.observabilidade.insights import ServicoInsights

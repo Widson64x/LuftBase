@@ -7,9 +7,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
-
-logger = logging.getLogger(__name__)
+from typing import Any, cast
 
 from flask import Blueprint, abort, current_app, jsonify, render_template, request, url_for
 from flask_login import login_required
@@ -58,6 +56,8 @@ from luftbase.web.escopo import (
     usuario_autenticado_atual,
     validar_sistema_alteravel_manutencao,
 )
+
+logger = logging.getLogger(__name__)
 
 ConfiguracoesBp = Blueprint("Configuracoes", __name__, url_prefix="/configuracoes")
 AdminBp = Blueprint("Admin", __name__, url_prefix="/admin")

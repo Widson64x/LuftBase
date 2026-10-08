@@ -7,7 +7,11 @@ from datetime import datetime, timedelta
 import pytest
 
 from luftbase.identidade.agente_usuario import interpretar_agente
-from luftbase.observabilidade.analise import FiltroAuditoria, PaginaAuditoria, ServicoAnaliseAuditoria
+from luftbase.observabilidade.analise import (
+    FiltroAuditoria,
+    PaginaAuditoria,
+    ServicoAnaliseAuditoria,
+)
 from luftbase.observabilidade.filtros import NAVEGADORES, padrao_rota
 from luftbase.observabilidade.insights import ServicoInsights
 
@@ -251,9 +255,8 @@ def test_parametros_invalidos_sao_recusados(consulta: str) -> None:
 
     from luftbase.web.auditoria import _montar_drill
 
-    with Flask("t").test_request_context(f"/?{consulta}"):
-        with pytest.raises(HTTPException) as erro:
-            _montar_drill()
+    with Flask("t").test_request_context(f"/?{consulta}"), pytest.raises(HTTPException) as erro:
+        _montar_drill()
     assert erro.value.code == 400
 
 

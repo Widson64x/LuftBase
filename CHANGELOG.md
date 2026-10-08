@@ -12,6 +12,18 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a90] - 2026-10-08
+
+### Adicionado
+
+- CI do LuftBase em Windows e Linux (`ruff`, `pytest`, build do wheel e conferencia tag x versao).
+- Teste de fumaca por plataforma (log fisico no horario de Brasilia), teste que exige migracao aditiva e
+  `tools/carga.py` (roteiro de carga com p95 e taxa de erro), documentados no doc 20 com o procedimento de rollback.
+
+### Corrigido
+
+- `web/configuracoes.py` usava `Any` sem importar; lint zerado (`E501` fica fora, por ser so de estilo).
+
 ## [0.1.0a89] - 2026-10-08
 
 ### Corrigido

@@ -55,11 +55,11 @@ from luftbase.integracoes.diagnostico import IntegracaoAplicacao
 from luftbase.integracoes.email import ResultadoEnvio, ServicoEmail
 from luftbase.interface.busca import ProvedorBusca
 from luftbase.interface.parametros import ParametroAplicacao
-from luftbase.nucleo.tempo import aplicar_fuso_do_processo
 from luftbase.interface.repositorio import RepositorioPreferenciasTema
 from luftbase.interface.servico import ServicoTemas, criar_registro_padrao
 from luftbase.interface.web import registrar_interface_web
 from luftbase.nucleo.excecoes import ErroInicializacao
+from luftbase.nucleo.tempo import aplicar_fuso_do_processo
 from luftbase.observabilidade.arquivo_fisico import LoggerFisicoAuditoria
 from luftbase.observabilidade.buffer_temp import BufferLogsTemporarios
 from luftbase.observabilidade.metricas import RegistroMetricas

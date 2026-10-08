@@ -61,6 +61,37 @@ dessa lista**: eles seriam apagados.
 3. Cria o `.venv`, `pip install -r requirements.txt`.
 4. Inicia o servico e confere que ficou ativo; senao imprime o `systemctl status` e falha.
 
+## Qualidade da tag, promocao e rollback
+
+**CI do LuftBase** (`.github/workflows/ci.yml`, neste repositorio; os apps seguem so com o `deploy.yml`): a cada push na `main`,
+em tags `v*` e em PR roda em **Windows e Linux** (Python 3.11 e 3.12) `ruff`, `pytest` e o build do wheel, e confere que a tag
+e igual a versao do `pyproject.toml`. O `mypy` roda como informativo ate a divida de tipos zerar. **So publique a tag com a
+matriz verde**: os apps instalam o LuftBase pela tag, entao tag ruim chega a todos no proximo deploy.
+
+**Ordem de promocao**: a tag nova entra primeiro nos tres sistemas em homologacao (Workspace, ConnectAir, Integrador). O pin de
+producao so muda depois de a homologacao validar; o CHANGELOG da versao diz qual app ja a validou.
+
+**Rollback** (voltar uma versao):
+1. No `requirements.txt` do app, volte `luft-base @ git+https://github.com/Widson64x/LuftBase.git@v<anterior>`.
+2. Commit e push na `homologacao` (ou na `main`, em producao, so com pedido explicito); o deploy refaz o `.venv`.
+3. **Nao desfaca migracao.** O codigo anterior roda sobre o schema novo porque as migracoes sao **aditivas**
+   (`tests/test_migracoes_aditivas.py` barra `drop_*`, `rename_*` e `alter_column` em qualquer migracao nova). Colunas e tabelas
+   novas ficam sem uso ate a versao voltar.
+4. Confira `GET /_luftbase/saude` e a aba Integracoes (versao instalada).
+
+Se uma migracao nova precisar mesmo remover ou endurecer algo, ela exige duas versoes: a primeira para de usar a coluna, a
+segunda (em outra tag, depois de a primeira estar em todos os ambientes) a remove. A regra do teste so se aplica as migracoes
+posteriores a `20260923_0013`.
+
+**Carga** (`tools/carga.py`, so biblioteca padrao): roteiro de N usuarios simultaneos sobre rotas GET, com p50/p95/p99 e erros por
+rota; sai com codigo 1 se o p95 ou a taxa de erro passam do limite. Rode **so em homologacao**:
+
+```
+python tools/carga.py --base https://<host>/<prefixo> --usuarios 100 --duracao 60     --rota /_luftbase/saude --rota /auditoria/api/visao-geral --cookie "<cookie de sessao de teste>"
+```
+
+Meta inicial: 100 usuarios simultaneos, p95 de ate 3000 ms e menos de 1% de erros; ajuste depois da primeira medicao real.
+
 ## Primeiro deploy de um sistema (checklist)
 
 - [ ] Servico criado (NSSM ou systemd) com **o nome do sistema** do catalogo.

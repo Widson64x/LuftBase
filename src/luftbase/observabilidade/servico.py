@@ -104,6 +104,7 @@ class ServicoAuditoria:
         """Completa campos de contexto (usuario, grupo, correlacao) quando ausentes."""
         from flask import g, has_request_context
         from flask_login import current_user
+
         from luftbase.identidade.modelos import UsuarioAutenticado
 
         codigo_usuario = evento.codigo_usuario

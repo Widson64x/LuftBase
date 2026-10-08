@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from hmac import compare_digest
 from urllib.parse import urlsplit
@@ -83,7 +84,7 @@ def login():  # type: ignore[no-untyped-def]
             )
         if usuario is None:
             erro = "Usuário ou senha inválidos."
-            try:
+            with contextlib.suppress(Exception):
                 estado.auditoria.registrar_evento(
                     EventoDominio(
                         acao="LOGIN_FALHA",
@@ -93,11 +94,9 @@ def login():  # type: ignore[no-untyped-def]
                         login_usuario=login_informado or "anonimo",
                     )
                 )
-            except Exception:
-                pass
         else:
             iniciar_sessao_usuario(usuario)
-            try:
+            with contextlib.suppress(Exception):
                 estado.auditoria.registrar_evento(
                     EventoDominio(
                         acao="LOGIN_SUCESSO",
@@ -110,8 +109,6 @@ def login():  # type: ignore[no-untyped-def]
                         nome_grupo=usuario.nome_grupo,
                     )
                 )
-            except Exception:
-                pass
             return redirect(destino or f"{request.script_root}/")
 
     return render_template("luftbase/login.html", erro=erro, destino=destino or "")
@@ -130,7 +127,7 @@ def logout():  # type: ignore[no-untyped-def]
     codigo_usuario = getattr(current_user, "id_usuario", None)
     codigo_grupo = getattr(current_user, "id_grupo", None)
     nome_grupo = getattr(current_user, "nome_grupo", None)
-    try:
+    with contextlib.suppress(Exception):
         estado.auditoria.registrar_evento(
             EventoDominio(
                 acao="LOGOUT",
@@ -143,17 +140,13 @@ def logout():  # type: ignore[no-untyped-def]
                 nome_grupo=nome_grupo,
             )
         )
-    except Exception:
-        pass
     if codigo_usuario:
-        try:
+        with contextlib.suppress(Exception):
             estado.usuarios_core.registrar_fim_sessao(
                 codigo_usuario=codigo_usuario,
                 id_sessao="",
                 remover_status_online=True,
             )
-        except Exception:
-            pass
     encerrar_sessao_global()
     return redirect(url_for("Autenticacao.login"))
 

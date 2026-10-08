@@ -93,6 +93,8 @@ def test_servico_nao_consulta_diretorio_quando_ldap_rejeita() -> None:
 def test_login_com_novo_codigo_aposenta_cadastro_antigo_sem_apagar() -> None:
     """Diretorio re-numerado: o login unico nao pode travar o cadastro nem apagar historico."""
 
+    from typing import cast
+
     from sqlalchemy import (
         CheckConstraint,
         DefaultClause,
@@ -107,7 +109,6 @@ def test_login_com_novo_codigo_aposenta_cadastro_antigo_sem_apagar() -> None:
 
     from luftbase.identidade.repositorio_core import RepositorioUsuariosPostgreSQL
     from luftbase.persistencia.core.usuario import Usuario
-    from typing import cast
 
     engine = create_engine(
         "sqlite+pysqlite:///:memory:", execution_options={"schema_translate_map": {"core": None}}

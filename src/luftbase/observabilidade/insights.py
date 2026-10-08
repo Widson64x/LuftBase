@@ -18,7 +18,11 @@ from sqlalchemy.orm import Session
 
 from luftbase.identidade.agente_usuario import interpretar_agente
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
-from luftbase.observabilidade.analise import FiltroAuditoria, PaginaAuditoria, ServicoAnaliseAuditoria
+from luftbase.observabilidade.analise import (
+    FiltroAuditoria,
+    PaginaAuditoria,
+    ServicoAnaliseAuditoria,
+)
 from luftbase.observabilidade.controle_sessoes import referencia
 from luftbase.observabilidade.filtros import condicao_navegador
 from luftbase.persistencia.core import Log, LogEvento, Sessao, Sistema, Usuario

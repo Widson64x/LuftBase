@@ -15,7 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from luftbase.autorizacao.catalogo import ACOES_PERMISSAO, PermissaoLuftBase
 from luftbase.autorizacao.web import consultar_permissoes, exigir_permissao
 from luftbase.interface.web import validar_csrf_requisicao
-from luftbase.persistencia.core.usuario import Usuario
+from luftbase.observabilidade import SeveridadeAuditoria, registrar_alteracao_auditoria
 from luftbase.persistencia.core.seguranca import (
     Modulo,
     Permissao,
@@ -23,7 +23,7 @@ from luftbase.persistencia.core.seguranca import (
     PermissaoUsuario,
     Sistema,
 )
-from luftbase.observabilidade import SeveridadeAuditoria, registrar_alteracao_auditoria
+from luftbase.persistencia.core.usuario import Usuario
 from luftbase.persistencia.diretorio import GrupoDiretorio, UsuarioDiretorio
 from luftbase.plataforma import obter_luftbase
 from luftbase.web.escopo import eh_sistema_master, resolver_escopo_sistema

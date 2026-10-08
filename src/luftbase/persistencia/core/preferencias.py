@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import BigInteger, CheckConstraint, Integer, String, Text, text
+from sqlalchemy import BigInteger, CheckConstraint, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from luftbase.persistencia.base import BaseLuft
