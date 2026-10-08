@@ -12,6 +12,20 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a96] - 2026-10-08
+
+### Adicionado
+
+- **Limpar notificacoes**: botao "Limpar" no painel e "X" em cada item tiram a notificacao so da lista de quem clicou; ela
+  continua no banco e para as demais pessoas. Tabela nova `core.tb_notificacao_oculta` (migracao aditiva `20261008_0015`, com
+  acesso concedido a todos os papeis `luft_*_app`). **Aplique a migracao antes de subir o pin nos apps.**
+  Rotas `POST /_luftbase/notificacoes/<id>/ocultar` e `/ocultar-todas`.
+
+### Alterado
+
+- E-mail de acesso liberado: layout centralizado, com selo de confirmacao, cartao com sistema, quem liberou e como entrar, botao
+  centralizado e o endereco abaixo para copiar.
+
 ## [0.1.0a95] - 2026-10-08
 
 ### Corrigido

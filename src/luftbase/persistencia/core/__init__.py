@@ -8,7 +8,11 @@ from luftbase.persistencia.core.auditoria import (
     LogDetalhe,
     LogEvento,
 )
-from luftbase.persistencia.core.notificacoes import Notificacao, NotificacaoLeitura
+from luftbase.persistencia.core.notificacoes import (
+    Notificacao,
+    NotificacaoLeitura,
+    NotificacaoOculta,
+)
 from luftbase.persistencia.core.preferencias import ModoTema, RevisaoCache
 from luftbase.persistencia.core.publicacoes import (
     NotaAtualizacaoItem,
@@ -42,6 +46,7 @@ __all__ = [
     "NotaAtualizacaoItem",
     "Notificacao",
     "NotificacaoLeitura",
+    "NotificacaoOculta",
     "Permissao",
     "PermissaoGrupo",
     "PermissaoUsuario",

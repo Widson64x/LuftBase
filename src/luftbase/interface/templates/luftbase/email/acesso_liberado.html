@@ -1,20 +1,63 @@
 {% extends "luftbase/email/base.html" %}
 {% import "luftbase/email/componentes.html" as ui_email %}
 
-{% block previa %}Seu acesso ao {{ nome_sistema }} foi liberado.{% endblock %}
+{% block previa %}Seu acesso ao {{ nome_sistema }} foi liberado. Já pode entrar.{% endblock %}
 
-{% block faixa %}{{ ui_email.faixa("Acesso liberado", "sucesso") }}{% endblock %}
+{# Sem faixa de status: o selo de confirmacao abaixo ja diz o mesmo e o e-mail fica mais limpo. #}
+{% block faixa %}{% endblock %}
 
 {% block conteudo %}
-  {{ ui_email.titulo("Seu acesso foi liberado", rotulo=nome_sistema) }}
-  {{ ui_email.paragrafo("Olá" ~ (", " ~ nome if nome else "") ~ "! Você já pode usar o sistema " ~ nome_sistema ~ ".") }}
+  {% set _fonte = "Arial, Helvetica, sans-serif" %}
+
+  {# Selo de confirmacao: celula com fundo circular (funciona sem imagem e sem CSS externo). #}
+  <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto 20px auto;">
+    <tr>
+      <td align="center" valign="middle" width="64" height="64"
+          style="width:64px; height:64px; border-radius:32px; background-color:#e4f8de; color:#1d6b2c; font-size:32px; line-height:64px; font-weight:bold; font-family:{{ _fonte }};">&#10003;</td>
+    </tr>
+  </table>
+
+  <p style="margin:0 0 6px 0; text-align:center; font-size:12px; letter-spacing:1px; text-transform:uppercase; color:#1d6b2c; font-weight:bold; font-family:{{ _fonte }};">Acesso liberado</p>
+  <h1 style="margin:0 0 12px 0; text-align:center; font-size:24px; line-height:30px; color:#1a2b4c; font-family:{{ _fonte }};">
+    {% if nome %}Tudo pronto, {{ nome }}!{% else %}Tudo pronto!{% endif %}
+  </h1>
+  <p style="margin:0 0 24px 0; text-align:center; font-size:15px; line-height:24px; color:#4a5568; font-family:{{ _fonte }};">
+    Você já pode entrar no sistema <strong style="color:#1a2b4c;">{{ nome_sistema }}</strong>.
+  </p>
+
   {% if url %}
-    {{ ui_email.botao(url, "Abrir " ~ nome_sistema) }}
-    {{ ui_email.nota("Se o botão não funcionar, copie e cole este endereço no navegador: " ~ url) }}
-  {% else %}
-    {{ ui_email.paragrafo("Entre pelo portal da Luft e procure o sistema na sua lista de aplicações.") }}
+    {{ ui_email.botao(url, "Abrir " ~ nome_sistema, centralizar=True) }}
   {% endif %}
-  {% if liberado_por %}
-    {{ ui_email.nota("Liberado por " ~ liberado_por ~ ".") }}
+
+  {# Cartao com os detalhes, centralizado e com largura limitada. #}
+  <table role="presentation" align="center" width="100%" cellpadding="0" cellspacing="0"
+         style="max-width:400px; margin:0 auto 24px auto; border:1px solid #e6e9ef; border-radius:8px; border-collapse:separate; background-color:#f8f9fb;">
+    <tr>
+      <td style="padding:14px 18px; font-size:12px; color:#8a94a6; font-family:{{ _fonte }}; border-bottom:1px solid #e6e9ef;">Sistema</td>
+      <td align="right" style="padding:14px 18px; font-size:13px; color:#1a2b4c; font-weight:bold; font-family:{{ _fonte }}; border-bottom:1px solid #e6e9ef;">{{ nome_sistema }}</td>
+    </tr>
+    {% if liberado_por %}
+    <tr>
+      <td style="padding:14px 18px; font-size:12px; color:#8a94a6; font-family:{{ _fonte }}; border-bottom:1px solid #e6e9ef;">Liberado por</td>
+      <td align="right" style="padding:14px 18px; font-size:13px; color:#1a2b4c; font-weight:bold; font-family:{{ _fonte }}; border-bottom:1px solid #e6e9ef;">{{ liberado_por }}</td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td style="padding:14px 18px; font-size:12px; color:#8a94a6; font-family:{{ _fonte }};">Como entrar</td>
+      <td align="right" style="padding:14px 18px; font-size:13px; color:#1a2b4c; font-weight:bold; font-family:{{ _fonte }};">Usuário e senha da rede</td>
+    </tr>
+  </table>
+
+  {% if url %}
+    <p style="margin:0 0 4px 0; text-align:center; font-size:12px; line-height:18px; color:#8a94a6; font-family:{{ _fonte }};">
+      Se o botão não funcionar, copie e cole este endereço no navegador:
+    </p>
+    <p style="margin:0 0 8px 0; text-align:center; font-size:12px; line-height:18px; font-family:{{ _fonte }}; word-break:break-all;">
+      <a href="{{ url }}" style="color:#1e44a4;">{{ url }}</a>
+    </p>
+  {% else %}
+    <p style="margin:0 0 8px 0; text-align:center; font-size:13px; line-height:20px; color:#4a5568; font-family:{{ _fonte }};">
+      Entre pelo portal da Luft e procure o sistema na sua lista de aplicações.
+    </p>
   {% endif %}
 {% endblock %}

@@ -347,8 +347,7 @@ def test_template_do_email_renderiza_com_o_botao_e_o_nome() -> None:
     )
 
     html = envio.mensagem.get_body(("html",)).get_content()  # type: ignore[union-attr]
-    assert "Seu acesso foi liberado" in html
-    assert "Olá, Ana!" in html
+    assert "Acesso liberado" in html and "Tudo pronto, Ana!" in html
     assert 'href="https://luft.exemplo/Luft-Workspace"' in html
     assert "widson.araujo" in html
 
@@ -363,6 +362,7 @@ def test_template_do_email_sem_link_nao_quebra() -> None:
 
     html = envio.mensagem.get_body(("html",)).get_content()  # type: ignore[union-attr]
     assert "Entre pelo portal da Luft" in html
+    assert "Tudo pronto!" in html
     assert "href=\"None\"" not in html
 
 

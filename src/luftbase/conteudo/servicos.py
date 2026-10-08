@@ -59,6 +59,26 @@ class PortaNotificacoes(Protocol):
     ) -> int:
         """Persiste o recibo de leitura de todas as notificacoes visiveis."""
 
+    def ocultar(
+        self,
+        *,
+        id_sistema: int,
+        id_usuario: int,
+        id_grupo: int | None,
+        id_notificacao: int,
+    ) -> bool:
+        """Some com uma notificacao so da lista da pessoa."""
+
+    def ocultar_todas(
+        self,
+        *,
+        id_sistema: int,
+        id_usuario: int,
+        id_grupo: int | None,
+        apenas_lidas: bool = False,
+    ) -> int:
+        """Some com as notificacoes visiveis da pessoa."""
+
     def contar_nao_lidas(
         self,
         *,
@@ -215,6 +235,30 @@ class ServicoNotificacoes:
             id_sistema=self._id_sistema,
             id_usuario=id_usuario,
             id_grupo=id_grupo,
+        )
+
+    def ocultar(self, id_usuario: int, id_grupo: int | None, id_notificacao: int) -> bool:
+        """Limpa UMA notificacao da lista da pessoa; ela continua existindo para as demais."""
+
+        if id_notificacao <= 0:
+            raise ErroConteudo("id_notificacao deve ser positivo.")
+        return self._repositorio.ocultar(
+            id_sistema=self._id_sistema,
+            id_usuario=id_usuario,
+            id_grupo=id_grupo,
+            id_notificacao=id_notificacao,
+        )
+
+    def ocultar_todas(
+        self, id_usuario: int, id_grupo: int | None, *, apenas_lidas: bool = False
+    ) -> int:
+        """Limpa as notificacoes da lista da pessoa (todas, ou so as ja lidas)."""
+
+        return self._repositorio.ocultar_todas(
+            id_sistema=self._id_sistema,
+            id_usuario=id_usuario,
+            id_grupo=id_grupo,
+            apenas_lidas=apenas_lidas,
         )
 
     def contar_nao_lidas(self, id_usuario: int, id_grupo: int | None) -> int:

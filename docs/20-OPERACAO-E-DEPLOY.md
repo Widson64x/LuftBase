@@ -122,6 +122,12 @@ Meta inicial: 100 usuarios simultaneos, p95 de ate 3000 ms e menos de 1% de erro
 - SQL manual de apoio (ex.: limpar sessoes antigas, ajustar permissoes provisorias) fica em `scripts/` do Workspace; todos
   mostram primeiro um bloco de **conferir** e rodam em transacao com `COMMIT`/`ROLLBACK`.
 
+## Antes de subir a 0.1.0a96: migracao `20261008_0015` (obrigatoria)
+
+A 0.1.0a96 consulta `core.tb_notificacao_oculta` em toda lista de notificacoes. **Aplique a migracao antes de publicar o pin
+nos apps**, ou a lista de notificacoes falha ate a migracao rodar: `FLASK bootstrap --atualizar --ambiente <ambiente>` (como
+abaixo). O `core` e compartilhado, entao uma migracao no banco do ambiente serve a todos os sistemas dele.
+
 ## Subir a 0.1.0a92 ou mais novo (alertas e retencao): ordem no ambiente
 
 Os comandos do LuftBase vivem dentro do app Flask, entao rodam como `flask --app App:CriarApp <grupo> <comando>` na pasta do

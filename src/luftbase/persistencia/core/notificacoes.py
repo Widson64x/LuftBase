@@ -138,6 +138,41 @@ class NotificacaoLeitura(BaseLuft):
     notificacao: Mapped[Notificacao] = relationship(back_populates="leituras")
 
 
+class NotificacaoOculta(BaseLuft):
+    """Notificacao que uma pessoa limpou da propria lista. A notificacao continua no banco para as demais."""
+
+    __tablename__ = "tb_notificacao_oculta"
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "id_notificacao",
+            "id_usuario",
+            name="pk_core_notificacao_oculta",
+        ),
+    )
+
+    id_notificacao: Mapped[int] = mapped_column(
+        ForeignKey(
+            "core.tb_notificacao.id_notificacao",
+            name="fk_core_notificacaooculta_notificacao",
+            ondelete="CASCADE",
+        ),
+        primary_key=True,
+    )
+    id_usuario: Mapped[int] = mapped_column(
+        ForeignKey(
+            "core.tb_usuario.codigo_usuario",
+            name="fk_core_notificacaooculta_usuario",
+            ondelete="CASCADE",
+        ),
+        primary_key=True,
+    )
+    data_ocultacao: Mapped[datetime] = mapped_column(
+        TIMESTAMP_MILISSEGUNDOS,
+        nullable=False,
+        server_default=DATA_HORA_LOCAL,
+    )
+
+
 Index("ix_core_notificacao_sistema_data", Notificacao.id_sistema, Notificacao.data_criacao.desc())
 Index(
     "ix_core_notificacao_usuario_lida_data",

@@ -24,6 +24,8 @@ class ServicoNotificacoesFalso:
         self.apenas_nao_lidas: bool = False
         self.leituras = 0
         self.leituras_todas = 0
+        self.ocultadas: list[int] = []
+        self.ocultou_todas: list[bool] = []
 
     def listar_para_usuario(
         self,
@@ -72,6 +74,31 @@ class ServicoNotificacoesFalso:
         del id_usuario, id_grupo
         self.leituras_todas += 1
         return 5
+
+
+class _OcultacaoFalsa:
+    pass
+
+
+def _ocultar(self, id_usuario, id_grupo, id_notificacao):  # type: ignore[no-untyped-def]
+    del id_usuario, id_grupo
+    if id_notificacao == 404:
+        from luftbase.nucleo.excecoes import ConteudoNaoEncontrado
+
+        raise ConteudoNaoEncontrado("nao existe")
+    self.ocultadas.append(id_notificacao)
+    return True
+
+
+def _ocultar_todas(self, id_usuario, id_grupo, *, apenas_lidas=False):  # type: ignore[no-untyped-def]
+    del id_usuario, id_grupo
+    self.ocultou_todas.append(apenas_lidas)
+    return 3
+
+
+ServicoNotificacoesFalso.ocultar = _ocultar  # type: ignore[attr-defined]
+ServicoNotificacoesFalso.ocultar_todas = _ocultar_todas  # type: ignore[attr-defined]
+ServicoNotificacoesFalso.contar_nao_lidas = lambda self, u, g: 1  # type: ignore[attr-defined]  # noqa: E731
 
 
 class ServicoPublicacoesFalso:
@@ -242,3 +269,49 @@ def test_marcar_todas_notificacoes_lidas(monkeypatch) -> None:  # type: ignore[n
     assert resposta.status_code == 200
     assert notificacoes.leituras_todas == 1
     assert resposta.json == {"status": "success", "total_lidas": 5, "contagem": 0}
+
+
+def test_ocultar_uma_notificacao_so_da_lista_de_quem_pediu(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    app, notificacoes = _criar_app(monkeypatch)
+    cliente = app.test_client()
+    token = _autenticar(cliente)
+
+    resposta = cliente.post("/_luftbase/notificacoes/12/ocultar", headers={"X-CSRF-Token": token})
+
+    assert resposta.status_code == 200
+    assert notificacoes.ocultadas == [12]
+    assert resposta.json == {"status": "success", "alterada": True, "contagem": 1}
+
+
+def test_ocultar_notificacao_inexistente_responde_404(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    app, _ = _criar_app(monkeypatch)
+    cliente = app.test_client()
+    token = _autenticar(cliente)
+
+    resposta = cliente.post("/_luftbase/notificacoes/404/ocultar", headers={"X-CSRF-Token": token})
+
+    assert resposta.status_code == 404
+
+
+def test_ocultar_exige_csrf(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    app, notificacoes = _criar_app(monkeypatch)
+    cliente = app.test_client()
+    _autenticar(cliente)
+
+    assert cliente.post("/_luftbase/notificacoes/12/ocultar").status_code == 403
+    assert cliente.post("/_luftbase/notificacoes/ocultar-todas").status_code == 403
+    assert notificacoes.ocultadas == [] and notificacoes.ocultou_todas == []
+
+
+def test_ocultar_todas_e_so_as_lidas(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    app, notificacoes = _criar_app(monkeypatch)
+    cliente = app.test_client()
+    token = _autenticar(cliente)
+
+    todas = cliente.post("/_luftbase/notificacoes/ocultar-todas", headers={"X-CSRF-Token": token})
+    lidas = cliente.post(
+        "/_luftbase/notificacoes/ocultar-todas?apenas_lidas=1", headers={"X-CSRF-Token": token}
+    )
+
+    assert todas.json["total_ocultadas"] == 3 and lidas.status_code == 200
+    assert notificacoes.ocultou_todas == [False, True]

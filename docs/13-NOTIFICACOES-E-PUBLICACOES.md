@@ -45,6 +45,18 @@ Gerada pelo LuftBase (nao pela aplicacao) quando alguem recebe a permissao base 
 `metadados.acao_url` = link do sistema e `texto_link` = "Abrir <Sistema>". Regras e e-mail no
 [doc 11](11-AUTORIZACAO.md#aviso-de-acesso-liberado).
 
+### Limpar notificacoes (some so para mim)
+
+No painel, o botao **Limpar** (cabecalho) e o **X** de cada item tiram a notificacao da lista **de quem clicou**. Nada e apagado:
+a notificacao continua em `tb_notificacao` e segue aparecendo para as demais pessoas. A escolha fica em
+`core.tb_notificacao_oculta` (`id_notificacao`, `id_usuario`, `data_ocultacao`), vale para notificacao pessoal, de grupo e global, e
+`filtro_notificacao_visivel` a aplica em todas as consultas (lista, contagem de nao lidas, marcar como lida). A notificacao
+limpa tambem sai da contagem do sino. Limpar de novo a mesma notificacao e idempotente; limpar a de outra pessoa responde 404.
+Se a notificacao expirar ou for removida, a linha de `tb_notificacao_oculta` vai junto (`ON DELETE CASCADE`).
+
+Em todo sistema que le notificacoes o papel do banco precisa de acesso a essa tabela (a migracao `20261008_0015` concede a todos os
+papeis `luft_*_app`); sem isso a lista de notificacoes falha.
+
 ## Publicacoes
 
 Uma publicacao nasce como rascunho. `publicar()` bloqueia a linha, altera seu estado e cria
@@ -87,6 +99,7 @@ Todas as rotas exigem uma sessao Flask-Login valida:
 
 - `GET /_luftbase/notificacoes`;
 - `PUT /_luftbase/notificacoes/<id>/leitura`;
+- `POST /_luftbase/notificacoes/<id>/ocultar` e `POST /_luftbase/notificacoes/ocultar-todas` (`?apenas_lidas=1` limpa so as lidas);
 - `GET /_luftbase/notificacoes/eventos`;
 - `GET /_luftbase/publicacoes`;
 - `GET /_luftbase/publicacoes/<id>`;

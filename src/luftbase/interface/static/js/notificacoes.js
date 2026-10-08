@@ -99,6 +99,12 @@ const LuftNotificacoes = {
             markAllBtn.addEventListener('click', () => this.marcarTodasComoLidas());
         }
 
+        // Limpar a lista (some so para quem limpou)
+        const clearBtn = document.getElementById('luft-notif-clear-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => this.ocultarTodas());
+        }
+
         // Carregar mais
         const loadMoreBtn = document.getElementById('luft-notif-load-more-btn');
         if (loadMoreBtn) {
@@ -313,6 +319,68 @@ const LuftNotificacoes = {
     },
 
     /**
+     * Limpa UMA notificação da lista de quem clicou. Ela continua registrada no sistema (e para as demais pessoas).
+     * @param {number} id - ID da notificação.
+     * @param {Event} event - Evento do clique.
+     */
+    ocultar: function(id, event) {
+        if (event) event.stopPropagation();
+        const token = document.querySelector('meta[name="luft-csrf-token"]')?.content || "";
+
+        fetch(`${this._endpoint}/${id}/ocultar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                // 404 = ja nao aparece mais para esta pessoa; some da tela do mesmo jeito.
+                const item = document.querySelector(`.luft-notif-item[data-id="${id}"]`);
+                if (item) {
+                    item.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                    item.style.opacity = '0';
+                    item.style.transform = 'translateX(24px)';
+                    setTimeout(() => {
+                        item.remove();
+                        const lista = document.getElementById('luft-notif-list');
+                        if (lista && !lista.querySelector('.luft-notif-item')) {
+                            lista.innerHTML = this._renderizarEmptyState();
+                        }
+                    }, 200);
+                }
+                if (ok && data.contagem !== undefined) this._setBadgeCount(data.contagem);
+                else this.atualizarBadge();
+            })
+            .catch(err => console.error('[LuftNotificacoes] Erro ao limpar notificação:', err));
+    },
+
+    /**
+     * Limpa toda a lista de quem clicou (nada é apagado do sistema).
+     */
+    ocultarTodas: function() {
+        const lista = document.getElementById('luft-notif-list');
+        if (!lista || !lista.querySelector('.luft-notif-item')) return;
+        if (!window.confirm('Limpar todas as notificações da sua lista?\n\nElas continuam registradas no sistema; só deixam de aparecer para você.')) {
+            return;
+        }
+        const token = document.querySelector('meta[name="luft-csrf-token"]')?.content || "";
+
+        fetch(`${this._endpoint}/ocultar-todas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    lista.innerHTML = this._renderizarEmptyState();
+                    this._setBadgeCount(data.contagem || 0);
+                    this._paginaAtual = 1;
+                    this._temMaisPaginas = false;
+                }
+            })
+            .catch(err => console.error('[LuftNotificacoes] Erro ao limpar a lista:', err));
+    },
+
+    /**
      * Atualiza o badge de contagem via API.
      */
     atualizarBadge: function() {
@@ -413,6 +481,9 @@ const LuftNotificacoes = {
                     </div>
                 </div>
                 ${markBtnHtml}
+                <button class="luft-notif-dismiss-btn" onclick="LuftNotificacoes.ocultar(${id}, event)" title="Limpar (continua registrada no sistema)">
+                    <i class="ph-bold ph-x"></i>
+                </button>
             </div>
         `;
     },

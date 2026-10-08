@@ -39,7 +39,11 @@ from luftbase.conteudo.modelos import (
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
 from luftbase.nucleo.excecoes import ConteudoNaoEncontrado, ErroConteudo
 from luftbase.nucleo.tempo import agora_local
-from luftbase.persistencia.core.notificacoes import Notificacao, NotificacaoLeitura
+from luftbase.persistencia.core.notificacoes import (
+    Notificacao,
+    NotificacaoLeitura,
+    NotificacaoOculta,
+)
 from luftbase.persistencia.core.publicacoes import (
     NotaAtualizacaoItem,
     Publicacao,
@@ -107,6 +111,13 @@ def filtro_notificacao_visivel(
             Notificacao.exibir_a_partir_de.is_(None), Notificacao.exibir_a_partir_de <= _AGORA_BANCO
         ),
         or_(Notificacao.expira_em.is_(None), Notificacao.expira_em > _AGORA_BANCO),
+        # "Limpar" some so para quem limpou; a notificacao continua no banco e para as demais pessoas.
+        ~exists(
+            select(NotificacaoOculta.id_notificacao).where(
+                NotificacaoOculta.id_notificacao == Notificacao.id_notificacao,
+                NotificacaoOculta.id_usuario == id_usuario,
+            )
+        ),
         # Arquivar a publicacao tambem recolhe a notificacao que ela emitiu.
         ~exists(
             select(PublicacaoNotificacao.id_vinculo)
@@ -405,6 +416,74 @@ class RepositorioNotificacoes:
                     )
 
             return total_individuais + total_coletivas
+
+    def ocultar(
+        self,
+        *,
+        id_sistema: int,
+        id_usuario: int,
+        id_grupo: int | None,
+        id_notificacao: int,
+    ) -> bool:
+        """Some com UMA notificacao da lista da pessoa (idempotente). Nao apaga nada para as demais."""
+
+        with self._banco.unidade_trabalho() as sessao:
+            visivel = sessao.execute(
+                select(Notificacao.id_notificacao).where(
+                    Notificacao.id_notificacao == id_notificacao,
+                    filtro_notificacao_visivel(id_sistema, id_usuario, id_grupo),
+                )
+            ).one_or_none()
+            if visivel is None:
+                raise ConteudoNaoEncontrado("Notificacao nao encontrada para este usuario.")
+            inserida = sessao.execute(
+                insert(NotificacaoOculta)
+                .values(id_notificacao=id_notificacao, id_usuario=id_usuario)
+                .on_conflict_do_nothing(
+                    index_elements=(NotificacaoOculta.id_notificacao, NotificacaoOculta.id_usuario)
+                )
+                .returning(NotificacaoOculta.id_notificacao)
+            ).scalar_one_or_none()
+            return inserida is not None
+
+    def ocultar_todas(
+        self,
+        *,
+        id_sistema: int,
+        id_usuario: int,
+        id_grupo: int | None,
+        apenas_lidas: bool = False,
+    ) -> int:
+        """Some com todas as notificacoes visiveis da pessoa (ou so as lidas). Devolve quantas sumiram."""
+
+        lida_efetiva = case(
+            (Notificacao.id_usuario_destino == id_usuario, Notificacao.lida),
+            else_=NotificacaoLeitura.id_usuario.is_not(None),
+        )
+        consulta = (
+            select(Notificacao.id_notificacao)
+            .outerjoin(
+                NotificacaoLeitura,
+                and_(
+                    NotificacaoLeitura.id_notificacao == Notificacao.id_notificacao,
+                    NotificacaoLeitura.id_usuario == id_usuario,
+                ),
+            )
+            .where(filtro_notificacao_visivel(id_sistema, id_usuario, id_grupo))
+        )
+        if apenas_lidas:
+            consulta = consulta.where(lida_efetiva.is_(True))
+        with self._banco.unidade_trabalho() as sessao:
+            ids = list(sessao.execute(consulta).scalars())
+            if not ids:
+                return 0
+            sessao.execute(
+                insert(NotificacaoOculta).on_conflict_do_nothing(
+                    index_elements=(NotificacaoOculta.id_notificacao, NotificacaoOculta.id_usuario)
+                ),
+                [{"id_notificacao": i, "id_usuario": id_usuario} for i in ids],
+            )
+            return len(ids)
 
     def contar_nao_lidas(
         self,

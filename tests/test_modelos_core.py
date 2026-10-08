@@ -28,6 +28,7 @@ from luftbase.persistencia.core import (  # noqa: F401
 )
 
 TABELAS_ESPERADAS = {
+    "tb_notificacao_oculta",
     "tb_alerta",
     "tb_alerta_controle",
     "tb_sistema",
@@ -140,6 +141,8 @@ CHAVES_ESTRANGEIRAS_ESPERADAS = {
     "fk_core_sessaoevento_sistema",
     "fk_core_sessaoevento_usuario",
     "fk_core_usuario_sessao_atual",
+    "fk_core_notificacaooculta_notificacao",
+    "fk_core_notificacaooculta_usuario",
 }
 
 

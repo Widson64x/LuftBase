@@ -345,7 +345,7 @@
 .luft-notif-mark-btn {
     position: absolute;
     top: 14px;
-    right: 16px;
+    right: 52px;
     display: none;
     align-items: center;
     justify-content: center;
@@ -372,6 +372,53 @@
     background: var(--luft-primary-500, #3b82f6);
     color: #fff;
     transform: scale(1.08);
+}
+
+/* ---------- CLEAR (hide only for me) ---------- */
+.luft-notif-dismiss-btn {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--luft-text-muted, #64748b);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.luft-notif-item:hover .luft-notif-dismiss-btn {
+    display: flex;
+}
+
+.luft-notif-dismiss-btn:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+    transform: scale(1.08);
+}
+
+/* Sem hover (celular/tablet): os botoes ficam sempre visiveis. */
+@media (hover: none) {
+    .luft-notif-dismiss-btn,
+    .luft-notif-item.nao-lida .luft-notif-mark-btn {
+        display: flex;
+    }
+}
+
+.luft-notif-action-clear {
+    color: var(--luft-text-muted, #64748b);
+    background: rgba(100, 116, 139, 0.08);
+}
+
+.luft-notif-action-clear:hover {
+    color: #dc2626;
+    background: rgba(239, 68, 68, 0.1);
 }
 
 /* ---------- EMPTY STATE ---------- */

@@ -156,6 +156,43 @@ def registrar_rotas_conteudo(app: Flask) -> None:
             "contagem": 0,
         }, 200
 
+    @bp.route("/notificacoes/<int:id_notificacao>/ocultar", methods=["POST", "DELETE"])
+    def ocultar_notificacao(id_notificacao: int):  # type: ignore[no-untyped-def]
+        """Limpa UMA notificacao so da lista de quem pediu; ela continua no banco para as demais pessoas."""
+
+        usuario = _usuario_atual()
+        validar_csrf_requisicao()
+        try:
+            from luftbase.plataforma import obter_luftbase
+
+            servico = obter_luftbase().notificacoes
+            alterada = servico.ocultar(usuario.id_usuario, usuario.id_grupo, id_notificacao)
+            contagem = servico.contar_nao_lidas(usuario.id_usuario, usuario.id_grupo)
+        except ConteudoNaoEncontrado:
+            abort(404)
+        except ErroConteudo as erro:
+            abort(400, description=str(erro))
+        return {"status": "success", "alterada": alterada, "contagem": contagem}, 200
+
+    @bp.route("/notificacoes/ocultar-todas", methods=["POST"])
+    def ocultar_todas_notificacoes():  # type: ignore[no-untyped-def]
+        """Limpa a lista da pessoa. Com `?apenas_lidas=1`, so as ja lidas."""
+
+        usuario = _usuario_atual()
+        validar_csrf_requisicao()
+        apenas_lidas = request.args.get("apenas_lidas", "").strip().lower() in {"1", "true", "s"}
+        try:
+            from luftbase.plataforma import obter_luftbase
+
+            servico = obter_luftbase().notificacoes
+            total = servico.ocultar_todas(
+                usuario.id_usuario, usuario.id_grupo, apenas_lidas=apenas_lidas
+            )
+            contagem = servico.contar_nao_lidas(usuario.id_usuario, usuario.id_grupo)
+        except ErroConteudo as erro:
+            abort(400, description=str(erro))
+        return {"status": "success", "total_ocultadas": total, "contagem": contagem}, 200
+
     @bp.get("/notificacoes/eventos")
     def eventos_notificacoes():  # type: ignore[no-untyped-def]
         usuario = _usuario_atual()
