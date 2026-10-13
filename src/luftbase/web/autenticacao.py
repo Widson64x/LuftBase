@@ -120,7 +120,10 @@ def login():  # type: ignore[no-untyped-def]
                     )
                 )
         else:
-            iniciar_sessao_usuario(usuario)
+            iniciar_sessao_usuario(
+                usuario,
+                lembrar=request.form.get("lembrar_mim") in {"1", "on", "true"},
+            )
             with contextlib.suppress(Exception):
                 estado.auditoria.registrar_evento(
                     EventoDominio(

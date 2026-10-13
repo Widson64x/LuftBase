@@ -50,6 +50,7 @@ Mostra e edita **somente** chaves de uma **lista fechada** (allowlist) do `.env`
 | Chave | O que controla | Validacao |
 |---|---|---|
 | `LUFT_SESSAO_TTL_MINUTOS` | minutos sem atividade ate a sessao expirar | inteiro 1-10080 |
+| `LUFT_SESSAO_LEMBRAR_DIAS` | dias sem atividade ate expirar a sessao de "Lembrar acesso" | inteiro 1-365 |
 | `LUFT_LDAP_TIMEOUT_SEGUNDOS` | espera maxima do login corporativo | inteiro 1-60 |
 | `LUFT_AUTORIZACAO_TTL_SEGUNDOS` | cache das decisoes de permissao | 5-3600 |
 | `LUFT_AUTORIZACAO_REVISAO_TTL_SEGUNDOS` | intervalo para perceber mudancas | 1-60 |

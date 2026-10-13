@@ -26,7 +26,8 @@ chegar ao Vault e para identificar o sistema.
 | `LUFT_LDAP_TRANSPORTE` | `ldaps` | `ldaps` (porta 636) ou `starttls` (389). Texto puro nao existe. |
 | `LUFT_LDAP_PORTA` | conforme o transporte | Porta do LDAP. |
 | `LUFT_LDAP_TIMEOUT_SEGUNDOS` | `5` | Espera maxima do login (1-60). Editavel pelo painel. |
-| `LUFT_SESSAO_TTL_MINUTOS` | `10` | Minutos **sem atividade** ate a sessao expirar (1-10080). Editavel pelo painel. |
+| `LUFT_SESSAO_TTL_MINUTOS` | `60` | Minutos **sem atividade** ate a sessao expirar (1-10080). Editavel pelo painel. |
+| `LUFT_SESSAO_LEMBRAR_DIAS` | `30` | Dias **sem atividade** ate expirar a sessao de quem marcou "Lembrar acesso" no login (1-365). |
 | `LUFT_SESSAO_COOKIE_NOME` | `luft_sessao` | Nome do cookie (igual em todos os sistemas para haver SSO). |
 | `LUFT_SESSAO_COOKIE_DOMINIO` | vazio | Dominio pai para compartilhar entre subdominios; vazio em desenvolvimento. |
 | `LUFT_SESSAO_COOKIE_CAMINHO` | `/` | Caminho do cookie (deve comecar com `/`). |

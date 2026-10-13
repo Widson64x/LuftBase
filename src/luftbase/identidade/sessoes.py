@@ -7,7 +7,7 @@ import hashlib
 import json
 import secrets
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from flask import Flask, Request, Response, current_app, request, session
@@ -20,6 +20,8 @@ from luftbase.identidade.modelos import UsuarioAutenticado
 from luftbase.nucleo.excecoes import ErroSessao
 
 _CHAVE_USUARIO = "luftbase_usuario"
+# Marca a sessao de quem escolheu "Lembrar acesso": ela tolera bem mais tempo sem atividade.
+CHAVE_LEMBRAR = "_lembrar"
 # Guardada na sessao nova quando a anterior foi derrubada por um administrador; a tela de entrada a le.
 CHAVE_AVISO_ENCERRAMENTO = "_aviso_encerramento"
 MOTIVOS_COM_AVISO = frozenset({"REVOGADA_ADMIN", "BLOQUEIO_ADMIN"})
@@ -72,6 +74,7 @@ class InterfaceSessaoCompartilhada(SessionInterface):
         chave_assinatura: str,
         *,
         prefixo: str = "luft:sessao:",
+        ttl_lembrar_segundos: int = 0,
     ) -> None:
         if len(chave_assinatura) < 32:
             raise ErroSessao("A chave de assinatura da sessao deve possuir ao menos 32 caracteres.")
@@ -80,6 +83,15 @@ class InterfaceSessaoCompartilhada(SessionInterface):
         self._armazenamento = armazenamento
         self._chave_assinatura = chave_assinatura
         self._prefixo = prefixo
+        self._ttl_lembrar_segundos = max(int(ttl_lembrar_segundos), 0)
+
+    def _ttl_segundos(self, app: Flask, dados: Mapping[str, Any]) -> int:
+        """Validade sem atividade: a normal, ou a longa para quem marcou "Lembrar acesso"."""
+
+        ttl = max(int(app.permanent_session_lifetime.total_seconds()), 1)
+        if dados.get(CHAVE_LEMBRAR) is True:
+            return max(ttl, self._ttl_lembrar_segundos)
+        return ttl
 
     def _assinador(self) -> TimestampSigner:
         return TimestampSigner(
@@ -112,8 +124,10 @@ class InterfaceSessaoCompartilhada(SessionInterface):
         """Carrega o JSON externo ou inicia uma sessao vazia em falha segura."""
 
         ttl = max(int(app.permanent_session_lifetime.total_seconds()), 1)
+        # A assinatura so barra cookies abandonados; o prazo real de cada sessao e conferido abaixo.
+        ttl_cookie = max(ttl, self._ttl_lembrar_segundos)
         valor_cookie = request.cookies.get(self.get_cookie_name(app))
-        identificador = self._validar_cookie(valor_cookie, ttl) if valor_cookie else None
+        identificador = self._validar_cookie(valor_cookie, ttl_cookie) if valor_cookie else None
         if identificador is None:
             return self.session_class(identificador=self._novo_identificador(), nova=True)
         try:
@@ -129,6 +143,7 @@ class InterfaceSessaoCompartilhada(SessionInterface):
                 raise ValueError("Envelope invalido")
 
             # Valida inatividade estrita baseada na ultima acao do usuario
+            ttl = self._ttl_segundos(app, envelope["dados"])
             salva_em_str = envelope.get("salva_em")
             if salva_em_str:
                 with contextlib.suppress(Exception):
@@ -201,7 +216,7 @@ class InterfaceSessaoCompartilhada(SessionInterface):
             # Requisicao automatica em segundo plano nao renova o tempo de inatividade
             return
 
-        ttl = max(int(app.permanent_session_lifetime.total_seconds()), 1)
+        ttl = self._ttl_segundos(app, sessao)
         envelope = {
             "versao": 1,
             "salva_em": datetime.now(UTC).isoformat(),
@@ -219,7 +234,7 @@ class InterfaceSessaoCompartilhada(SessionInterface):
         response.set_cookie(
             nome_cookie,
             self._assinar(sessao.identificador),
-            expires=self.get_expiration_time(app, sessao),
+            expires=datetime.now(UTC) + timedelta(seconds=ttl),
             httponly=self.get_cookie_httponly(app),
             domain=self.get_cookie_domain(app),
             path=self.get_cookie_path(app),
@@ -278,11 +293,17 @@ def carregar_usuario_sessao(identificador: str) -> UsuarioAutenticado | None:
     return usuario
 
 
-def iniciar_sessao_usuario(usuario: UsuarioAutenticado) -> None:
-    """Rotaciona a sessao e registra um retrato autenticado no servidor."""
+def iniciar_sessao_usuario(usuario: UsuarioAutenticado, *, lembrar: bool = False) -> None:
+    """Rotaciona a sessao e registra um retrato autenticado no servidor.
+
+    `lembrar=True` (checkbox "Lembrar acesso") estende a validade sem atividade para
+    `LUFT_SESSAO_LEMBRAR_DIAS`, em vez de `LUFT_SESSAO_TTL_MINUTOS`.
+    """
 
     rotacionar_sessao()
     session.permanent = True
+    if lembrar:
+        session[CHAVE_LEMBRAR] = True
     session[_CHAVE_USUARIO] = usuario.como_dict()
     # remember=False: a sessao vive no servidor. O cookie "lembrar" do Flask-Login sobrevivia ao
     # logout e recriava uma sessao autenticada (ver `descartar_cookie_lembrar`).

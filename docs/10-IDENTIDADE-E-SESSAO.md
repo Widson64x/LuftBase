@@ -68,7 +68,9 @@ Todas as aplicacoes da Luft guardam a sessao no **mesmo banco** (`core.tb_sessao
 | `EXPIRADA` | passou do prazo sem atividade (detectado na proxima leitura) |
 | `REVOGADA` | um administrador (ou "desconectar outras sessoes") encerrou |
 
-- **Validade**: `LUFT_SESSAO_TTL_MINUTOS` (padrao **10** minutos sem atividade; aceita de 1 a 10080). Cada requisicao
+- **Lembrar acesso**: o checkbox da tela de login marca a sessao (`iniciar_sessao_usuario(usuario, lembrar=True)`) e ela passa a
+  valer `LUFT_SESSAO_LEMBRAR_DIAS` (padrao **30** dias sem atividade, 1 a 365) em vez do prazo comum. O cookie e persistente pelo mesmo prazo.
+- **Validade**: `LUFT_SESSAO_TTL_MINUTOS` (padrao **60** minutos sem atividade; aceita de 1 a 10080). Cada requisicao
   autenticada renova `ultima_atividade` e `expira_em`.
 - **Eventos**: cada mudanca gera uma linha em `core.tb_sessao_evento` com `tipo_evento` em
   `INICIO`, `RENOVACAO`, `LOGOUT`, `TIMEOUT` ou `REVOGACAO`, com IP e navegador.

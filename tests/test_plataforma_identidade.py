@@ -1,6 +1,9 @@
 """Integracao da mesma sessao entre duas aplicacoes Flask independentes."""
 
-from flask import Flask, jsonify
+import json
+from datetime import UTC, datetime, timedelta
+
+from flask import Flask, jsonify, request
 from flask_login import current_user
 
 from luftbase import PlataformaLuft
@@ -27,7 +30,7 @@ class ArmazenamentoCompartilhado:
         return self.dados.get(chave)
 
     def salvar(self, chave: str, valor: bytes, ttl_segundos: int) -> None:
-        assert ttl_segundos in {600, 28_800, 43_200}
+        assert ttl_segundos in {3_600, 2_592_000}
         self.dados[chave] = valor
 
     def remover(self, chave: str) -> None:
@@ -86,6 +89,7 @@ def _criar_app(nome: str, armazenamento: ArmazenamentoCompartilhado) -> Flask:
 
     @app.get("/entrar")
     def entrar():  # type: ignore[no-untyped-def]
+        lembrar = request.args.get("lembrar") == "1"
         iniciar_sessao_usuario(
             UsuarioAutenticado(
                 id_usuario=2759,
@@ -94,7 +98,8 @@ def _criar_app(nome: str, armazenamento: ArmazenamentoCompartilhado) -> Flask:
                 email=None,
                 id_grupo=7,
                 nome_grupo="TI",
-            )
+            ),
+            lembrar=lembrar,
         )
         return jsonify(ok=True)
 
@@ -133,3 +138,25 @@ def test_sessao_e_compartilhada_e_logout_revoga_todas_as_aplicacoes() -> None:
         "autenticado": False,
         "id": None,
     }
+
+
+def _envelhecer_sessao(armazenamento: ArmazenamentoCompartilhado, horas: int) -> None:
+    for chave, bruto in list(armazenamento.dados.items()):
+        envelope = json.loads(bruto)
+        antigo = datetime.now(UTC) - timedelta(hours=horas)
+        envelope["salva_em"] = antigo.isoformat()
+        armazenamento.dados[chave] = json.dumps(envelope).encode("utf-8")
+
+
+def test_lembrar_acesso_sobrevive_a_inatividade_que_derruba_a_sessao_comum() -> None:
+    comum = ArmazenamentoCompartilhado()
+    cliente_comum = _criar_app("luft-workspace", comum).test_client()
+    cliente_comum.get("/entrar")
+    _envelhecer_sessao(comum, horas=5)
+    assert cliente_comum.get("/identidade").json == {"autenticado": False, "id": None}
+
+    lembrada = ArmazenamentoCompartilhado()
+    cliente_lembrado = _criar_app("luft-workspace", lembrada).test_client()
+    cliente_lembrado.get("/entrar?lembrar=1")
+    _envelhecer_sessao(lembrada, horas=5)
+    assert cliente_lembrado.get("/identidade").json == {"autenticado": True, "id": "2759"}

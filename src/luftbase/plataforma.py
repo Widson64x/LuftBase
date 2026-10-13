@@ -683,6 +683,7 @@ class PlataformaLuft:
         app.session_interface = InterfaceSessaoCompartilhada(
             infraestrutura.armazenamento_sessoes,
             chave_assinatura,
+            ttl_lembrar_segundos=politica.ttl_lembrar_dias * 86_400,
         )
 
         gerenciador = LoginManager()

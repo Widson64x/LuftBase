@@ -12,6 +12,16 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a102] - 2026-10-13
+
+### Corrigido
+
+- **Portal deslogava em poucos minutos mesmo com "Lembrar acesso"**: o checkbox era ignorado e toda sessao valia
+  `LUFT_SESSAO_TTL_MINUTOS` (padrao 10) sem atividade. Agora, quem marca "Lembrar acesso" tem sessao de
+  `LUFT_SESSAO_LEMBRAR_DIAS` (padrao 30 dias sem atividade, cookie persistente pelo mesmo prazo). Nova opcao
+  `iniciar_sessao_usuario(usuario, lembrar=True)`.
+- Padrao de `LUFT_SESSAO_TTL_MINUTOS` subiu de 10 para 60 minutos.
+
 ## [0.1.0a101] - 2026-10-08
 
 ### Alterado

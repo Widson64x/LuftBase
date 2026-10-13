@@ -124,7 +124,9 @@ class ConfiguracaoSessao:
     dominio_cookie: str | None = None
     caminho_cookie: str = "/"
     same_site: Literal["Lax", "Strict", "None"] = "Lax"
-    ttl_minutos: int = 10
+    ttl_minutos: int = 60
+    # Validade (sem atividade) da sessao de quem marcou "Lembrar acesso" no login.
+    ttl_lembrar_dias: int = 30
     cookie_seguro: bool = False
     # Excecao explicita ao cookie Secure em producao, para ambientes servidos por HTTP
     # (ex.: homologacao sem TLS). So informa a decisao; quem decide e cookie_seguro.
@@ -139,6 +141,8 @@ class ConfiguracaoSessao:
             raise ErroConfiguracao("LUFT_SESSAO_COOKIE_CAMINHO deve iniciar com '/'.")
         if not 1 <= self.ttl_minutos <= 10_080:
             raise ErroConfiguracao("LUFT_SESSAO_TTL_MINUTOS deve estar entre 1 e 10080.")
+        if not 1 <= self.ttl_lembrar_dias <= 365:
+            raise ErroConfiguracao("LUFT_SESSAO_LEMBRAR_DIAS deve estar entre 1 e 365.")
         if self.same_site == "None" and not self.cookie_seguro:
             raise ErroConfiguracao("SameSite=None exige cookie seguro.")
 
@@ -328,10 +332,16 @@ class ConfiguracaoLuftBase:
             ambiente is Ambiente.PRODUCAO and not cookie_inseguro_permitido
         )
         ttl_minutos = _inteiro_intervalo(
-            _primeiro_valor(dados, "LUFT_SESSAO_TTL_MINUTOS") or 10,
+            _primeiro_valor(dados, "LUFT_SESSAO_TTL_MINUTOS") or 60,
             "LUFT_SESSAO_TTL_MINUTOS",
             1,
             10_080,
+        )
+        ttl_lembrar_dias = _inteiro_intervalo(
+            _primeiro_valor(dados, "LUFT_SESSAO_LEMBRAR_DIAS") or 30,
+            "LUFT_SESSAO_LEMBRAR_DIAS",
+            1,
+            365,
         )
         ttl_autorizacao = _inteiro_intervalo(
             _primeiro_valor(dados, "LUFT_AUTORIZACAO_TTL_SEGUNDOS") or 300,
@@ -383,6 +393,7 @@ class ConfiguracaoLuftBase:
                     same_site_opcoes[same_site_bruto],
                 ),
                 ttl_minutos=ttl_minutos,
+                ttl_lembrar_dias=ttl_lembrar_dias,
                 cookie_seguro=cookie_seguro,
                 cookie_inseguro_permitido=(
                     cookie_inseguro_permitido

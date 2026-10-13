@@ -77,6 +77,11 @@ PERMITIDAS: tuple[VariavelPermitida, ...] = (
         _inteiro(1, 10_080),
     ),
     VariavelPermitida(
+        "LUFT_SESSAO_LEMBRAR_DIAS",
+        "Dias sem atividade até expirar a sessão de quem marcou \"Lembrar acesso\" (1 a 365).",
+        _inteiro(1, 365),
+    ),
+    VariavelPermitida(
         "LUFT_LDAP_TIMEOUT_SEGUNDOS",
         "Tempo máximo de espera do login corporativo, em segundos (1 a 60).",
         _inteiro(1, 60),
