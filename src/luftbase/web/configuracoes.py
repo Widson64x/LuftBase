@@ -505,6 +505,9 @@ def api_sistema_atualizar():  # type: ignore[no-untyped-def]
     estado = obter_luftbase()
     anteriores: dict[str, Any] = {}
     novos: dict[str, Any] = {}
+    # Consultada antes de abrir a transacao: a checagem de permissao usa a sessao do core e,
+    # dentro do ``with``, fecharia a transacao de escrita em andamento.
+    pode_desativar = tem_permissao(PermissaoLuftBase.SISTEMAS_DESATIVAR)
     with estado.bancos.core.escrita() as sessao:
         sistema = sessao.get(Sistema, id_sistema)
         if not sistema:
@@ -516,7 +519,7 @@ def api_sistema_atualizar():  # type: ignore[no-untyped-def]
             "Ativo" in dados
             and id_sistema != 0
             and bool(dados["Ativo"]) != bool(sistema.ativo is not False)
-            and not tem_permissao(PermissaoLuftBase.SISTEMAS_DESATIVAR)
+            and not pode_desativar
         ):
             return (
                 jsonify(

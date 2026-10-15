@@ -12,6 +12,14 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a111] - 2026-10-15
+
+### Corrigido
+
+- **Erro 500 ao salvar a edicao de sistema (regressao da 0.1.0a110)**: a consulta da permissao de desativar rodava dentro da
+  transacao de escrita e, por usar a mesma sessao do `core`, a fechava ("Can't operate on closed transaction"). A permissao
+  agora e consultada antes de abrir a transacao.
+
 ## [0.1.0a110] - 2026-10-15
 
 ### Corrigido

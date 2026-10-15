@@ -1,6 +1,6 @@
 # Handoff
 
-## Ultima continuidade (2026-10-15, versao 0.1.0a110 (a109 ja publicada; a110 corrige a desativacao de sistema))
+## Ultima continuidade (2026-10-15, versao 0.1.0a111 (a109 ja publicada; a110/a111 corrigem a desativacao de sistema))
 
 **Entregue** (marco M22 do [ROADMAP](ROADMAP.md), decisoes no [ADR-018](docs/decisoes/ADR-018-TIPOS-DE-SISTEMA-ESPELHO-LOCAL-E-PROJETO-NOVO.md)):
 

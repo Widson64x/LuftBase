@@ -87,7 +87,7 @@ Aplicada **somente por comando explicito**, nunca na inicializacao do app.
 
 **Sistema** - cada linha do catalogo. O `id_sistema` e **gerado por ambiente**: o mesmo sistema pode ter IDs diferentes em cada um.
 
-**Tag** - marca de versao no Git (`v0.1.0a110`). As aplicacoes instalam o LuftBase **pela tag**.
+**Tag** - marca de versao no Git (`v0.1.0a111`). As aplicacoes instalam o LuftBase **pela tag**.
 
 **Token de operador** - token do Vault de quem administra (diferente de `LUFT_VAULT_TOKEN`, que e o da aplicacao). Pedido no terminal, nunca gravado.
 
