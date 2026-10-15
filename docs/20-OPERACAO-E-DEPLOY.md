@@ -2,11 +2,14 @@
 
 Como uma mudanca vai do computador de quem desenvolve ate homologacao e producao, e o que fazer quando algo da errado.
 
+> Primeira vez? O [guia rapido do desenvolvedor](22-GUIA-RAPIDO-DO-DESENVOLVEDOR.md) conta o caminho completo de um sistema novo.
+> Procurando uma mensagem de erro? Veja [solucao de problemas](26-SOLUCAO-DE-PROBLEMAS.md).
+
 ## Ambientes
 
 | Ambiente | Servidor | Servico | Banco core | Branch |
 |---|---|---|---|---|
-| Desenvolvimento | maquina de quem desenvolve | `python App.py` | `luft_web` (ou o que o `.env` apontar) | qualquer |
+| Desenvolvimento | maquina de quem desenvolve | `python App.py` | banco **local** (por padrao `luft_web_dev`; veja [doc 25](25-BANCO-LOCAL-E-PROMOCAO-DE-ESTRUTURA.md)) | qualquer |
 | Homologacao | Linux | systemd `luft-<sistema>.service` | `luft_web_hml` | `homologacao` |
 | Producao | Windows Server | NSSM (servico com o nome do sistema) | `luft_web` | `main` |
 
@@ -122,6 +125,19 @@ Meta inicial: 100 usuarios simultaneos, p95 de ate 3000 ms e menos de 1% de erro
 - SQL manual de apoio (ex.: limpar sessoes antigas, ajustar permissoes provisorias) fica em `scripts/` do Workspace; todos
   mostram primeiro um bloco de **conferir** e rodam em transacao com `COMMIT`/`ROLLBACK`.
 
+## Mudancas de estrutura que chegam antes do deploy
+
+Algumas versoes do LuftBase trazem mudancas no `core` que precisam estar no banco **antes** de publicar o pin nos apps. As recentes:
+
+| Versao | Revisao | O que muda | Como aplicar |
+|---|---|---|---|
+| 0.1.0a96 | `20261008_0015` | tabela `tb_notificacao_oculta` | `bootstrap --atualizar` (abaixo) |
+| 0.1.0a109 | `20261015_0016` | colunas `integra_luftbase`, `tipo_acesso`, `url_download` em `tb_sistema` | `tools/sql/20261015_tb_sistema_tipo_de_integracao.sql` ou `banco atualizar` |
+| 0.1.0a109 | `20261015_0017` | novas categorias de sistema (CHECK de `categoria`) | `tools/sql/20261015_tb_sistema_categorias.sql` ou `banco atualizar` |
+
+Os scripts de `tools/sql/` sao repetiveis, transacionais e atualizam a revisao do Alembic ([doc 25](25-BANCO-LOCAL-E-PROMOCAO-DE-ESTRUTURA.md#scripts-sql-de-promocao-do-core)).
+Rode **em homologacao primeiro**, valide e so entao em producao.
+
 ## Antes de subir a 0.1.0a96: migracao `20261008_0015` (obrigatoria)
 
 A 0.1.0a96 consulta `core.tb_notificacao_oculta` em toda lista de notificacoes. **Aplique a migracao antes de publicar o pin
@@ -131,7 +147,7 @@ abaixo). O `core` e compartilhado, entao uma migracao no banco do ambiente serve
 ## Subir a 0.1.0a92 ou mais novo (alertas e retencao): ordem no ambiente
 
 Os comandos do LuftBase vivem dentro do app Flask, entao rodam como `flask --app App:CriarApp <grupo> <comando>` na pasta do
-sistema, com o `.venv` do servidor (Linux: `.venv/bin/flask`; Windows: `.venv\Scriptslask`). Abaixo, `FLASK` significa isso.
+sistema, com o `.venv` do servidor (Linux: `.venv/bin/flask`; Windows: `.venv\Scripts\flask`). Abaixo, `FLASK` significa isso.
 
 1. `FLASK banco pendencias` para ver o que falta. A revisao `20261008_0014` cria `core.tb_alerta` e `core.tb_alerta_controle`
    (aditiva) e da permissao aos papeis `luft_workspace_app` e `luft_core_security_admin` quando existirem.

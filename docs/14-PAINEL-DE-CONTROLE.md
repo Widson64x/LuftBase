@@ -37,7 +37,22 @@ O Workspace enxerga o ecossistema inteiro; um sistema satelite (ConnectAir, Inte
 
 ### Sistemas
 Cadastro de cada sistema do ecossistema (`core.tb_sistema`): nome, descricao, icone, cor, link, `url_saude`, responsavel,
-contato, categoria, ativo e **em manutencao**. O nome do sistema e a chave para achar o servico no servidor (abaixo).
+contato, categoria, ativo e **em manutencao**. O nome do sistema e a chave para achar o servico no servidor (abaixo). O assunto completo
+(tipos, categorias, o que um cadastro cria) esta no [doc 24](24-SISTEMAS-E-CATALOGO.md).
+
+Na tela de cadastro e de edicao:
+
+- **Categoria**: escolhida em **cartoes** (icone, nome e uma frase sobre cada uma): Aplicacao web, API, Servico / Daemon, Ferramenta /
+  Executavel, Relatorios e paineis, Integracao / Conector e Hub. As setas do teclado trocam a escolha. Escolher **Ferramenta** num cadastro
+  novo sugere "nao integra o LuftBase" com acesso por download.
+- **Integra com o LuftBase**: desmarque para ferramentas que nao usam login, permissoes e banco da plataforma (C#, executaveis,
+  terceiros). Elas ganham card e link, **sem** schema, role nem segredo. Ao desmarcar, aparecem **Como o usuario chega ate ela**
+  (Web, Download ou Sem acesso) e, para download, a **URL do instalador**.
+- **Icone**: botao **Escolher...** abre o catalogo visual de icones ([doc 07](07-DESIGN-SYSTEM-E-TEMAS.md#seletor-de-icones)).
+- **Provisionar banco e Vault agora** (so sistema integrado): cria schema, role e segredo na mesma operacao, com o token do Vault e o
+  usuario/senha administrativos informados na hora (nunca gravados).
+
+No card, um selo mostra a categoria (com icone e cor) e, para sistema externo, **EXTERNO** (e **DOWNLOAD** ou **INFORMATIVO**).
 
 ### Manutencao
 Alternar um sistema para "em manutencao" faz o middleware responder 503 nas rotas comuns; `/_luftbase/saude` e as rotas de

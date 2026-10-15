@@ -1,5 +1,36 @@
 # Handoff
 
+## Ultima continuidade (2026-10-15, versao 0.1.0a109, **nao commitada, sem tag**)
+
+**Entregue** (marco M22 do [ROADMAP](ROADMAP.md), decisoes no [ADR-018](docs/decisoes/ADR-018-TIPOS-DE-SISTEMA-ESPELHO-LOCAL-E-PROJETO-NOVO.md)):
+
+- tipos de sistema (`integra_luftbase`, `tipo_acesso`, `url_download`; migracao `20261015_0016`) e 7 categorias (`20261015_0017`);
+- CLI: `projeto novo`, `sistema externo`, `banco espelhar` (com Vault de desenvolvimento e `--via-wsl`), `banco comparar`,
+  `banco atualizar-core`; variaveis `LUFT_BANCO_LOCAL_HOST/PORTA/NOME`;
+- Painel: categoria em cartoes, selo no card, campos de integracao/download e seletor de icones redesenhado (5 icones inexistentes corrigidos);
+- scripts de promocao em `tools/sql/` (ordem e uso no [doc 25](docs/25-BANCO-LOCAL-E-PROMOCAO-DE-ESTRUTURA.md));
+- **documentacao renovada**: docs 22 a 27 novos (guia rapido, referencia da CLI, sistemas e catalogo, banco local e promocao, solucao de
+  problemas, glossario) e README, indice, visao, arquitetura, banco, padroes, API, Painel, design system, satelite e operacao revistos.
+  Todos os links e ancoras (297) e os 10 diagramas Mermaid foram validados por script.
+
+**Validado**: `pytest` (1010 aprovados, 1 ignorado no Windows), `ruff check` e `build`. `mypy` e `ruff format --check` ja tinham pendencias
+antigas em arquivos nao tocados; os arquivos novos estao formatados e sem erro de tipo.
+
+**NAO validado contra servicos reais** (so fakes e SQLite): as consultas de catalogo de `banco comparar`, o espelho do Vault e a aplicacao
+dos scripts SQL. O `banco espelhar` e o `atualizar-core` ja rodaram de verdade no ambiente do desenvolvedor.
+
+**Proximo passo exato**:
+1. rodar `banco comparar --schema <s>` entre dois ambientes reais e conferir o `.sql` gerado;
+2. aplicar `tools/sql/20261015_tb_sistema_tipo_de_integracao.sql` e depois `20261015_tb_sistema_categorias.sql` em **homologacao** (conferir as
+   consultas finais) e, validado, em producao;
+3. commitar, criar a tag `v0.1.0a109` e atualizar o pin nos apps (primeiro homologacao);
+4. Workspace: `SistemasHubService` e `HomeHub.html` passarem a usar `tipo_acesso` e `url_download`;
+5. endurecer `projeto novo --forcar` (hoje regrava os arquivos do esqueleto e o `.env`).
+
+**Riscos conhecidos**: `--forcar` sobrescreve trabalho; segredos de desenvolvimento podem ficar orfaos ao recriar o banco local
+(`vault postgresql remover-sistemas`); uma credencial e um token do Vault foram colados em conversa durante esta continuidade e devem ser
+rotacionados.
+
 ## Estado atual (2026-10-07, versao 0.1.0a88)
 
 O registro abaixo e historico (por continuidade, da mais recente a mais antiga) e **parou de ser atualizado na 0.1.0a32**.

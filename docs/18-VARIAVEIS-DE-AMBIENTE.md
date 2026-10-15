@@ -17,6 +17,9 @@ chegar ao Vault e para identificar o sistema.
 | `LUFT_VAULT_TOKEN` | - | Token **protegido** (cifrado). |
 | `LUFT_TOKEN_ACESSO` | - | Chave que revela o token acima. Tambem deriva a chave que cifra as senhas SFTP do Integrador (por ambiente, nao portavel). |
 | `LUFT_VAULT_CONEXAO_DIRETORIO` | `user.services` | Nome da conexao SQL Server do **diretorio** (usuarios e grupos). |
+| `LUFT_BANCO_LOCAL_HOST` | - | Redireciona o PostgreSQL da aplicacao para o espelho local. So `localhost`, `127.0.0.1` ou `::1`; recusada em producao. |
+| `LUFT_BANCO_LOCAL_PORTA` | `5432` | Porta do espelho local (so vale com o host acima). |
+| `LUFT_BANCO_LOCAL_NOME` | do Vault | Nome do banco espelho (ex.: `luft_web_dev`); sem ele vale o `nome_banco` do segredo. |
 
 ## Login corporativo (LDAP) e sessao
 

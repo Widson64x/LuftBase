@@ -1,7 +1,7 @@
 # Roadmap do LuftBase
 
 Cada marco precisa atender seus criterios de aceite antes de ser marcado como concluido.
-Estado em **2026-10-08**, versao `0.1.0a89`. Legenda: `[x]` feito e em uso, `[ ]` pendente.
+Estado em **2026-10-15**, versao `0.1.0a109` (M22 em validacao). Legenda: `[x]` feito e em uso, `[ ]` pendente.
 O historico por versao esta no [CHANGELOG](CHANGELOG.md); a documentacao, em [docs/](docs/README.md).
 
 Producao hoje: Luft-Workspace e Luft-Integrador (Windows). Homologacao: os tres sistemas (Linux).
@@ -153,7 +153,9 @@ Producao hoje: Luft-Workspace e Luft-Integrador (Windows). Homologacao: os tres 
 ## M17 — Documentacao
 
 - [x] Documentacao tecnica de identidade, painel, auditoria, perfil, servidor, variaveis, satelites e operacao.
-- [ ] Atualizar `luftbase projeto criar` para gerar a estrutura do ADR-017.
+- [x] Atualizar `luftbase projeto criar` para gerar a estrutura do ADR-017 (feito na 0.1.0a109; `projeto novo` tambem).
+- [x] Reescrever a documentacao para quem chega agora: guia rapido, referencia da CLI, sistemas e catalogo, banco local, solucao de
+      problemas e glossario (docs 22 a 27), com README, indice e arquitetura renovados.
 - [ ] Documentar a API publica final (congelamento da 1.0).
 
 ## M18 — Validacao operacional
@@ -299,6 +301,31 @@ atualizados no mesmo commit. Producao so por pedido seu.
 
 Riscos: o lint real pode alongar o M18; a migracao de `url_acesso` e de `tb_alerta` e aditiva, mas precisa de `banco atualizar`
 em cada ambiente antes do app novo; M21 apaga dado de auditoria e nunca roda no primeiro deploy do marco.
+
+## M22 — Ferramentas do desenvolvedor e tipos de sistema
+
+Por que: criar um sistema novo exigia varios passos manuais, cada dev precisava de um banco proprio e o catalogo so conhecia aplicacoes
+Flask do LuftBase (nao ferramentas em C#, executaveis ou de terceiros). Decisoes no [ADR-018](docs/decisoes/ADR-018-TIPOS-DE-SISTEMA-ESPELHO-LOCAL-E-PROJETO-NOVO.md).
+
+- [x] `tb_sistema`: `integra_luftbase`, `tipo_acesso` (`WEB`/`DOWNLOAD`/`SEM_ACESSO`) e `url_download` (migracao `20261015_0016`).
+- [x] Categorias de sistema ampliadas para 7 (migracao `20261015_0017`), definidas num unico modulo e escolhidas por cartoes na tela.
+- [x] `luftbase sistema externo` e modais de cadastro/edicao do Painel com os tipos.
+- [x] `luftbase projeto novo`: pasta no padrao ADR-017 + sistema, schema, role, segredo no Vault e `.env`, com rollback do segredo.
+- [x] `luftbase banco espelhar` (copia de homologacao para o banco local, inclusive via WSL), com Vault de desenvolvimento espelhado.
+- [x] `luftbase banco atualizar-core` (core local em dia, so desenvolvimento) e verificacao da revisao antes de cadastrar.
+- [x] `luftbase banco comparar`: `.sql` de estrutura para promover tabelas de desenvolvimento a homologacao e producao.
+- [x] Scripts `tools/sql/` para levar as mudancas do core a homologacao e producao antes do deploy.
+- [x] Seletor de icones redesenhado e catalogo corrigido (5 nomes inexistentes no Phosphor).
+- [x] Testes com fakes de Vault, PostgreSQL e WSL, e SQLite para o core.
+- [ ] **Ensaiar contra servicos reais**: `banco comparar` e o espelho do Vault foram testados so com fakes; falta rodar de ponta a ponta
+      em desenvolvimento e homologacao (o catalogo `pg_catalog` e as consultas de `ler_estrutura` ainda nao foram exercitados num PostgreSQL real).
+- [ ] Aplicar os scripts de `tools/sql/` em homologacao (e depois producao) e publicar a tag `v0.1.0a109`.
+- [ ] Luft-Workspace: o hub usar `tipo_acesso` e `url_download` (card de download leva ao atualizador; `SEM_ACESSO` nao abre link).
+- [ ] `projeto novo --forcar` nao deve sobrescrever arquivos do esqueleto ja editados (hoje regrava `App/*.py` e o `.env`).
+- [ ] Decidir se "API" ganha tipo proprio (hoje e categoria; uma API sem interface e um sistema integrado comum).
+
+Aceite: um desenvolvedor cria um sistema novo, desenvolve, cadastra em homologacao, gera o SQL de estrutura e chega a producao so com os
+comandos e telas documentados no [guia rapido](docs/22-GUIA-RAPIDO-DO-DESENVOLVEDOR.md).
 
 ## M11 — Estabilizacao 1.0
 

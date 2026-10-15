@@ -87,6 +87,11 @@ Tokens e senhas nunca aparecem em `repr`, logs, health checks ou mensagens HTTP.
 O campo `esquema` e obrigatorio, usa `snake_case` minusculo e nao pode ser `core`, `public`,
 `information_schema` nem comecar por `pg_`.
 
+## Banco espelho local
+
+`luftbase banco espelhar` cria o espelho e `LUFT_BANCO_LOCAL_HOST`/`LUFT_BANCO_LOCAL_PORTA` fazem a aplicacao usa-lo. O Vault
+continua sendo a fonte de usuario, senha e schema; so host, porta e (com `LUFT_BANCO_LOCAL_NOME`) o nome do banco sao trocados (`ConfiguracaoLuftBase.aplicar_banco_local`).
+
 ## Conexoes SQL Server nomeadas
 
 O SQL Server nao tem a divisao por sistema do PostgreSQL, entao cada uso tem uma conexao

@@ -24,6 +24,36 @@ A base inclui folha estrutural, folha do tema ativo, JavaScript essencial, link 
 conteudo, landmarks, regiao `aria-live` e seletor de aparencia. A aplicacao adiciona apenas
 seus estilos no bloco `estilos`, usando a camada CSS `aplicacao`.
 
+## Componentes de interface
+
+Ha dois conjuntos de macros Jinja no pacote:
+
+| Arquivo | Para que serve | Como importar |
+|---|---|---|
+| `luftbase/componentes.html` | conjunto **minimo** em portugues (`botao`, `cartao`, `alerta`, `campo`, `distintivo`) | `{% from "luftbase/componentes.html" import botao, cartao %}` |
+| `luftbase/components.html` | biblioteca **completa** usada pelo Painel de Controle e pelos sistemas: modais, cards, tabs, tabelas, stepper, avatar, upload, `campo_icone` e dezenas de outros | `{% import "luftbase/components.html" as ui %}` e depois `{{ ui.modal(...) }}` |
+
+### Seletor de icones
+
+O campo de icone (`ui.campo_icone(...)`, botao **Escolher...**) abre o catalogo visual `LuftBase.abrirSeletorIcones(...)`, tambem
+chamavel direto em JavaScript:
+
+```javascript
+LuftBase.abrirSeletorIcones({
+  targetInput: 'idDoCampo',        // input que recebe a classe, ex.: "ph-bold ph-truck"
+  targetPreview: 'idDoPreview',    // opcional: elemento <i> que mostra o icone
+  iconeAtual: 'ph-bold ph-truck',  // o que ja esta selecionado
+  cor: '#059669',                  // opcional: cor de destaque (a do sistema)
+  onSelect: (valor, meta) => {}    // opcional: callback
+});
+```
+
+O catalogo (`_catalogoIcones` em `static/js/base.js`) tem **225 icones em 11 segmentos** (logistica, dashboards, gestao, seguranca, TI,
+comunicacao, operacoes, pessoas, documentos, dispositivos e status). A busca ignora acento e maiuscula, e varias palavras exigem todas;
+`Enter` aplica o unico resultado, `Esc` limpa a busca, e duplo clique aplica direto. Todos os nomes precisam existir na biblioteca
+**Phosphor Web 2.1.2** (carregada por `phosphor-icons.js`); um nome inexistente aparece como cartao vazio. Os estilos estao em
+`static/css/components.css` (classes `luft-picker-*` e `luft-icon-picker-*`), com tema escuro.
+
 ## Conceitos
 
 - familia de tema: identidade visual, como `luft` ou uma futura familia de operacoes;
@@ -37,8 +67,8 @@ familia nao exige alterar HTML, componentes ou JavaScript.
 
 ## Preferencia
 
-`tb_preferenciausuario` no schema `core` e a fonte definitiva. A primeira renderizacao da
-sessao carrega a preferencia e guarda um retrato JSON na sessao Redis compartilhada. A rota
+A preferencia (tema e modo) fica no cadastro da pessoa, em `core.tb_usuario` (`tema_preferido` e `modo_tema`), e e a fonte
+definitiva. A primeira renderizacao da sessao carrega a preferencia e guarda um retrato na sessao. A rota
 `PUT /_luftbase/interface/preferencia` persiste a alteracao e atualiza esse retrato.
 
 A escrita exige usuario autenticado e `X-CSRF-Token`, publicado pela base na meta tag

@@ -1,5 +1,8 @@
 # Inventario do LuftCore e dos consumidores
 
+> **Documento historico.** Registra o que se observou no sistema antigo (LuftCore) ao desenhar o LuftBase, para explicar de onde vieram
+> certas decisoes. **Nao descreve o estado atual**: para isso, veja a [arquitetura](02-ARQUITETURA.md) e o [roadmap](../ROADMAP.md).
+
 O LuftCore 0.4.x e os projetos atuais foram inspecionados apenas para identificar capacidades
 uteis e repeticoes. Este documento nao autoriza copiar sua estrutura.
 

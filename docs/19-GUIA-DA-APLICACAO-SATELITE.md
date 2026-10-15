@@ -83,15 +83,20 @@ Chaves seguem `MODULO.RECURSO.ACAO` ([doc 11](11-AUTORIZACAO.md)). Regras pratic
 
 ## Colocar uma aplicacao nova no ar (roteiro)
 
-1. **Estrutura**: copie a de um sistema existente (ADR-017) e troque nomes, `LUFT_SISTEMA_ID` e prefixo.
-2. **Cadastro**: no **Luft-Workspace**, crie o sistema (Painel de Controle > Aplicacoes & Ambiente > Sistemas) com o **nome
-   exato** que sera o do servico (`Luft-<Nome>`) — o nome e a chave para achar o servico no servidor. O Workspace
-   provisiona schema e role e registra o id.
-3. **Vault e banco**: `luftbase vault postgresql provisionar --manifesto <arquivo.json>` cria os segredos e a senha da role
-   (pede confirmacao digitada; use `--help` em cada comando). Ha comandos para auditar, migrar o layout, clonar um ambiente e
-   reprovisionar um sistema (`reprovisionar-sistema`).
-4. **`.env`** na pasta do servico: `LUFT_AMBIENTE`, `LUFT_SISTEMA_ID`, Vault, LDAP, sessao (cookie igual aos outros),
-   `HOST`/`PORT`/`ROUTE_PREFIX`. Esqueleto: o `.env.example` do repositorio.
+> O caminho completo, com comandos e o que conferir em cada passo, esta no [guia rapido do desenvolvedor](22-GUIA-RAPIDO-DO-DESENVOLVEDOR.md).
+> Abaixo, o resumo.
+
+1. **Projeto e cadastro em desenvolvimento**: `luftbase projeto novo Luft-<Nome> --destino <pasta>` cria a pasta no padrao
+   ([ADR-017](decisoes/ADR-017-PADRAO-DE-PROJETO-DAS-APLICACOES.md)), o sistema no core, o schema, a role e o segredo no Vault, e escreve o
+   `.env`. (`projeto criar` gera so os arquivos, se voce ja tem o `LUFT_SISTEMA_ID`.)
+2. **`.env`**: complete `LUFT_VAULT_TOKEN` e `LUFT_TOKEN_ACESSO` (copie de outro sistema do mesmo ambiente). Esqueleto: o `.env.example`
+   gerado. O `LUFT_SISTEMA_ID` e **por ambiente**: cada banco gera o seu.
+3. **Cadastro em homologacao**: no **Luft-Workspace** de homologacao (Painel de Controle > Aplicacoes & Ambiente > Sistemas), crie o
+   sistema com o **nome exato** que sera o do servico (`Luft-<Nome>`): o nome e a chave para achar o servico no servidor. Com
+   **Provisionar banco e Vault agora**, a tela cria schema, role e segredo.
+4. **Tabelas**: leve a estrutura do seu banco de desenvolvimento para homologacao com `luftbase banco comparar` ([doc 25](25-BANCO-LOCAL-E-PROMOCAO-DE-ESTRUTURA.md)).
+   Para provisionar banco e Vault na mao, ha `luftbase vault postgresql provisionar --manifesto <arquivo.json>` e `reprovisionar-sistema`
+   ([referencia da CLI](23-REFERENCIA-DA-CLI.md#vault)).
 5. **Permissoes**: suba a aplicacao uma vez; o catalogo e criado sozinho. Depois conceda no Painel de Controle.
 6. **nginx**: um `location /Luft-<Nome>/` para a porta da aplicacao, com `X-Forwarded-For` e `X-Forwarded-Proto`
    ([doc 17](17-SERVIDOR-REDE-E-FUSO.md)).
@@ -99,6 +104,12 @@ Chaves seguem `MODULO.RECURSO.ACAO` ([doc 11](11-AUTORIZACAO.md)). Regras pratic
 8. **Deploy automatico**: copie `.github/workflows/deploy.yml` e `scripts/DeployMirror.py` de um sistema irmao e troque so os
    nomes ([doc 20](20-OPERACAO-E-DEPLOY.md)).
 9. **Dependencia**: `luft-base @ git+https://github.com/Widson64x/LuftBase.git@v<versao>` no `requirements.txt`.
+
+## Sistemas que nao sao aplicacoes Flask
+
+Nem tudo o que aparece no Hub e uma aplicacao do LuftBase. Ferramentas em C#, executaveis (como o Luft-Informa) e sistemas de terceiros entram
+no catalogo como **sistemas externos**: tem card, link e permissao de acesso, mas **nao** tem schema, role nem segredo, e nao usam o login do
+LuftBase. Veja [sistemas e catalogo](24-SISTEMAS-E-CATALOGO.md) e `luftbase sistema externo`.
 
 ## Armadilhas conhecidas
 

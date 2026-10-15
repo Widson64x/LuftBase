@@ -76,5 +76,5 @@ Workspace).
 
 ## Pendente
 
-- `luftbase projeto criar` ainda gera o esqueleto antigo (`src/<pacote>`); deve passar a gerar
-  esta estrutura.
+- ~~`luftbase projeto criar` gera o esqueleto antigo~~: resolvido na 0.1.0a109; `projeto criar` e `projeto novo` geram esta
+  estrutura (ADR-018).

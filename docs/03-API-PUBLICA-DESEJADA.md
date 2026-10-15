@@ -1,4 +1,28 @@
-# API publica desejada
+# API publica
+
+Tudo o que uma aplicacao importa de `luftbase` (a lista `luftbase.__all__`, 51 nomes) e como usar. O que **nao** esta aqui nao e API publica
+e pode mudar sem aviso. Importar `luftbase` nao faz rede: Vault e bancos so sao acessados em `inicializar()`.
+
+> O arquivo ainda se chama `03-API-PUBLICA-DESEJADA.md` por causa dos links existentes; o conteudo descreve o que **ja esta implementado**.
+
+## Mapa rapido
+
+| Preciso de... | Use | Secao |
+|---|---|---|
+| iniciar a plataforma | `PlataformaLuft`, `obter_luftbase`, `EstadoPlataforma` | [Inicializacao](#inicializacao) |
+| proteger uma rota | `exigir_permissao`, `exigir_alguma_permissao`, `PermissaoLuftBase` | [Rotas](#rotas) |
+| perguntar permissoes em lote | `consultar_permissoes`, `tem_permissao` | [Rotas](#rotas) |
+| declarar as permissoes do sistema | `CatalogoAplicacao`, `DefinicaoModulo`, `PermissaoAplicacao`, `SistemaAplicacao`, `AcaoPermissao` | [Catalogo](#catalogo-da-aplicacao) |
+| criar notificacoes e comunicados | `NovaNotificacao`, `NovaPublicacao`, `TipoNotificacao`, `CategoriaNotificacao`, `TipoPublicacao`, `PrioridadePublicacao`, `TipoAudiencia`, `ItemNotaAtualizacao`, `TipoItemAtualizacao` | [Servicos](#servicos) |
+| registrar auditoria | `registrar_evento_auditoria`, `registrar_alteracao_auditoria`, `SeveridadeAuditoria`, `obter_id_correlacao`, `sem_log`, `ignorar_auditoria`, `ignorar_auditoria_requisicao` | [Auditoria](#auditoria-de-dominio-e-correlacao) |
+| responder JSON e mensagens | `resposta_api_sucesso`, `resposta_api_erro`, `resposta_json`, `mensagem_sucesso`, `mensagem_erro`, `enfileirar_toast`, `exigir_ajax` | [Catalogo](#catalogo-da-aplicacao) |
+| cartoes em Configuracoes Gerais | `ParametroAplicacao` | [Parametros](#parametros-da-aplicacao) |
+| busca global | `ProvedorBusca`, `ResultadoBusca` | [doc 19](19-GUIA-DA-APLICACAO-SATELITE.md) |
+| temas | `ManifestoTema`, `PreferenciaTema`, `ModoTema` | [Inicializacao](#inicializacao) |
+| contexto do Painel de Controle nos templates | `contexto_painel` | [doc 19](19-GUIA-DA-APLICACAO-SATELITE.md) |
+| enviar e-mail | `enviar_email`, `Anexo`, `ImagemEmbutida`, `ResultadoEnvio` | [E-mail](#e-mail) |
+| declarar tabelas do sistema | `DefinicaoModelo`, `PoliticaEstrutura`, `OrigemDados` | [Politica de estrutura](#politica-de-estrutura-das-tabelas) |
+| versao instalada | `__version__` | - |
 
 ## Inicializacao
 
@@ -82,6 +106,8 @@ if usuario is not None:
 encerrar_sessao_global()
 ```
 
+## Auditoria de dominio e correlacao
+
 Auditoria de dominio e correlacao tambem estao disponiveis:
 
 ```python
@@ -103,9 +129,10 @@ id_detalhe = registrar_evento_auditoria(
 id_correlacao = obter_id_correlacao()
 ```
 
-O retorno identifica `core.tb_logdetalhe`. Quando existem `dados_anteriores` ou
-`dados_novos`, o LuftBase cria `core.tb_logs` na mesma transacao. Em contexto HTTP, o detalhe
-e associado automaticamente a `core.tb_logacesso` pela correlacao e pelo sistema.
+O retorno identifica o evento em `core.tb_logevento`. Quando existem `dados_anteriores` ou
+`dados_novos`, o LuftBase cria o retrato em `core.tb_logdetalhe` na mesma transacao. Em contexto
+HTTP, o evento e associado automaticamente ao acesso em `core.tb_logs` pela correlacao e pelo
+sistema ([doc 12](12-AUDITORIA-E-OBSERVABILIDADE.md)).
 
 Rotas operacionais instaladas automaticamente:
 
@@ -216,19 +243,20 @@ with plataforma.bancos.aplicacao.unidade_trabalho() as sessao:
 Inicializacao, bancos, identidade, sessao, autorizacao, observabilidade, notificacoes,
 publicacoes, interface, CLI e scaffolding ja estao implementados.
 
-## CLI e scaffolding
+## Linha de comando
+
+A CLI (`luftbase`, ou `python -m luftbase`, ou `flask ...` dentro de um projeto) tem referencia propria: [doc 23](23-REFERENCIA-DA-CLI.md).
+Os comandos que um desenvolvedor mais usa:
 
 ```powershell
-luftbase projeto criar luft-pedidos --nome "Luft Pedidos"
+luftbase projeto novo Luft-Pedidos --schema pedidos --env-referencia ..\Luft-Workspace\.env
+luftbase sistema externo Luft-Informa --tipo-acesso download --url-download /Luft-Workspace/atualizador
+luftbase banco comparar --schema pedidos --origem desenvolvimento --destino homologacao
+luftbase banco espelhar --via-wsl --usuario-destino admin
 luftbase diagnostico configuracao
-luftbase banco versao
-luftbase banco historico
-luftbase tema listar
-luftbase estrutura verificar
-luftbase email testar --para voce@luftlogistics.com
 ```
 
-A CLI pode ser executada diretamente como `luftbase` ou pelos comandos integrados do Flask (`flask banco`, `flask diagnostico`, etc.).
+## Politica de estrutura das tabelas
 
 Models particulares declaram sua politica sem conceder autoridade implicita ao startup:
 

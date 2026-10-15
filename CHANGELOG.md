@@ -12,6 +12,71 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a109] - 2026-10-15
+
+### Documentacao
+
+- **Novos documentos 22 a 27**: guia rapido do desenvolvedor (do zero a producao), referencia completa da CLI, sistemas e catalogo,
+  banco local e promocao de estrutura, solucao de problemas (com as mensagens reais) e glossario.
+- **Revistos**: `README.md` (porta de entrada), `docs/README.md` (indice por finalidade, com o ADR-010 marcado como rejeitado), visao do
+  produto, arquitetura (diagramas Mermaid de camadas, inicializacao e requisicao), banco e schemas (tabelas do `core`, um banco por
+  ambiente), padroes e contribuicao (portao de qualidade e receitas), API publica (mapa de tudo o que `luftbase` exporta), Painel de Controle,
+  design system (componentes e seletor de icones), guia da aplicacao satelite e operacao e deploy.
+- **Correcoes**: caminho do Flask no Windows em `20-OPERACAO-E-DEPLOY.md` (um `\f` virou caractere de controle); Redis nao e mais descrito
+  como armazenamento padrao de sessao; preferencia visual esta em `core.tb_usuario`; nomes atuais das tabelas de auditoria no doc 03;
+  "mais de 240 icones" trocado pela contagem real (225).
+- Marco **M22** no ROADMAP; HANDOFF com o estado real e o proximo passo.
+
+### Adicionado
+
+- **Tipos de sistema** (ADR-018): `tb_sistema.integra_luftbase`, `tipo_acesso` (`WEB`/`DOWNLOAD`/`SEM_ACESSO`) e `url_download`
+  (migracao `20261015_0016`, aditiva; rodar `banco atualizar`). Modais de cadastro e edicao do Painel ganham a escolha e o
+  card mostra o selo EXTERNO. Externo nao tem schema, role nem segredo.
+- `luftbase sistema externo`: cadastra ferramenta externa (C#, executavel, terceiros).
+- `luftbase projeto novo`: pasta no padrao ADR-017 + sistema, schema, role, segredo no Vault e `.env`, em um comando.
+- `luftbase banco espelhar`: copia integral de homologacao para o PostgreSQL local; `LUFT_BANCO_LOCAL_HOST/PORTA` apontam a
+  aplicacao para ele (so loopback, nunca producao). O espelho se chama, por padrao, como a origem com `_dev` no lugar de
+  `_hml` (`luft_web_dev`), e `LUFT_BANCO_LOCAL_NOME` leva o nome para a aplicacao. `--via-wsl` roda `pg_dump`/`pg_restore`
+  no WSL.
+
+- `luftbase banco comparar`: compara a estrutura dos schemas entre dois ambientes (desenvolvimento -> homologacao ->
+  producao) e escreve um `.sql` por schema com o que falta no destino. So le o catalogo, nunca dados; o script so cria
+  (`IF NOT EXISTS`), nao tem `DROP` nem altera tipo/nulidade/padrao (isso vai para "revisao manual" no relatorio) e roda
+  em uma transacao. Nada e aplicado pelo comando: o dev revisa, roda em homologacao e depois o mesmo arquivo em producao.
+- **Seletor de icones redesenhado** (`LuftBase.abrirSeletorIcones`): busca com largura total, botao de limpar e sem diferenciar
+  acento ou maiuscula (varias palavras exigem todas; Enter aplica o unico resultado; Esc limpa antes de fechar); segmentos em
+  linhas, sem barra de rolagem horizontal, e com icones Phosphor no lugar de emoji; subtitulo e contador com a contagem real;
+  nomes em ate duas linhas; cartoes acessiveis (botoes com `aria-selected`), duplo clique aplica e o icone ja escolhido e
+  rolado para a vista. Estilos saem do JS inline para `components.css` (tema escuro e movimento reduzido incluidos).
+- **Catalogo de icones corrigido**: 5 nomes nao existiam no Phosphor e apareciam como cartao vazio (`forklift`, `safe`, `server`,
+  `gears`, `thumbs-up-bold`); trocados por `truck-trailer`, `lock-simple`, `stack`, `gear-six` e `seal-check`. Quem ja salvou um
+  desses nomes em `tb_sistema.icone` continua vendo icone vazio ate editar o sistema.
+- **Categorias de sistema** ampliadas e escolhidas por cartoes (Painel de Controle > Sistemas): Aplicacao web, API, Servico /
+  Daemon, Ferramenta / Executavel, Relatorios e paineis, Integracao / Conector e Hub. A lista vive em
+  `persistencia/core/categorias_sistema.py` e e usada pelo CHECK do banco, pela validacao, pela CLI e pela tela; o card mostra
+  rotulo, icone e cor da categoria. Escolher Ferramenta num cadastro novo sugere "externo + download". Migracao `20261015_0017`
+  (alarga o CHECK; rode `banco atualizar` ou `tools/sql/20261015_tb_sistema_categorias.sql`, depois do script da `0016`).
+- `luftbase banco atualizar-core` (so desenvolvimento): leva o core local, tipicamente copiado de homologacao, a revisao deste
+  LuftBase com o usuario administrativo informado, sem subir uma aplicacao. `projeto novo` e `sistema externo` agora conferem a
+  revisao do core antes de gravar e orientam a rodar esse comando, em vez do erro cru de coluna inexistente.
+- `tools/sql/20261015_tb_sistema_tipo_de_integracao.sql`: script SQL repetivel e transacional para criar as colunas novas de
+  `tb_sistema` a mao em homologacao e producao (carimba a revisao 20261015_0016 so se o core estiver na 20261008_0015). A migracao
+  `0016` passou a tolerar colunas ja existentes, entao a ordem script/`banco atualizar` nao importa.
+- `banco espelhar` tambem espelha o Vault de desenvolvimento: para cada sistema com schema do core copiado cria a role
+  `luft_<schema>_dev_app` (senha aleatoria, nunca exibida) e o segredo `luft/desenvolvimento/bancos/postgresql/sistemas/<id>`.
+  Segredo existente que bate e mantido; o que aponta para outro schema/role e conflito e so e trocado com
+  `--substituir-segredos`; `--sem-vault` pula a etapa. Nunca escreve em homologacao ou producao.
+- `banco espelhar`: depois da copia, as roles locais `luft_<schema>_dev_app` recebem acesso ao core e ao schema restaurado (o
+  dump so traz permissoes das roles de homologacao).
+- `banco espelhar`: role que ja existe no PostgreSQL local **mantem a senha local** (antes o espelho a trocava pela de
+  homologacao, o que podia travar o acesso do dev, ex.: ao dono do banco); `--sobrescrever-senhas` restaura o comportamento antigo.
+- `banco espelhar --somente-estrutura`: copia so a estrutura (banco limpo, sem usuarios, sessoes nem logs).
+
+### Alterado
+
+- `luftbase projeto criar NOME` passa a gerar a estrutura da ADR-017 (antes, o esqueleto antigo `src/<pacote>`); `--sistema-id`
+  e opcional. O `nssm.ps1` gerado executa `Wsgi.py`.
+
 ## [0.1.0a108] - 2026-10-15
 
 ### Alterado
