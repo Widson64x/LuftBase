@@ -14,8 +14,10 @@ def test_historico_possui_baseline_e_evolucao() -> None:
     scripts = ScriptDirectory.from_config(configuracao)
 
     assert scripts.get_base() == "20260915_0001"
-    assert scripts.get_current_head() == "20261008_0015"
+    assert scripts.get_current_head() == "20261015_0017"
     assert [revisao.revision for revisao in scripts.walk_revisions()] == [
+        "20261015_0017",
+        "20261015_0016",
         "20261008_0015",
         "20261008_0014",
         "20260923_0013",

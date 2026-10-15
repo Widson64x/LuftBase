@@ -203,6 +203,8 @@ def test_checks_preservam_nomes_fisicos() -> None:
         "ck_core_logevento_severidade",
         "ck_core_logdetalhe_tipo_alteracao",
         "ck_core_sistema_categoria",
+        "ck_core_sistema_tipo_acesso",
+        "ck_core_sistema_url_download",
         "ck_core_sistema_ordem",
         "ck_core_modulo_codigo",
         "ck_core_modulo_ordem",

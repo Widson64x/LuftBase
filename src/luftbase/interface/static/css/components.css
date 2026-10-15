@@ -1862,3 +1862,139 @@ a.luft-tag:hover {
     box-shadow: var(--luft-shadow-md);
     transform: translateY(-2px);
 }
+
+
+/* ==========================================================================
+   Seletor de icones (LuftBase.abrirSeletorIcones)
+   ========================================================================== */
+.luft-picker-modal { max-width: 940px; width: 94vw; border-radius: var(--luft-radius-xl); z-index: 1060; }
+.luft-picker-cabecalho { border-bottom: 1px solid var(--luft-border-light); padding: 18px 24px; }
+.luft-picker-titulo-icone {
+    display: grid; place-items: center; width: 40px; height: 40px; font-size: 1.4rem; flex-shrink: 0;
+    border-radius: var(--luft-radius-md);
+    color: var(--luft-primary-600);
+    background: color-mix(in srgb, var(--luft-primary-500) 12%, var(--luft-bg-panel));
+}
+.luft-picker-titulo { margin: 0; font-size: 1.15rem; font-weight: 800; }
+.luft-picker-subtitulo { margin: 2px 0 0; }
+.luft-picker-corpo { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.luft-picker-topo { display: flex; gap: 14px; align-items: stretch; flex-wrap: wrap; }
+
+.luft-picker-busca-wrap { position: relative; flex: 1 1 300px; min-width: 0; }
+.luft-picker-busca-wrap > .ph-magnifying-glass {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 1.1rem; color: var(--luft-text-muted); pointer-events: none;
+}
+.luft-picker-busca {
+    display: block; width: 100%; box-sizing: border-box; height: 46px; padding: 0 42px 0 42px;
+    font: inherit; font-size: 0.9rem; color: var(--luft-text-main);
+    background: var(--luft-bg-card); border: 1px solid var(--luft-border);
+    border-radius: var(--luft-radius-lg); outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.luft-picker-busca::placeholder { color: var(--luft-text-muted); opacity: 0.85; }
+.luft-picker-busca:focus {
+    border-color: var(--luft-primary-500);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--luft-primary-500) 18%, transparent);
+}
+.luft-picker-limpar {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    display: grid; place-items: center; width: 28px; height: 28px; padding: 0; cursor: pointer;
+    color: var(--luft-text-muted); background: transparent; border: 0; border-radius: 50%;
+}
+.luft-picker-limpar:hover { background: var(--luft-bg-app); color: var(--luft-text-main); }
+.luft-picker-limpar[hidden] { display: none; }
+
+.luft-picker-previa {
+    display: flex; align-items: center; gap: 12px; padding: 6px 16px; min-width: 0; max-width: 100%;
+    background: var(--luft-bg-app); border: 1px solid var(--luft-border-light); border-radius: var(--luft-radius-lg);
+}
+.luft-picker-previa-icone {
+    display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; font-size: 1.4rem;
+    background: var(--luft-bg-card); border: 1px solid var(--luft-border-light); border-radius: var(--luft-radius-md);
+}
+.luft-picker-previa-texto { display: flex; flex-direction: column; min-width: 0; }
+.luft-picker-previa-rotulo {
+    font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--luft-text-muted);
+}
+.luft-picker-previa-classe {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.72rem; font-weight: 700;
+    color: var(--luft-text-main); word-break: break-all;
+}
+
+/* As categorias quebram em linhas: sem barra de rolagem horizontal e todas visiveis de uma vez. */
+.luft-picker-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.luft-picker-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 8px; cursor: pointer;
+    font: inherit; font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+    color: var(--luft-text-main); background: var(--luft-bg-card);
+    border: 1px solid var(--luft-border); border-radius: 9999px;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.luft-picker-pill > i { font-size: 0.95rem; color: var(--luft-text-muted); }
+.luft-picker-pill:hover { border-color: var(--luft-primary-300); }
+.luft-picker-pill:focus-visible, .luft-icon-picker-card:focus-visible {
+    outline: 2px solid var(--luft-primary-500); outline-offset: 2px;
+}
+.luft-picker-pill.ativa {
+    color: var(--luft-text-main);
+    background: color-mix(in srgb, var(--luft-primary-500) 14%, var(--luft-bg-panel));
+    border-color: var(--luft-primary-500);
+}
+.luft-picker-pill.ativa > i { color: var(--luft-primary-600); }
+.luft-picker-pill-n {
+    padding: 0 6px; font-size: 0.65rem; line-height: 1.5; color: var(--luft-text-muted);
+    background: var(--luft-bg-app); border-radius: 9999px;
+}
+
+.luft-picker-grade {
+    --picker-destaque: var(--luft-primary-600);
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px;
+    max-height: min(380px, 46vh); overflow-y: auto; padding: 4px 6px 12px 2px;
+    scrollbar-gutter: stable;
+}
+.luft-picker-grade[hidden] { display: none; }
+.luft-icon-picker-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 4px;
+    padding: 12px 6px 10px; min-height: 96px; text-align: center; cursor: pointer; font: inherit;
+    color: var(--luft-text-main); background: var(--luft-bg-card);
+    border: 2px solid var(--luft-border-light); border-radius: var(--luft-radius-lg);
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.luft-icon-picker-card > i { font-size: 1.85rem; margin-bottom: 2px; }
+.luft-icon-picker-card:hover { transform: translateY(-2px); border-color: var(--picker-destaque); }
+.luft-icon-picker-card.selecionado {
+    border-color: var(--picker-destaque);
+    background: color-mix(in srgb, var(--picker-destaque) 10%, var(--luft-bg-card));
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--picker-destaque) 22%, transparent);
+}
+.luft-icon-picker-card.selecionado > i { color: var(--picker-destaque); }
+/* Dois pares de linha para o nome: "Velocimetro / Medidor" nao fica mais cortado em "Me...". */
+.luft-icon-picker-nome {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    max-width: 100%; font-size: 0.7rem; font-weight: 600; line-height: 1.25;
+}
+.luft-icon-picker-codigo {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.6rem; color: var(--luft-text-muted);
+}
+
+.luft-picker-vazio { padding: 40px 20px; text-align: center; color: var(--luft-text-muted); }
+.luft-picker-vazio[hidden] { display: none; }
+.luft-picker-vazio > i { display: block; margin-bottom: 8px; font-size: 2.2rem; opacity: 0.5; }
+.luft-picker-vazio p { margin: 0; font-weight: 600; }
+.luft-picker-vazio small { opacity: 0.8; }
+
+.luft-picker-rodape {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 14px 24px; border-top: 1px solid var(--luft-border-light);
+}
+@media (max-width: 640px) {
+    .luft-picker-corpo, .luft-picker-cabecalho, .luft-picker-rodape { padding-left: 16px; padding-right: 16px; }
+    .luft-picker-dica { display: none; }
+    .luft-picker-grade { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .luft-icon-picker-card, .luft-picker-pill, .luft-picker-busca { transition: none; }
+    .luft-icon-picker-card:hover { transform: none; }
+}

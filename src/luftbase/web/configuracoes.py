@@ -47,6 +47,11 @@ from luftbase.infraestrutura.variaveis_ambiente import (
 )
 from luftbase.interface.parametros import ParametroAplicacao
 from luftbase.interface.web import validar_csrf_requisicao
+from luftbase.persistencia.core.categorias_sistema import (
+    CATEGORIAS_SISTEMA,
+    CODIGOS_CATEGORIA,
+    obter_categoria,
+)
 from luftbase.persistencia.core.seguranca import Modulo, Permissao, PermissaoGrupo, Sistema
 from luftbase.plataforma import obter_luftbase
 from luftbase.web.escopo import (
@@ -93,6 +98,9 @@ class SistemaAdaptador:
     contato_suporte: str | None = None
     permissao_base: str | None = None
     schema_aplicacao: str | None = None
+    integra_luftbase: bool = True
+    tipo_acesso: str = "WEB"
+    url_download: str | None = None
 
     @property
     def Id_Sistema(self) -> int:
@@ -127,6 +135,18 @@ class SistemaAdaptador:
         return self.categoria
 
     @property
+    def Categoria_Rotulo(self) -> str:
+        return obter_categoria(self.categoria).rotulo
+
+    @property
+    def Categoria_Icone(self) -> str:
+        return obter_categoria(self.categoria).icone
+
+    @property
+    def Categoria_Selo(self) -> str:
+        return obter_categoria(self.categoria).selo
+
+    @property
     def Ordem_Exibicao(self) -> int:
         return self.ordem_exibicao
 
@@ -153,6 +173,18 @@ class SistemaAdaptador:
     @property
     def Schema_Aplicacao(self) -> str | None:
         return self.schema_aplicacao
+
+    @property
+    def Integra_Luftbase(self) -> bool:
+        return self.integra_luftbase
+
+    @property
+    def Tipo_Acesso(self) -> str:
+        return self.tipo_acesso
+
+    @property
+    def Url_Download(self) -> str | None:
+        return self.url_download
 
 
 def _parametros_visiveis(parametros: tuple[ParametroAplicacao, ...]) -> list[dict[str, str]]:
@@ -221,6 +253,9 @@ def _renderizar_painel_controle() -> str:
                 contato_suporte=s.contato_suporte,
                 permissao_base=mapa_permissoes_base.get(s.id_sistema),
                 schema_aplicacao=s.schema_aplicacao,
+                integra_luftbase=bool(s.integra_luftbase is not False),
+                tipo_acesso=s.tipo_acesso or "WEB",
+                url_download=s.url_download,
             )
             for s in sistemas_db
         ]
@@ -275,6 +310,7 @@ def _renderizar_painel_controle() -> str:
     return render_template(
         template_alvo,
         sistemas=sistemas_exibidos,
+        categorias_sistema=CATEGORIAS_SISTEMA,
         is_master=is_master,
         sistema_atual_id=id_sistema_atual,
         pode_ver_configuracoes=bool(decisoes.get(PermissaoLuftBase.CONFIGURACOES_VISUALIZAR)),
@@ -486,7 +522,27 @@ def api_sistema_atualizar():  # type: ignore[no-untyped-def]
             "schema_aplicacao": sistema.schema_aplicacao,
             "ativo": sistema.ativo,
             "em_manutencao": sistema.em_manutencao,
+            "integra_luftbase": sistema.integra_luftbase,
+            "tipo_acesso": sistema.tipo_acesso,
+            "url_download": sistema.url_download,
         }
+
+        # Validado antes de qualquer alteracao: um retorno de erro nao pode deixar o commit parcial.
+        integracao = None
+        if id_sistema != 0 and any(
+            campo in dados for campo in ("IntegraLuftbase", "TipoAcesso", "UrlDownload")
+        ):
+            integracao, erros_integracao = validar_integracao_sistema(
+                {
+                    "IntegraLuftbase": dados.get("IntegraLuftbase", sistema.integra_luftbase),
+                    "TipoAcesso": dados.get("TipoAcesso", sistema.tipo_acesso),
+                    "UrlDownload": dados.get("UrlDownload", sistema.url_download),
+                }
+            )
+            if erros_integracao:
+                return _resposta_erro_cadastro(
+                    "Corrija os campos destacados antes de salvar.", erros_integracao, 400
+                )
 
         if "Nome" in dados:
             nome = str(dados["Nome"]).strip()
@@ -518,8 +574,12 @@ def api_sistema_atualizar():  # type: ignore[no-untyped-def]
             sistema.descricao_sistema = str(dados["Descricao"]).strip() or None
         if "Categoria" in dados and id_sistema != 0:
             cat = str(dados["Categoria"]).strip().upper()
-            if cat in ("HUB", "APLICACAO", "SERVICO"):
+            if cat in CODIGOS_CATEGORIA:
                 sistema.categoria = cat
+        if integracao is not None:
+            sistema.integra_luftbase = bool(integracao["integra_luftbase"])
+            sistema.tipo_acesso = str(integracao["tipo_acesso"])
+            sistema.url_download = cast("str | None", integracao["url_download"])
         if "Icone" in dados:
             sistema.icone = str(dados["Icone"]).strip() or "ph-bold ph-app-window"
         if "Cor" in dados:
@@ -578,6 +638,9 @@ def api_sistema_atualizar():  # type: ignore[no-untyped-def]
             "schema_aplicacao": sistema.schema_aplicacao,
             "ativo": sistema.ativo,
             "em_manutencao": sistema.em_manutencao,
+            "integra_luftbase": sistema.integra_luftbase,
+            "tipo_acesso": sistema.tipo_acesso,
+            "url_download": sistema.url_download,
         }
 
     from luftbase.web.manutencao import invalidar_cache_manutencao
@@ -603,7 +666,7 @@ def api_sistema_atualizar():  # type: ignore[no-untyped-def]
     )
 
 
-_CATEGORIAS_SISTEMA = ("HUB", "APLICACAO", "SERVICO")
+_CATEGORIAS_SISTEMA = CODIGOS_CATEGORIA
 _REGEX_SCHEMA = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 _REGEX_ICONE = re.compile(r"^ph(-(bold|fill|light|thin|duotone))? ph-[a-z0-9-]+$")
 _REGEX_COR = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
@@ -661,6 +724,42 @@ def _endereco_opcional(
     return valor
 
 
+_TIPOS_ACESSO = ("WEB", "DOWNLOAD", "SEM_ACESSO")
+
+
+def validar_integracao_sistema(
+    dados: dict[str, object],
+) -> tuple[dict[str, object], dict[str, str]]:
+    """Valida integracao com o LuftBase, tipo de acesso e URL de download.
+
+    Regras: sistema integrado e sempre acessado pela web; download exige a URL do instalador;
+    a URL so e guardada no tipo DOWNLOAD, para nao sobrar endereco de uma escolha anterior.
+    """
+
+    erros: dict[str, str] = {}
+    bruto = dados.get("IntegraLuftbase", True)
+    integra = (
+        bruto if isinstance(bruto, bool) else str(bruto).strip().lower() in {"1", "true", "sim"}
+    )
+    tipo = str(dados.get("TipoAcesso") or "WEB").strip().upper()
+    if tipo not in _TIPOS_ACESSO:
+        erros["TipoAcesso"] = "Tipo de acesso inválido. Escolha Web, Download ou Sem acesso."
+        tipo = "WEB"
+    if integra and tipo != "WEB":
+        erros["TipoAcesso"] = (
+            "Sistema que integra o LuftBase é acessado pela web. "
+            "Desmarque a integração para usar download ou sem acesso."
+        )
+    url = _endereco_opcional(dados, "UrlDownload", "A URL de download", erros)
+    if tipo == "DOWNLOAD" and not url and "UrlDownload" not in erros:
+        erros["UrlDownload"] = "Informe a URL do instalador ou da página de download."
+    return {
+        "integra_luftbase": integra,
+        "tipo_acesso": tipo,
+        "url_download": url if tipo == "DOWNLOAD" else None,
+    }, erros
+
+
 def validar_payload_novo_sistema(
     dados: dict[str, object],
 ) -> tuple[dict[str, object], dict[str, str]]:
@@ -698,7 +797,7 @@ def validar_payload_novo_sistema(
 
     categoria = str(dados.get("Categoria") or "APLICACAO").strip().upper()
     if categoria not in _CATEGORIAS_SISTEMA:
-        erros["Categoria"] = "Categoria inválida. Escolha Aplicação, Serviço ou Hub."
+        erros["Categoria"] = "Categoria inválida. Escolha uma das opções da lista."
     valores["categoria"] = categoria
 
     ordem_bruta = dados.get("OrdemExibicao")
@@ -754,6 +853,17 @@ def validar_payload_novo_sistema(
                 "Informe um schema próprio do sistema ou deixe em branco."
             )
     valores["schema_aplicacao"] = schema
+
+    integracao, erros_integracao = validar_integracao_sistema(dados)
+    erros.update(erros_integracao)
+    valores.update(integracao)
+    if not integracao["integra_luftbase"] and (
+        valores["schema_aplicacao"] or dados.get("ProvisionarInfraestrutura")
+    ):
+        # Sistema externo nao consome o core: schema, role e segredo seriam credenciais sem dono.
+        erros["SchemaAplicacao"] = (
+            "Sistema que não integra o LuftBase não tem schema, role nem segredo no Vault."
+        )
 
     valores["ativo"] = bool(dados.get("Ativo", True))
     valores["em_manutencao"] = bool(dados.get("EmManutencao", False))

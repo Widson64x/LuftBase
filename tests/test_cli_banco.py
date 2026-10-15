@@ -21,8 +21,11 @@ def _app_cli() -> Flask:
 def test_grupo_expoe_comandos_operacionais() -> None:
     assert set(banco.commands) == {
         "atualizar",
+        "atualizar-core",
         "bootstrap",
+        "comparar",
         "conceder-permissoes",
+        "espelhar",
         "historico",
         "pendencias",
         "retencao",

@@ -1,0 +1,30 @@
+{#
+  Seletor visual de categoria do sistema. Variaveis: `prefixo` ("novoSys" ou "editSys") e `categorias_sistema`.
+  O <select> escondido continua sendo a fonte do valor (os scripts do painel leem `<prefixo>Categoria`);
+  os cartoes so o escolhem. Teclado: setas movem a escolha, Tab entra e sai do grupo.
+#}
+<div class="mb-4">
+    <label class="form-label text-sm font-semibold mb-1" id="{{ prefixo }}CategoriaRotulo" for="{{ prefixo }}Categoria">
+        Categoria <span class="campo-opcional">— o que este sistema é</span>
+    </label>
+    <select id="{{ prefixo }}Categoria" {% if prefixo == 'novoSys' %}data-campo="Categoria" {% endif %}style="display: none;" tabindex="-1" aria-hidden="true">
+        {% for categoria in categorias_sistema %}
+        <option value="{{ categoria.codigo }}"{% if loop.first %} selected{% endif %}>{{ categoria.rotulo }}</option>
+        {% endfor %}
+    </select>
+    <div class="categoria-grade" id="{{ prefixo }}CategoriaGrade" role="radiogroup" aria-labelledby="{{ prefixo }}CategoriaRotulo" onkeydown="navegarCategoria(event, '{{ prefixo }}')">
+        {% for categoria in categorias_sistema %}
+        <button type="button" class="categoria-opcao{% if loop.first %} ativa{% endif %}" role="radio"
+                aria-checked="{{ 'true' if loop.first else 'false' }}" tabindex="{{ 0 if loop.first else -1 }}"
+                data-valor="{{ categoria.codigo }}" onclick="escolherCategoria('{{ prefixo }}', '{{ categoria.codigo }}', true)">
+            <span class="categoria-icone"><i class="{{ categoria.icone }}"></i></span>
+            <span class="categoria-texto">
+                <strong>{{ categoria.rotulo }}</strong>
+                <small>{{ categoria.descricao }}</small>
+            </span>
+            <i class="ph-fill ph-check-circle categoria-marca" aria-hidden="true"></i>
+        </button>
+        {% endfor %}
+    </div>
+    <div class="campo-erro" data-erro-de="Categoria"></div>
+</div>

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal, cast
 from urllib.parse import urlsplit
@@ -14,6 +14,7 @@ from dotenv import dotenv_values
 from luftbase.configuracao.ambientes import Ambiente, normalizar_ambiente
 from luftbase.configuracao.caminhos_vault import validar_conexao_vault
 from luftbase.configuracao.identificadores import validar_identificador_tecnico
+from luftbase.infraestrutura.cofre.credenciais import CredencialBanco
 from luftbase.nucleo.excecoes import ErroConfiguracao
 
 
@@ -23,6 +24,24 @@ def _primeiro_valor(dados: Mapping[str, Any], *chaves: str) -> Any | None:
         if valor is not None and str(valor).strip():
             return valor
     return None
+
+
+def _banco_local(dados: Mapping[str, Any], ambiente: Ambiente) -> ConfiguracaoBancoLocal | None:
+    host = _primeiro_valor(dados, "LUFT_BANCO_LOCAL_HOST")
+    if host is None:
+        return None
+    if ambiente is Ambiente.PRODUCAO:
+        raise ErroConfiguracao("LUFT_BANCO_LOCAL_HOST nao pode ser usado em producao.")
+    porta = _inteiro_intervalo(
+        _primeiro_valor(dados, "LUFT_BANCO_LOCAL_PORTA") or 5432,
+        "LUFT_BANCO_LOCAL_PORTA",
+        1,
+        65535,
+    )
+    nome = _primeiro_valor(dados, "LUFT_BANCO_LOCAL_NOME")
+    return ConfiguracaoBancoLocal(
+        host=str(host).strip(), porta=porta, nome=str(nome).strip() if nome else None
+    )
 
 
 def _inteiro_nao_negativo(valor: object, nome: str) -> int:
@@ -93,6 +112,33 @@ class ConfiguracaoCofre:
     token_protegido: str | None = field(default=None, repr=False)
     token_acesso: str | None = field(default=None, repr=False)
     conexao_diretorio: str = "user.services"
+
+
+HOSTS_LOCAIS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+@dataclass(frozen=True, slots=True)
+class ConfiguracaoBancoLocal:
+    """Redireciona o PostgreSQL da aplicacao para a maquina do desenvolvedor.
+
+    Troca host, porta e, se informado, o nome do banco: usuario, senha e schema continuam os do
+    Vault, porque o banco espelho
+    (`luftbase banco espelhar`) leva as roles com o mesmo verificador de senha. O host precisa ser
+    da propria maquina, de modo que esta chave nunca aponta um ambiente para outro servidor.
+    """
+
+    host: str
+    porta: int = 5432
+    nome: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.host.strip().casefold() not in HOSTS_LOCAIS:
+            raise ErroConfiguracao(
+                "LUFT_BANCO_LOCAL_HOST aceita somente localhost, 127.0.0.1 ou ::1; "
+                f"recebido {self.host!r}."
+            )
+        if not 1 <= self.porta <= 65535:
+            raise ErroConfiguracao("LUFT_BANCO_LOCAL_PORTA deve estar entre 1 e 65535.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,6 +219,19 @@ class ConfiguracaoLuftBase:
     diretorio: ConfiguracaoDiretorio
     sessao: ConfiguracaoSessao
     autorizacao: ConfiguracaoAutorizacao
+    banco_local: ConfiguracaoBancoLocal | None = None
+
+    def aplicar_banco_local(self, credencial: CredencialBanco) -> CredencialBanco:
+        """Devolve a credencial apontando para o banco local, quando ele foi configurado."""
+
+        if self.banco_local is None:
+            return credencial
+        return replace(
+            credencial,
+            host=self.banco_local.host.strip(),
+            porta=self.banco_local.porta,
+            nome_banco=self.banco_local.nome or credencial.nome_banco,
+        )
 
     def validar_para_inicializacao(self) -> None:
         """Valida os dados exigidos antes de qualquer chamada externa."""
@@ -406,4 +465,5 @@ class ConfiguracaoLuftBase:
                 ttl_revisao_segundos=ttl_revisao,
                 maximo_chaves_consulta=maximo_chaves,
             ),
+            banco_local=_banco_local(dados, ambiente),
         )

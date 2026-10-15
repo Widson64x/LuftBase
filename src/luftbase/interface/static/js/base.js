@@ -1057,12 +1057,12 @@ const LuftBase = {
     },
 
     // --------------------------------------------------------------------------
-    // Componente Reutilizável: Seletor de Ícones Phosphor (240+ Ícones)
+    // Componente Reutilizável: Seletor de Ícones Phosphor (catálogo curado)
     // --------------------------------------------------------------------------
     _catalogoIcones: [
         // Logística, Transporte & Carga
         { value: 'ph-bold ph-truck', label: 'Caminhão', tags: 'transporte frete rota entrega veiculo frota logistica', categoria: 'logistica' },
-        { value: 'ph-bold ph-forklift', label: 'Empilhadeira', tags: 'armazem estoque logistica carga palete movimentacao', categoria: 'logistica' },
+        { value: 'ph-bold ph-truck-trailer', label: 'Carreta / Baú', tags: 'carreta bau transporte empilhadeira armazem estoque logistica carga palete movimentacao', categoria: 'logistica' },
         { value: 'ph-bold ph-warehouse', label: 'Armazém / CD', tags: 'galpao deposito centro distribuicao estoque predio', categoria: 'logistica' },
         { value: 'ph-bold ph-package', label: 'Pacote / Caixa', tags: 'encomenda volume carga produto caixa entrega', categoria: 'logistica' },
         { value: 'ph-bold ph-cube', label: 'Cubo / Carga', tags: 'volume bloco mercadoria dimensao cubagem', categoria: 'logistica' },
@@ -1149,7 +1149,7 @@ const LuftBase = {
         { value: 'ph-bold ph-eye', label: 'Olho / Visível', tags: 'visualizacao monitoramento inspecao consulta ver', categoria: 'seguranca' },
         { value: 'ph-bold ph-eye-slash', label: 'Olho Oculto', tags: 'oculto invisivel mascara sigiloso confidencial esconder', categoria: 'seguranca' },
         { value: 'ph-bold ph-vault', label: 'Cofre / Vault', tags: 'segredos credenciais senhas criptografia hvac hashicorp', categoria: 'seguranca' },
-        { value: 'ph-bold ph-safe', label: 'Caixa Forte', tags: 'valores cofre seguro protecao reserva fisica', categoria: 'seguranca' },
+        { value: 'ph-bold ph-lock-simple', label: 'Cadeado / Caixa Forte', tags: 'valores cofre seguro protecao reserva fisica trava bloqueio', categoria: 'seguranca' },
         { value: 'ph-bold ph-identification-card', label: 'Cartão Documento', tags: 'cnh rg cpf motorista habilitacao documento', categoria: 'seguranca' },
         { value: 'ph-bold ph-scan', label: 'Scanner / Varredura', tags: 'leitura varredura biometria autenticacao scan', categoria: 'seguranca' },
 
@@ -1162,7 +1162,7 @@ const LuftBase = {
         { value: 'ph-bold ph-cloud-arrow-up', label: 'Upload Nuvem', tags: 'backup sincronizacao envio cloud subir nuvem', categoria: 'tecnologia' },
         { value: 'ph-bold ph-cloud-arrow-down', label: 'Download Nuvem', tags: 'restauracao baixar arquivos nuvem restore', categoria: 'tecnologia' },
         { value: 'ph-bold ph-cloud-check', label: 'Nuvem Conectada', tags: 'online sincronizado cloud disponivel status ok', categoria: 'tecnologia' },
-        { value: 'ph-bold ph-server', label: 'Servidor / Host', tags: 'maquina vm linux windows node instancia host', categoria: 'tecnologia' },
+        { value: 'ph-bold ph-stack', label: 'Servidor / Host', tags: 'servidor camadas maquina vm linux windows node instancia host', categoria: 'tecnologia' },
         { value: 'ph-bold ph-terminal-window', label: 'Prompt / Terminal', tags: 'console shell comando bash powershell cli terminal', categoria: 'tecnologia' },
         { value: 'ph-bold ph-git-branch', label: 'Branch / Versão', tags: 'git repositorio controle versao deploy release branch', categoria: 'tecnologia' },
         { value: 'ph-bold ph-git-commit', label: 'Commit Git', tags: 'revisao alteracao codigo release ponto salvamento', categoria: 'tecnologia' },
@@ -1199,7 +1199,7 @@ const LuftBase = {
 
         // Operações, Ferramentas & Configuração
         { value: 'ph-bold ph-gear', label: 'Engrenagem / Config', tags: 'configuracoes parametros ajustes sistema manutencao motor', categoria: 'operacoes' },
-        { value: 'ph-bold ph-gears', label: 'Engrenagens Múltiplas', tags: 'processos integracao motor operacoes rotinas sincronismo', categoria: 'operacoes' },
+        { value: 'ph-bold ph-gear-six', label: 'Engrenagem / Processos', tags: 'engrenagens processos integracao motor operacoes rotinas sincronismo', categoria: 'operacoes' },
         { value: 'ph-bold ph-sliders', label: 'Controles / Sliders', tags: 'parametros filtros ajustes customizacao opcoes painel', categoria: 'operacoes' },
         { value: 'ph-bold ph-wrench', label: 'Chave de Boca', tags: 'reparo manutencao conserto ferramenta assistencia chave', categoria: 'operacoes' },
         { value: 'ph-bold ph-hammer', label: 'Martelo / Oficina', tags: 'construcao obra ferramentaria reparo oficina ajuste', categoria: 'operacoes' },
@@ -1305,22 +1305,37 @@ const LuftBase = {
         { value: 'ph-bold ph-push-pin', label: 'Alfinete / Fixado', tags: 'fixar importante topo destaque aviso pin fixo', categoria: 'status' },
         { value: 'ph-bold ph-circle-notch', label: 'Carregando / Spinner', tags: 'processando aguarde load spinner rodando', categoria: 'status' },
         { value: 'ph-bold ph-arrow-counter-clockwise', label: 'Seta / Atualizar', tags: 'recarregar sincronizar refresh reiniciar voltar', categoria: 'status' },
-        { value: 'ph-bold ph-thumbs-up-bold', label: 'Aprovado / Joinha', tags: 'concordo confirmado ok joinha curtir sim', categoria: 'status' }
+        { value: 'ph-bold ph-seal-check', label: 'Aprovado / Selo', tags: 'aprovado validado conforme concordo confirmado ok joinha sim', categoria: 'status' }
     ],
 
     _categoriaNomes: {
         'todos': 'Todos',
-        'logistica': '🚚 Logística & Frota',
-        'dashboard': '📊 Dashboards & BI',
-        'negocios': '💼 Gestão & Negócios',
-        'seguranca': '🛡️ Segurança & Auditoria',
-        'tecnologia': '🖥️ Tecnologia & TI',
-        'comunicacao': '💬 Comunicação & Suporte',
-        'operacoes': '⚙️ Operações & Ferramentas',
-        'usuarios': '👥 Pessoas & Equipes',
-        'documentos': '📄 Documentos & Relatórios',
-        'dispositivos': '📱 Dispositivos & Hardware',
-        'status': '⭐ Status & Marcadores'
+        'logistica': 'Logística & Frota',
+        'dashboard': 'Dashboards & BI',
+        'negocios': 'Gestão & Negócios',
+        'seguranca': 'Segurança & Auditoria',
+        'tecnologia': 'Tecnologia & TI',
+        'comunicacao': 'Comunicação & Suporte',
+        'operacoes': 'Operações & Ferramentas',
+        'usuarios': 'Pessoas & Equipes',
+        'documentos': 'Documentos & Relatórios',
+        'dispositivos': 'Dispositivos & Hardware',
+        'status': 'Status & Marcadores'
+    },
+
+    _categoriaIcones: {
+        'todos': 'ph-bold ph-squares-four',
+        'logistica': 'ph-bold ph-truck',
+        'dashboard': 'ph-bold ph-chart-bar',
+        'negocios': 'ph-bold ph-briefcase',
+        'seguranca': 'ph-bold ph-shield-check',
+        'tecnologia': 'ph-bold ph-desktop',
+        'comunicacao': 'ph-bold ph-chat-circle-dots',
+        'operacoes': 'ph-bold ph-gear-six',
+        'usuarios': 'ph-bold ph-users-three',
+        'documentos': 'ph-bold ph-file-text',
+        'dispositivos': 'ph-bold ph-device-mobile',
+        'status': 'ph-bold ph-star'
     },
 
     abrirSeletorIcones: function(opcoes = {}) {
@@ -1367,6 +1382,7 @@ const LuftBase = {
         this._filtrarERenderizarIcones();
 
         this.abrirModal('luft-modal-seletor-icones');
+        this._rolarParaIconeSelecionado();
 
         if (inputBusca) {
             setTimeout(() => inputBusca.focus(), 150);
@@ -1380,72 +1396,68 @@ const LuftBase = {
         backdrop.onclick = () => LuftBase.fecharModal('luft-modal-seletor-icones');
 
         const modal = document.createElement('div');
-        modal.className = 'luft-modal luft-modal-lg';
+        modal.className = 'luft-modal luft-modal-lg luft-picker-modal';
         modal.id = 'luft-modal-seletor-icones';
-        modal.style.maxWidth = '920px';
-        modal.style.width = '94vw';
-        modal.style.borderRadius = 'var(--luft-radius-xl)';
-        modal.style.zIndex = '1060';
+
+        const total = this._catalogoIcones.length;
+        const segmentos = Object.keys(this._categoriaNomes).length - 1;
 
         modal.innerHTML = `
-            <div class="luft-modal-header" style="border-bottom: 1px solid var(--luft-border-light); padding: 18px 24px;">
+            <div class="luft-modal-header luft-picker-cabecalho">
                 <div class="d-flex align-items-center gap-3">
-                    <div style="width: 40px; height: 40px; border-radius: var(--luft-radius-md); background: var(--luft-primary-50, #eff6ff); color: var(--luft-primary-600, #2563eb); display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
-                        <i class="ph-bold ph-squares-four"></i>
-                    </div>
+                    <div class="luft-picker-titulo-icone"><i class="ph-bold ph-squares-four"></i></div>
                     <div>
-                        <h3 class="luft-modal-title" style="margin: 0; font-size: 1.15rem; font-weight: 800;">Catálogo de Ícones do Sistema</h3>
-                        <p class="text-xs text-muted" style="margin: 2px 0 0 0;">Mais de 240 ícones prontos organizados por segmento de operação.</p>
+                        <h3 class="luft-modal-title luft-picker-titulo">Catálogo de Ícones do Sistema</h3>
+                        <p class="text-xs text-muted luft-picker-subtitulo">${total} ícones prontos em ${segmentos} segmentos de operação.</p>
                     </div>
                 </div>
-                <button type="button" class="luft-modal-close" onclick="LuftBase.fecharModal('luft-modal-seletor-icones')" title="Fechar"><i class="ph-bold ph-x"></i></button>
+                <button type="button" class="luft-modal-close" onclick="LuftBase.fecharModal('luft-modal-seletor-icones')" title="Fechar" aria-label="Fechar"><i class="ph-bold ph-x"></i></button>
             </div>
 
-            <div class="luft-modal-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px;">
-                <!-- Barra Superior com Busca e Preview Ativo -->
-                <div style="display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 280px; position: relative;">
-                        <i class="ph-bold ph-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: var(--luft-text-muted);"></i>
-                        <input 
-                            type="text" 
-                            id="luft-picker-busca" 
-                            class="luft-form-control" 
-                            placeholder="Buscar ícone por nome, palavra-chave ou categoria (ex: caminhão, chart, user)..." 
-                            style="padding-left: 42px; height: 46px; border-radius: var(--luft-radius-lg); font-size: 0.9rem;"
-                            oninput="LuftBase._filtrarERenderizarIcones()"
+            <div class="luft-modal-body luft-picker-corpo">
+                <div class="luft-picker-topo">
+                    <div class="luft-picker-busca-wrap">
+                        <i class="ph-bold ph-magnifying-glass" aria-hidden="true"></i>
+                        <input
+                            type="text"
+                            id="luft-picker-busca"
+                            class="luft-picker-busca"
+                            placeholder="Buscar por nome ou palavra-chave (ex.: caminhão, gráfico, usuário)"
+                            aria-label="Buscar ícone"
+                            autocomplete="off"
+                            spellcheck="false"
+                            oninput="LuftBase._aoDigitarBuscaIcone()"
+                            onkeydown="LuftBase._teclaBuscaIcone(event)"
                         >
+                        <button type="button" id="luft-picker-limpar" class="luft-picker-limpar" title="Limpar busca" aria-label="Limpar busca" onclick="LuftBase._limparBuscaIcone()" hidden>
+                            <i class="ph-bold ph-x"></i>
+                        </button>
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 12px; padding: 6px 16px; background: var(--luft-bg-app); border: 1px solid var(--luft-border-light); border-radius: var(--luft-radius-lg);">
-                        <div id="luft-picker-preview-box" style="width: 36px; height: 36px; border-radius: var(--luft-radius-md); background: var(--luft-bg-card); border: 1px solid var(--luft-border-light); display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
-                            <i id="luft-picker-preview-icon" class="ph-bold ph-app-window"></i>
-                        </div>
-                        <div style="display: flex; flex-direction: column;">
-                            <span class="text-xs text-muted font-semibold" style="text-transform: uppercase; letter-spacing: 0.5px;">Selecionado</span>
-                            <span id="luft-picker-preview-class" class="font-mono text-xs font-bold text-main" style="word-break: break-all;">ph-bold ph-app-window</span>
+                    <div class="luft-picker-previa">
+                        <div class="luft-picker-previa-icone"><i id="luft-picker-preview-icon" class="ph-bold ph-app-window"></i></div>
+                        <div class="luft-picker-previa-texto">
+                            <span class="luft-picker-previa-rotulo">Selecionado</span>
+                            <span id="luft-picker-preview-class" class="luft-picker-previa-classe">ph-bold ph-app-window</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Categorias (Pills Horizontais) -->
-                <div id="luft-picker-pills" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin;"></div>
+                <div id="luft-picker-pills" class="luft-picker-pills" role="group" aria-label="Segmentos de ícones"></div>
 
-                <!-- Grade de Ícones -->
-                <div 
-                    id="luft-picker-grid" 
-                    style="display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: 10px; max-height: 380px; overflow-y: auto; padding: 4px 6px 12px 2px; border-radius: var(--luft-radius-md);"
-                ></div>
+                <div id="luft-picker-grid" class="luft-picker-grade" role="listbox" aria-label="Ícones"></div>
 
-                <div id="luft-picker-empty" style="display: none; text-align: center; padding: 40px 20px; color: var(--luft-text-muted);">
-                    <i class="ph-bold ph-magnifying-glass" style="font-size: 2.2rem; opacity: 0.5; margin-bottom: 8px; display: block;"></i>
-                    <p style="margin: 0; font-weight: 600;">Nenhum ícone encontrado para a busca informada.</p>
-                    <small style="opacity: 0.75;">Tente buscar por termos genéricos como "carga", "rede", "gráfico" ou navegue pelas abas acima.</small>
+                <div id="luft-picker-empty" class="luft-picker-vazio" hidden>
+                    <i class="ph-bold ph-magnifying-glass" aria-hidden="true"></i>
+                    <p>Nenhum ícone encontrado para a busca informada.</p>
+                    <small>Tente termos genéricos como "carga", "rede" ou "gráfico", ou escolha outro segmento acima.</small>
                 </div>
             </div>
 
-            <div class="luft-modal-footer" style="border-top: 1px solid var(--luft-border-light); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center;">
-                <span id="luft-picker-contador" class="text-xs text-muted font-mono">240 ícones disponíveis</span>
+            <div class="luft-modal-footer luft-picker-rodape">
+                <span id="luft-picker-contador" class="text-xs text-muted">${total} ícones</span>
                 <div class="d-flex align-items-center gap-2">
+                    <span class="text-xs text-muted luft-picker-dica">Clique duas vezes para aplicar direto</span>
                     <button type="button" class="btn btn-outline btn-sm" onclick="LuftBase.fecharModal('luft-modal-seletor-icones')">Cancelar</button>
                     <button type="button" class="btn btn-primary btn-sm d-flex align-items-center gap-2" onclick="LuftBase._confirmarSelecaoIcone()">
                         <i class="ph-bold ph-check"></i>
@@ -1459,29 +1471,58 @@ const LuftBase = {
         document.body.appendChild(modal);
     },
 
+    _aoDigitarBuscaIcone: function() {
+        const entrada = document.getElementById('luft-picker-busca');
+        const limpar = document.getElementById('luft-picker-limpar');
+        if (limpar && entrada) limpar.hidden = entrada.value === '';
+        this._filtrarERenderizarIcones();
+    },
+
+    _limparBuscaIcone: function() {
+        const entrada = document.getElementById('luft-picker-busca');
+        if (!entrada) return;
+        entrada.value = '';
+        this._aoDigitarBuscaIcone();
+        entrada.focus();
+    },
+
+    // Esc limpa a busca antes de fechar o modal; Enter aplica o primeiro resultado quando só há um.
+    _teclaBuscaIcone: function(evento) {
+        if (evento.key === 'Escape' && evento.target.value) {
+            evento.stopPropagation();
+            this._limparBuscaIcone();
+        } else if (evento.key === 'Enter') {
+            const cartoes = document.querySelectorAll('#luft-picker-grid .luft-icon-picker-card');
+            if (cartoes.length === 1) {
+                evento.preventDefault();
+                this._selecionarIconeTemp(cartoes[0].dataset.value);
+                this._confirmarSelecaoIcone();
+            }
+        }
+    },
+
+    _rolarParaIconeSelecionado: function() {
+        const ativo = document.querySelector('#luft-picker-grid .luft-icon-picker-card.selecionado');
+        if (ativo) ativo.scrollIntoView({ block: 'nearest' });
+    },
+
     _renderizarPillsCategorias: function() {
         const container = document.getElementById('luft-picker-pills');
         if (!container) return;
 
-        let html = '';
-        Object.entries(this._categoriaNomes).forEach(([chave, label]) => {
-            const count = chave === 'todos' 
-                ? this._catalogoIcones.length 
+        container.innerHTML = Object.entries(this._categoriaNomes).map(([chave, label]) => {
+            const total = chave === 'todos'
+                ? this._catalogoIcones.length
                 : this._catalogoIcones.filter(i => i.categoria === chave).length;
             const ativa = this._categoriaIconeAtual === chave;
-            html += `
-                <button 
-                    type="button" 
-                    class="btn btn-sm ${ativa ? 'btn-primary' : 'btn-outline'}" 
-                    style="border-radius: 9999px; padding: 4px 12px; font-size: 0.75rem; white-space: nowrap; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"
-                    onclick="LuftBase._trocarCategoriaIcone('${chave}')"
-                >
+            return `
+                <button type="button" class="luft-picker-pill${ativa ? ' ativa' : ''}" aria-pressed="${ativa}"
+                        onclick="LuftBase._trocarCategoriaIcone('${chave}')">
+                    <i class="${this._categoriaIcones[chave]}" aria-hidden="true"></i>
                     <span>${label}</span>
-                    <span style="opacity: 0.7; font-size: 0.65rem; background: ${ativa ? 'rgba(255,255,255,0.25)' : 'var(--luft-bg-app)'}; padding: 1px 6px; border-radius: 9999px;">${count}</span>
-                </button>
-            `;
-        });
-        container.innerHTML = html;
+                    <span class="luft-picker-pill-n">${total}</span>
+                </button>`;
+        }).join('');
     },
 
     _trocarCategoriaIcone: function(chave) {
@@ -1492,75 +1533,51 @@ const LuftBase = {
 
     _filtrarERenderizarIcones: function() {
         const inputBusca = document.getElementById('luft-picker-busca');
-        const termo = (inputBusca ? inputBusca.value : '').toLowerCase().trim();
+        // Sem acento e sem diferenciar maiuscula; varias palavras exigem todas ("caminhao carga").
+        const normalizar = texto => String(texto).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const termo = normalizar(inputBusca ? inputBusca.value : '').trim();
+        const palavras = termo.split(/\s+/).filter(Boolean);
         const grid = document.getElementById('luft-picker-grid');
-        const empty = document.getElementById('luft-picker-empty');
+        const vazio = document.getElementById('luft-picker-empty');
         const contador = document.getElementById('luft-picker-contador');
         if (!grid) return;
 
         const filtrados = this._catalogoIcones.filter(item => {
-            const matchCategoria = (this._categoriaIconeAtual === 'todos' || item.categoria === this._categoriaIconeAtual);
-            if (!matchCategoria) return false;
-            if (!termo) return true;
-            return item.value.toLowerCase().includes(termo)
-                || item.label.toLowerCase().includes(termo)
-                || item.tags.toLowerCase().includes(termo);
+            if (this._categoriaIconeAtual !== 'todos' && item.categoria !== this._categoriaIconeAtual) return false;
+            if (!palavras.length) return true;
+            const palheiro = normalizar(`${item.value} ${item.label} ${item.tags}`);
+            return palavras.every(palavra => palheiro.includes(palavra));
         });
 
         if (contador) {
-            contador.innerText = `${filtrados.length} ícone${filtrados.length === 1 ? '' : 's'} encontrado${filtrados.length === 1 ? '' : 's'}`;
+            const n = filtrados.length;
+            contador.innerText = `${n} ícone${n === 1 ? '' : 's'}${termo || this._categoriaIconeAtual !== 'todos' ? ' encontrado' + (n === 1 ? '' : 's') : ''}`;
         }
 
+        grid.hidden = filtrados.length === 0;
+        if (vazio) vazio.hidden = filtrados.length !== 0;
         if (filtrados.length === 0) {
-            grid.style.display = 'none';
-            if (empty) empty.style.display = 'block';
+            grid.innerHTML = '';
             return;
         }
 
-        grid.style.display = 'grid';
-        if (empty) empty.style.display = 'none';
+        // A cor do tema do sistema destaca o escolhido; o CSS le esta variavel.
+        grid.style.setProperty('--picker-destaque', this._seletorIconesOpcoes?.cor || 'var(--luft-primary-600)');
 
-        const corDestaque = this._seletorIconesOpcoes?.cor || 'var(--luft-primary-600)';
-
-        let html = '';
-        filtrados.forEach(item => {
+        grid.innerHTML = filtrados.map(item => {
             const selecionado = item.value === this._iconeSelecionadoTemp;
-            html += `
-                <div 
-                    class="luft-icon-picker-card" 
-                    data-value="${item.value}"
-                    style="
-                        display: flex; 
-                        flex-direction: column; 
-                        align-items: center; 
-                        justify-content: center; 
-                        padding: 12px 6px; 
-                        border-radius: var(--luft-radius-lg); 
-                        background: ${selecionado ? 'var(--luft-primary-50, #eff6ff)' : 'var(--luft-bg-card)'}; 
-                        border: 2px solid ${selecionado ? corDestaque : 'var(--luft-border-light)'}; 
-                        cursor: pointer; 
-                        transition: all 0.18s ease; 
-                        text-align: center;
-                        box-shadow: ${selecionado ? '0 4px 12px rgba(37, 99, 235, 0.15)' : 'none'};
-                    "
-                    onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='${corDestaque}'"
-                    onmouseout="if(!this.dataset.selecionado){ this.style.transform='translateY(0)'; this.style.borderColor='var(--luft-border-light)'; }"
-                    onclick="LuftBase._selecionarIconeTemp('${item.value}')"
-                    title="${item.label} (${item.value})"
-                >
-                    <i class="${item.value}" style="font-size: 1.85rem; color: ${selecionado ? corDestaque : 'var(--luft-text-main)'}; margin-bottom: 6px; transition: transform 0.15s ease;"></i>
-                    <span style="font-size: 0.68rem; font-weight: 600; color: var(--luft-text-main); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;">${item.label}</span>
-                    <span style="font-size: 0.6rem; font-family: monospace; color: var(--luft-text-muted); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;">${item.value.replace('ph-bold ph-', '')}</span>
-                </div>
-            `;
-        });
-        grid.innerHTML = html;
-
-        // Marca data-selecionado no elemento ativo
-        const cardAtivo = grid.querySelector(`[data-value="${this._iconeSelecionadoTemp}"]`);
-        if (cardAtivo) {
-            cardAtivo.dataset.selecionado = 'true';
-        }
+            const codigo = item.value.replace('ph-bold ph-', '');
+            return `
+                <button type="button" role="option" aria-selected="${selecionado}"
+                        class="luft-icon-picker-card${selecionado ? ' selecionado' : ''}"
+                        data-value="${item.value}" title="${item.label} (${item.value})"
+                        onclick="LuftBase._selecionarIconeTemp('${item.value}')"
+                        ondblclick="LuftBase._selecionarIconeTemp('${item.value}'); LuftBase._confirmarSelecaoIcone()">
+                    <i class="${item.value}" aria-hidden="true"></i>
+                    <span class="luft-icon-picker-nome">${item.label}</span>
+                    <span class="luft-icon-picker-codigo">${codigo}</span>
+                </button>`;
+        }).join('');
     },
 
     _selecionarIconeTemp: function(valor) {
@@ -1569,28 +1586,17 @@ const LuftBase = {
         const previewClass = document.getElementById('luft-picker-preview-class');
         if (previewIcon) {
             previewIcon.className = valor;
-            if (this._seletorIconesOpcoes?.cor) {
-                previewIcon.style.color = this._seletorIconesOpcoes.cor;
-            }
+            previewIcon.style.color = this._seletorIconesOpcoes?.cor || 'var(--luft-primary-600)';
         }
         if (previewClass) {
             previewClass.innerText = valor;
         }
 
-        // Atualiza estado visual no grid sem re-renderizar tudo
-        const grid = document.getElementById('luft-picker-grid');
-        if (grid) {
-            const corDestaque = this._seletorIconesOpcoes?.cor || 'var(--luft-primary-600)';
-            grid.querySelectorAll('.luft-icon-picker-card').forEach(card => {
-                const ehAtivo = card.dataset.value === valor;
-                card.dataset.selecionado = ehAtivo ? 'true' : '';
-                card.style.background = ehAtivo ? 'var(--luft-primary-50, #eff6ff)' : 'var(--luft-bg-card)';
-                card.style.borderColor = ehAtivo ? corDestaque : 'var(--luft-border-light)';
-                card.style.boxShadow = ehAtivo ? '0 4px 12px rgba(37, 99, 235, 0.15)' : 'none';
-                const i = card.querySelector('i');
-                if (i) i.style.color = ehAtivo ? corDestaque : 'var(--luft-text-main)';
-            });
-        }
+        document.querySelectorAll('#luft-picker-grid .luft-icon-picker-card').forEach(card => {
+            const ativo = card.dataset.value === valor;
+            card.classList.toggle('selecionado', ativo);
+            card.setAttribute('aria-selected', ativo ? 'true' : 'false');
+        });
     },
 
     _confirmarSelecaoIcone: function() {

@@ -187,7 +187,7 @@ class FabricaInfraestruturaPadrao:
             caminhos.postgresql_conexoes,
             sistema_id_esperado=configuracao.aplicacao.sistema_id,
         )
-        credencial_postgresql = credencial_aplicacao.banco
+        credencial_postgresql = configuracao.aplicar_banco_local(credencial_aplicacao.banco)
         armazenamento_sessoes: ArmazenamentoSessoes
         chave_assinatura_sessao: Segredo
         try:

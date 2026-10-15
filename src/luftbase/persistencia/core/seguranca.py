@@ -25,6 +25,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from luftbase.autorizacao.catalogo import AcaoPermissao
 from luftbase.persistencia.base import BaseLuft
+from luftbase.persistencia.core.categorias_sistema import restricao_sql
 from luftbase.persistencia.core.comum import TIMESTAMP_MILISSEGUNDOS
 
 if TYPE_CHECKING:
@@ -43,8 +44,17 @@ class Sistema(BaseLuft):
         UniqueConstraint("nome_sistema", name="uq_core_sistema_nome"),
         CheckConstraint("ordem_exibicao >= 0", name="ck_core_sistema_ordem"),
         CheckConstraint(
-            "categoria IN ('HUB', 'APLICACAO', 'SERVICO')",
+            restricao_sql(),
             name="ck_core_sistema_categoria",
+        ),
+        CheckConstraint(
+            "tipo_acesso IN ('WEB', 'DOWNLOAD', 'SEM_ACESSO')",
+            name="ck_core_sistema_tipo_acesso",
+        ),
+        CheckConstraint(
+            "(tipo_acesso <> 'DOWNLOAD' OR url_download IS NOT NULL) "
+            "AND (integra_luftbase = false OR tipo_acesso = 'WEB')",
+            name="ck_core_sistema_url_download",
         ),
     )
 
@@ -52,6 +62,11 @@ class Sistema(BaseLuft):
     nome_sistema: Mapped[str] = mapped_column(String(100), nullable=False)
     descricao_sistema: Mapped[str | None] = mapped_column(String(500))
     categoria: Mapped[str] = mapped_column(String(20), nullable=False, server_default="APLICACAO")
+    integra_luftbase: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
+    tipo_acesso: Mapped[str] = mapped_column(String(20), nullable=False, server_default="WEB")
+    url_download: Mapped[str | None] = mapped_column(String(500))
     ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     em_manutencao: Mapped[bool] = mapped_column(
         Boolean,
@@ -353,7 +368,9 @@ class PermissaoUsuario(BaseLuft):
     )
 
     permissao: Mapped[Permissao] = relationship(back_populates="usuarios")
-    usuario: Mapped[Usuario] = relationship("Usuario", foreign_keys=[codigo_usuario], back_populates="permissoes")
+    usuario: Mapped[Usuario] = relationship(
+        "Usuario", foreign_keys=[codigo_usuario], back_populates="permissoes"
+    )
 
 
 Index("ix_core_sistema_ativo_ordem", Sistema.ativo, Sistema.ordem_exibicao)

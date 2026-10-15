@@ -92,3 +92,74 @@ def test_nome_sem_letras_nem_numeros_e_recusado() -> None:
     _, erros = validar_payload_novo_sistema({"Nome": "---"})
 
     assert "letra ou número" in erros["Nome"]
+
+
+def test_padrao_integra_pela_web_sem_url_de_download() -> None:
+    valores, erros = validar_payload_novo_sistema({"Nome": "Luft-Control"})
+
+    assert erros == {}
+    assert valores["integra_luftbase"] is True
+    assert valores["tipo_acesso"] == "WEB"
+    assert valores["url_download"] is None
+
+
+def test_executavel_externo_exige_url_de_download() -> None:
+    _, erros = validar_payload_novo_sistema(
+        {"Nome": "Luft-Informa", "IntegraLuftbase": False, "TipoAcesso": "DOWNLOAD"}
+    )
+    valores, sem_erros = validar_payload_novo_sistema(
+        {
+            "Nome": "Luft-Informa",
+            "IntegraLuftbase": False,
+            "TipoAcesso": "DOWNLOAD",
+            "UrlDownload": "/Luft-Workspace/atualizador",
+        }
+    )
+
+    assert set(erros) == {"UrlDownload"}
+    assert sem_erros == {}
+    assert valores["url_download"] == "/Luft-Workspace/atualizador"
+    assert valores["integra_luftbase"] is False
+
+
+def test_sistema_externo_so_com_link_nao_tem_download() -> None:
+    valores, erros = validar_payload_novo_sistema(
+        {
+            "Nome": "Portal.WebApp",
+            "IntegraLuftbase": False,
+            "Link": "https://portal.luft.com.br",
+            "UrlDownload": "/sobra-de-escolha-anterior",
+        }
+    )
+
+    assert erros == {}
+    assert valores["tipo_acesso"] == "WEB"
+    assert valores["url_download"] is None
+
+
+def test_sistema_integrado_nao_pode_ser_download() -> None:
+    _, erros = validar_payload_novo_sistema(
+        {"Nome": "X", "TipoAcesso": "DOWNLOAD", "UrlDownload": "/x"}
+    )
+
+    assert set(erros) == {"TipoAcesso"}
+
+
+def test_sistema_externo_nao_provisiona_schema_nem_vault() -> None:
+    _, erros_schema = validar_payload_novo_sistema(
+        {"Nome": "Portal", "IntegraLuftbase": False, "SchemaAplicacao": "portal"}
+    )
+    _, erros_vault = validar_payload_novo_sistema(
+        {"Nome": "Portal", "IntegraLuftbase": False, "ProvisionarInfraestrutura": True}
+    )
+
+    assert set(erros_schema) == {"SchemaAplicacao"}
+    assert set(erros_vault) == {"SchemaAplicacao"}
+
+
+def test_tipo_de_acesso_desconhecido_e_recusado() -> None:
+    _, erros = validar_payload_novo_sistema(
+        {"Nome": "X", "IntegraLuftbase": False, "TipoAcesso": "FTP"}
+    )
+
+    assert set(erros) == {"TipoAcesso"}

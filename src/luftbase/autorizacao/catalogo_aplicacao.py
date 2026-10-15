@@ -22,6 +22,7 @@ from sqlalchemy.orm import aliased
 
 from luftbase.autorizacao.catalogo import AcaoPermissao, DefinicaoModulo
 from luftbase.persistencia.core.catalogo import ResultadoSincronizacaoCatalogo
+from luftbase.persistencia.core.categorias_sistema import CODIGOS_CATEGORIA
 from luftbase.persistencia.core.seguranca import (
     Modulo,
     Permissao,
@@ -31,7 +32,8 @@ from luftbase.persistencia.core.seguranca import (
 )
 
 _PADRAO_CHAVE = re.compile(r"^[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*\.[A-Z][A-Z0-9_]*$")
-_CATEGORIAS = frozenset({"APLICACAO", "SERVICO"})
+# O HUB e o portal central: so o Workspace o cadastra, uma aplicacao satelite nao se declara HUB.
+_CATEGORIAS = frozenset(CODIGOS_CATEGORIA) - {"HUB"}
 
 
 class ErroCatalogo(ValueError):
@@ -91,7 +93,9 @@ class CatalogoAplicacao:
         """Rejeita chaves fora do padrao, acoes desconhecidas e arvores quebradas."""
 
         if self.sistema is not None and self.sistema.categoria not in _CATEGORIAS:
-            raise ErroCatalogo("A categoria do sistema deve ser APLICACAO ou SERVICO.")
+            raise ErroCatalogo(
+                "A categoria do sistema deve ser uma de: " + ", ".join(sorted(_CATEGORIAS)) + "."
+            )
         codigos = [modulo.codigo for modulo in self.modulos]
         if len(set(codigos)) != len(codigos):
             raise ErroCatalogo("Ha codigos de modulo repetidos no catalogo.")

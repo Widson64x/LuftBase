@@ -56,6 +56,9 @@ class DestinoProvisionamento:
     banco: str
     sistema_referencia: int
     mount: str = MOUNT_PADRAO
+    # Preenchido quando o alias da conexao foi descoberto direto em `conexoes/` (CLI), sem ler o
+    # segredo do sistema de referencia.
+    alias_conexao: str | None = None
 
     @property
     def raiz_sistemas(self) -> str:
@@ -164,6 +167,12 @@ class ProvisionadorSistema:
         self._engine: Engine | None = None
 
     @property
+    def cliente_vault(self) -> Any:
+        """Cliente do Vault ja autenticado, para a CLI reaproveitar na mesma operacao."""
+
+        return self._cliente_vault()
+
+    @property
     def ambiente(self) -> str:
         """Ambiente do destino; as roles levam o sufixo dele fora da producao."""
 
@@ -211,6 +220,8 @@ class ProvisionadorSistema:
     def alias_conexao(self) -> str:
         """Alias da conexao compartilhada, lido do segredo do proprio Workspace."""
 
+        if self._destino.alias_conexao:
+            return self._destino.alias_conexao
         caminho = f"{self._destino.raiz_sistemas}/{self._destino.sistema_referencia}"
         try:
             dados = self._cliente_vault().secrets.kv.v2.read_secret_version(
@@ -227,6 +238,21 @@ class ProvisionadorSistema:
                 f"O segredo '{caminho}' nao informa a conexao compartilhada ('conexao')."
             )
         return alias
+
+    def ler_segredo(self, sistema_id: int) -> dict[str, Any] | None:
+        """Conteudo de `sistemas/<id>` ou `None` se nao existir (o chamador nao deve exibi-lo)."""
+
+        from hvac import exceptions as excecoes_vault
+
+        try:
+            resposta = self._cliente_vault().secrets.kv.v2.read_secret_version(
+                path=f"{self._destino.raiz_sistemas}/{sistema_id}",
+                mount_point=self._destino.mount,
+                raise_on_deleted_version=True,
+            )
+        except excecoes_vault.InvalidPath:
+            return None
+        return dict(resposta["data"]["data"])
 
     def segredo_existe(self, sistema_id: int) -> bool:
         from hvac import exceptions as excecoes_vault
@@ -333,6 +359,11 @@ class ProvisionadorSistema:
         self._cliente_vault().secrets.kv.v2.delete_metadata_and_all_versions(
             path=f"{self._destino.raiz_sistemas}/{sistema_id}", mount_point=self._destino.mount
         )
+
+    def engine_administrativo(self) -> Engine:
+        """Engine do core com a credencial do operador, para o cadastro na mesma operacao."""
+
+        return self._engine_admin()
 
     def encerrar(self) -> None:
         if self._engine is not None:

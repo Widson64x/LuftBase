@@ -144,12 +144,12 @@ def _solicitar_segredo(rotulo: str) -> str:
     return valor
 
 
-def _usuario_administrativo(informado: str | None) -> str:
+def _usuario_administrativo(informado: str | None, *, rotulo: str = "") -> str:
     """Usuario administrativo do PostgreSQL: quem executa informa; nao ha valor assumido."""
 
     if informado and informado.strip():
         return informado.strip()
-    valor = click.prompt("Usuario administrativo do PostgreSQL", type=str).strip()
+    valor = click.prompt(f"Usuario administrativo do PostgreSQL {rotulo}".strip(), type=str).strip()
     if not valor:
         raise click.ClickException("O usuario administrativo nao pode ficar vazio.")
     return valor

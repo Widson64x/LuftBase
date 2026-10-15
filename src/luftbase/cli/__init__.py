@@ -15,6 +15,7 @@ from luftbase.cli.email import email
 from luftbase.cli.estrutura import estrutura
 from luftbase.cli.projeto import projeto
 from luftbase.cli.servir import servir
+from luftbase.cli.sistema import sistema
 from luftbase.cli.tema import tema
 from luftbase.cli.vault import vault, vault_postgresql
 
@@ -39,6 +40,7 @@ cli.add_command(email)
 cli.add_command(estrutura)
 cli.add_command(projeto)
 cli.add_command(servir)
+cli.add_command(sistema)
 cli.add_command(tema)
 cli.add_command(vault)
 
@@ -55,6 +57,7 @@ def registrar_comandos(app: Flask) -> None:
     app.cli.add_command(email)
     app.cli.add_command(estrutura)
     app.cli.add_command(projeto)
+    app.cli.add_command(sistema)
     app.cli.add_command(tema)
     app.cli.add_command(vault)
 
@@ -71,6 +74,7 @@ __all__ = [
     "estrutura",
     "projeto",
     "registrar_comandos",
+    "sistema",
     "tema",
     "vault",
 ]
