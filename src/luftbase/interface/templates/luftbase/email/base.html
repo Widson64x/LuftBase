@@ -50,6 +50,7 @@
                   </td>
                   <td align="right" style="font-size:13px; color:#1e44a4; font-family:Arial, Helvetica, sans-serif;">
                     {% block titulo_cabecalho %}{{ _sistema }}{% endblock %}
+                    {{ _ui.origem(_email) }}
                   </td>
                 </tr>
               </table>
@@ -78,7 +79,6 @@
                 <a href="https://www.luftlogistics.com" style="color:#1e44a4; text-decoration:none;">www.luftlogistics.com</a>
                 {% if _email.ano %}&nbsp;·&nbsp;© {{ _email.ano }} Luft Logistics{% endif %}
               </p>
-              {{ _ui.origem(_email) }}
             </td>
           </tr>
 

@@ -87,7 +87,7 @@ exigem tabelas e estilo inline. Por isso o layout de e-mail tem cores fixas da m
   `botao(url, texto)` com VML para Outlook, `nota(texto)`, `divisor()`, `origem(luft_email)`.
 - O `ServicoEmail` injeta `luft_email` (`sistema`, `ambiente`, `ambiente_rotulo`, `versao`, `versao_luftbase`,
   `url`, `modo_teste`, `destinatarios_reais`, `cid_logo`, `gerado_em`, `ano`) e so anexa o logo se o HTML o usar.
-- Todo e-mail que estende `base.html` traz, no fim do rodape, uma linha pequena e discreta com ambiente, versao do
+- Todo e-mail que estende `base.html` traz, no canto direito do cabecalho, linhas pequenas e discretas empilhadas com ambiente, versao do
   projeto (`LUFT_APLICACAO_VERSAO`), versao do LuftBase e link (`LUFT_URL_PUBLICA`, ou o `link` absoluto do sistema). Dado ausente some da linha; nao quebra o e-mail.
 
 ```jinja
