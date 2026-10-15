@@ -12,6 +12,14 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a106] - 2026-10-15
+
+### Alterado
+
+- **Origem do e-mail no canto inferior direito**: o bloco empilhado (ambiente, versao do projeto, versao do LuftBase e
+  link) vai para o canto inferior direito do rodape. O nome do sistema saiu do canto superior direito do cabecalho,
+  que fica so com o logo; o bloco `titulo_cabecalho` do layout base foi removido.
+
 ## [0.1.0a105] - 2026-10-15
 
 ### Alterado

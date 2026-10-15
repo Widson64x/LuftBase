@@ -508,7 +508,7 @@ def test_email_traz_ambiente_versao_e_link() -> None:
     assert html_parte is not None
     html = html_parte.get_content()
     assert "Homologação" in html
-    assert "LuftBase 0.1.0a105" in html
+    assert "LuftBase 0.1.0a106" in html
     assert "v0.4.2a01" in html
     assert "https://hml.luft.example/control" in html
     texto = envio.mensagem.get_body(("plain",))

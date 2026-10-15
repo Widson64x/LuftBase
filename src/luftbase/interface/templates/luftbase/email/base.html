@@ -6,7 +6,7 @@
     {% import "luftbase/email/componentes.html" as ui_email %}
     {% block conteudo %} ... {% endblock %}
 
-  Blocos: previa, titulo_cabecalho, faixa, conteudo, rodape_extra.
+  Blocos: previa, faixa, conteudo, rodape_extra.
   `luft_email` e injetado pelo ServicoEmail (sistema, modo_teste, destinatarios_reais,
   cid_logo, gerado_em, ano). Sem ele o template ainda renderiza, sem logo nem modo teste.
 #}
@@ -48,10 +48,6 @@
                     <span style="font-size:18px; font-weight:bold; color:#1e44a4; font-family:Arial, Helvetica, sans-serif;">Luft Logistics</span>
                     {% endif %}
                   </td>
-                  <td align="right" style="font-size:13px; color:#1e44a4; font-family:Arial, Helvetica, sans-serif;">
-                    {% block titulo_cabecalho %}{{ _sistema }}{% endblock %}
-                    {{ _ui.origem(_email) }}
-                  </td>
                 </tr>
               </table>
             </td>
@@ -71,6 +67,9 @@
 
           <tr>
             <td style="background-color:#f8f9fb; padding:20px 32px; border-top:1px solid #e6e9ef;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td valign="bottom">
               <p style="margin:0; font-size:12px; line-height:18px; color:#a0aab8; font-family:Arial, Helvetica, sans-serif;">
                 Este e-mail foi enviado automaticamente pelo {{ _sistema }}.
                 {% block rodape_extra %}{% endblock %}
@@ -79,6 +78,12 @@
                 <a href="https://www.luftlogistics.com" style="color:#1e44a4; text-decoration:none;">www.luftlogistics.com</a>
                 {% if _email.ano %}&nbsp;·&nbsp;© {{ _email.ano }} Luft Logistics{% endif %}
               </p>
+                  </td>
+                  <td valign="bottom" align="right" style="width:1%; white-space:nowrap;">
+                    {{ _ui.origem(_email) }}
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
