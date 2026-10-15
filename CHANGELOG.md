@@ -12,6 +12,15 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a107] - 2026-10-15
+
+### Corrigido
+
+- **Nome do remetente voltou a respeitar o Vault**: o `nome_remetente` do segredo `integracoes/email` agora vence o
+  nome da aplicacao. Antes, o e-mail saia como "Luft-Workspace" mesmo com `"nome_remetente": "LuftBase"` no segredo.
+  Ordem atual: parametro do envio, `nome_remetente` do Vault, nome do sistema, "Luft Logistics". Segredo sem
+  `nome_remetente` continua usando o nome do sistema.
+
 ## [0.1.0a106] - 2026-10-15
 
 ### Alterado

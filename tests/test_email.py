@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import smtplib
 from collections.abc import Mapping
+from dataclasses import replace
 from email.message import EmailMessage
 
 import pytest
@@ -187,19 +188,33 @@ def test_envio_monta_cabecalhos_e_copia_oculta_fora_do_cabecalho() -> None:
     assert mensagem["To"] == "filial@luft.com"
     assert mensagem["Cc"] == "gestor@luft.com"
     assert mensagem["Bcc"] is None
-    assert mensagem["From"] == "Luft ConnectAir <planejamento@luftlogistics.com>"
+    assert mensagem["From"] == "Luft Logistics <planejamento@luftlogistics.com>"
     assert mensagem["Message-ID"].endswith("@luftlogistics.com>")
     assert "Olá filial" in mensagem.get_body(("plain",)).get_content()  # type: ignore[union-attr]
     assert [parte.get_filename() for parte in mensagem.iter_attachments()] == ["plano.xlsx"]
     assert auditados == [resultado]
 
 
-def test_nome_do_remetente_prioriza_parametro_depois_sistema_depois_vault() -> None:
-    sem_sistema = _servico(nome_sistema=None).preparar("a@luft.com", "A", texto="t")
+def test_nome_do_remetente_prioriza_parametro_depois_vault_depois_sistema() -> None:
+    do_vault = _servico().preparar("a@luft.com", "A", texto="t")
     com_parametro = _servico().preparar("a@luft.com", "A", texto="t", nome_remetente="Torre")
 
-    assert sem_sistema.mensagem["From"].startswith("Luft Logistics <")
+    assert do_vault.mensagem["From"].startswith("Luft Logistics <")
     assert com_parametro.mensagem["From"].startswith("Torre <")
+
+
+def test_sem_nome_no_vault_o_remetente_usa_o_nome_do_sistema() -> None:
+    credencial = replace(_credencial(), nome_remetente=None)
+    servico = ServicoEmail(
+        credencial,
+        ambiente=Ambiente.PRODUCAO,
+        nome_sistema="Luft ConnectAir",
+        transporte=TransporteMemoria(),
+    )
+
+    envio = servico.preparar("a@luft.com", "A", texto="t")
+
+    assert envio.mensagem["From"].startswith("Luft ConnectAir <")
 
 
 def test_modo_teste_troca_destinos_e_marca_assunto() -> None:
@@ -508,7 +523,7 @@ def test_email_traz_ambiente_versao_e_link() -> None:
     assert html_parte is not None
     html = html_parte.get_content()
     assert "Homologação" in html
-    assert "LuftBase 0.1.0a106" in html
+    assert "LuftBase 0.1.0a107" in html
     assert "v0.4.2a01" in html
     assert "https://hml.luft.example/control" in html
     texto = envio.mensagem.get_body(("plain",))

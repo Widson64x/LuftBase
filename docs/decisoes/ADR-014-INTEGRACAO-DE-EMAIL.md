@@ -18,10 +18,11 @@ arquivo de ambiente de cada servidor.
   falso. Presente e invalido, a inicializacao falha com o campo indicado.
 - Somente `starttls` e `ssl` sao aceitos, como no LDAP. A conta sempre autentica.
 - O modo teste e dado do ambiente: `redirecionar_para` preenchido desvia todo envio, prefixa o
-  assunto com `[TESTE]` e o layout mostra os destinatarios reais. A aplicacao nao decide isso.
-- O nome exibido no remetente e, em ordem: o parametro do envio, o nome do sistema em
-  `core.tb_sistema`, o `nome_remetente` do segredo. Um segredo compartilhado nao pode fixar o
-  nome de uma aplicacao.
+  assunto com `[TESTE]` e o layout mostra a faixa de modo teste (sem listar os destinatarios reais).
+  A aplicacao nao decide isso.
+- O nome exibido no remetente e, em ordem: o parametro do envio, o `nome_remetente` do segredo, o nome do
+  sistema em `core.tb_sistema`. (Revisto na 0.1.0a107: antes o nome do sistema vencia o do segredo, e a conta
+  compartilhada aparecia com o nome de cada aplicacao, ex.: "Luft-Workspace", em vez do "LuftBase" do Vault.)
 - Falhas de entrega nao geram excecao: viram `ResultadoEnvio` com mensagem segura. Erros de uso
   (sem destinatario, assunto com quebra de linha, e-mail nao configurado) geram `ErroEmail`.
 - `enviar_lote` reutiliza uma sessao SMTP; uma recusa nao interrompe as demais mensagens.

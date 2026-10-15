@@ -217,8 +217,8 @@ class ServicoEmail:
 
         remetente_nome = _texto_de_cabecalho(
             nome_remetente
-            or self._nome_sistema
             or credencial.nome_remetente
+            or self._nome_sistema
             or NOME_REMETENTE_PADRAO,
             "nome_remetente",
         )

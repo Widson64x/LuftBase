@@ -163,7 +163,8 @@ Todas as aplicacoes do ambiente leem `luft/{ambiente}/integracoes/email`:
 
 - `seguranca`: `starttls` (porta 587) ou `ssl` (porta 465). Canal sem TLS nao e aceito.
 - `remetente` e opcional; ausente, usa `usuario`.
-- `nome_remetente` e opcional e so e usado quando o sistema nao tem nome em `core.tb_sistema`.
+- `nome_remetente` e opcional e, quando preenchido, e o nome exibido no remetente de todos os e-mails da conta
+  (vence o nome do sistema). Vazio, usa o nome do sistema em `core.tb_sistema`.
 - `redirecionar_para` liga o modo teste: texto separado por `;`/`,` ou lista JSON. Vazio envia
   aos destinatarios reais. Use-o nos segredos de desenvolvimento e homologacao.
 - `tipo` e opcional e, se informado, deve ser `smtp`.
