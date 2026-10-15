@@ -84,13 +84,11 @@ exigem tabelas e estilo inline. Por isso o layout de e-mail tem cores fixas da m
   `titulo_cabecalho`, `faixa`, `conteudo`, `rodape_extra`.
 - `luftbase/email/componentes.html`: `faixa(texto, tipo)` (`sucesso`, `aviso`, `perigo`,
   `info`), `titulo(texto, rotulo)`, `paragrafo(texto)` ou `{% call %}`, `tabela_resumo(linhas)`,
-  `botao(url, texto)` com VML para Outlook, `nota(texto)`, `divisor()`, `selo_ambiente(ambiente, rotulo)`
-  e `origem(luft_email)`.
+  `botao(url, texto)` com VML para Outlook, `nota(texto)`, `divisor()`, `origem(luft_email)`.
 - O `ServicoEmail` injeta `luft_email` (`sistema`, `ambiente`, `ambiente_rotulo`, `versao`, `versao_luftbase`,
   `url`, `modo_teste`, `destinatarios_reais`, `cid_logo`, `gerado_em`, `ano`) e so anexa o logo se o HTML o usar.
-- Todo e-mail que estende `base.html` mostra o selo do ambiente no cabecalho e, no rodape, o ambiente, a versao
-  do projeto (`LUFT_APLICACAO_VERSAO`), a versao do LuftBase e o link (`LUFT_URL_PUBLICA`, ou o `link` absoluto do
-  sistema). Dado ausente some da linha; nao quebra o e-mail.
+- Todo e-mail que estende `base.html` traz, no fim do rodape, uma linha pequena e discreta com ambiente, versao do
+  projeto (`LUFT_APLICACAO_VERSAO`), versao do LuftBase e link (`LUFT_URL_PUBLICA`, ou o `link` absoluto do sistema). Dado ausente some da linha; nao quebra o e-mail.
 
 ```jinja
 {% extends "luftbase/email/base.html" %}

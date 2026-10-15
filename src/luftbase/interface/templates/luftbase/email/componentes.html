@@ -81,39 +81,17 @@
 {%- endmacro %}
 
 {#
-  Selo do ambiente (cabecalho). Producao fica discreta; homologacao e desenvolvimento chamam a atencao
-  para ninguem confundir um e-mail de teste com um real.
+  Linha discreta de origem do e-mail (rodape): ambiente, versao do projeto, versao do LuftBase e link.
+  Cinza claro e pequena de proposito; so quem procura enxerga. Sem dado, a parte some.
 #}
-{% macro selo_ambiente(ambiente, rotulo) -%}
-{%- set _cores = {
-  "producao":       {"fundo": "#e4f8de", "texto": "#1d6b2c"},
-  "homologacao":    {"fundo": "#fdf3d8", "texto": "#8a5a00"},
-  "desenvolvimento": {"fundo": "#e5edfb", "texto": "#1e44a4"},
-} -%}
-{%- set cor = _cores.get(ambiente, _cores["desenvolvimento"]) -%}
-<span style="display:inline-block; padding:3px 10px; border-radius:10px; background-color:{{ cor.fundo }}; color:{{ cor.texto }}; font-size:11px; font-weight:bold; letter-spacing:0.5px; text-transform:uppercase; font-family:{{ _fonte }};">{{ rotulo or ambiente }}</span>
-{%- endmacro %}
-
-{# Cartao "de onde veio este e-mail": ambiente, versao do projeto e link. Sem dado, a linha some. #}
 {% macro origem(email) -%}
-{%- set _linhas = [] -%}
-{%- if email.ambiente_rotulo %}{% set _ = _linhas.append(("Ambiente", email.ambiente_rotulo)) %}{% endif -%}
-{%- if email.versao %}{% set _ = _linhas.append(("Versão do projeto", email.versao)) %}{% endif -%}
-{%- if email.versao_luftbase %}{% set _ = _linhas.append(("Versão do LuftBase", email.versao_luftbase)) %}{% endif -%}
-{%- if _linhas or email.url %}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 12px 0;">
-  {%- for rotulo, valor in _linhas %}
-  <tr>
-    <td style="padding:2px 0; width:40%; font-size:12px; color:#a0aab8; font-family:{{ _fonte }};">{{ rotulo }}</td>
-    <td style="padding:2px 0; font-size:12px; color:#4a5568; font-weight:bold; font-family:{{ _fonte }};">{{ valor }}</td>
-  </tr>
-  {%- endfor %}
-  {%- if email.url %}
-  <tr>
-    <td style="padding:2px 0; width:40%; font-size:12px; color:#a0aab8; font-family:{{ _fonte }};">Link</td>
-    <td style="padding:2px 0; font-size:12px; font-family:{{ _fonte }}; word-break:break-all;"><a href="{{ email.url }}" style="color:#1e44a4; text-decoration:none;">{{ email.url }}</a></td>
-  </tr>
-  {%- endif %}
-</table>
+{%- set _partes = [] -%}
+{%- if email.ambiente_rotulo %}{% set _ = _partes.append(email.ambiente_rotulo) %}{% endif -%}
+{%- if email.versao %}{% set _ = _partes.append("v" ~ email.versao) %}{% endif -%}
+{%- if email.versao_luftbase %}{% set _ = _partes.append("LuftBase " ~ email.versao_luftbase) %}{% endif -%}
+{%- if _partes or email.url %}
+<p style="margin:8px 0 0 0; font-size:11px; line-height:16px; color:#c3cad5; font-family:{{ _fonte }};">
+  {{ _partes | join(" · ") }}{% if _partes and email.url %} · {% endif %}{% if email.url %}<a href="{{ email.url }}" style="color:#c3cad5; text-decoration:none;">{{ email.url }}</a>{% endif %}
+</p>
 {%- endif %}
 {%- endmacro %}

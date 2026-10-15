@@ -12,6 +12,15 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a104] - 2026-10-15
+
+### Alterado
+
+- **Origem do e-mail mais discreta**: ambiente, versao do projeto, versao do LuftBase e link saem do cabecalho e do
+  cartao e viram uma unica linha pequena e cinza claro no fim do rodape. Removido o selo de ambiente do cabecalho.
+- **Modo teste sem a tabela "Destinatarios reais"**: a faixa "MODO TESTE" continua, mas o e-mail nao lista mais
+  quem receberia de verdade.
+
 ## [0.1.0a103] - 2026-10-15
 
 ### Alterado
