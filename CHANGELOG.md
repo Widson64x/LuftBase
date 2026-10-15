@@ -12,6 +12,13 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a108] - 2026-10-15
+
+### Alterado
+
+- **Bloco de origem do e-mail com rotulos**: passa a mostrar "Ambiente: Homologacao", "Aplicacao: v0.1.1a01" e
+  "LuftBase: 0.1.0a108", uma por linha, no canto inferior direito.
+
 ## [0.1.0a107] - 2026-10-15
 
 ### Corrigido

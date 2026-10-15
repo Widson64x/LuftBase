@@ -522,9 +522,9 @@ def test_email_traz_ambiente_versao_e_link() -> None:
     html_parte = envio.mensagem.get_body(("html",))
     assert html_parte is not None
     html = html_parte.get_content()
-    assert "Homologação" in html
-    assert "LuftBase 0.1.0a107" in html
-    assert "v0.4.2a01" in html
+    assert "Ambiente: Homologação" in html
+    assert "LuftBase: 0.1.0a108" in html
+    assert "Aplicação: v0.4.2a01" in html
     assert "https://hml.luft.example/control" in html
     texto = envio.mensagem.get_body(("plain",))
     assert texto is not None and "0.4.2a01" in texto.get_content()
@@ -536,5 +536,5 @@ def test_email_sem_versao_nem_link_nao_quebra() -> None:
     )
     html_parte = envio.mensagem.get_body(("html",))
     assert html_parte is not None
-    assert "LuftBase 0." in html_parte.get_content()
-    assert "· v" not in html_parte.get_content()
+    assert "LuftBase: 0." in html_parte.get_content()
+    assert "Aplicação:" not in html_parte.get_content()

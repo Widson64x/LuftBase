@@ -86,9 +86,9 @@
 #}
 {% macro origem(email) -%}
 {%- set _linhas = [] -%}
-{%- if email.ambiente_rotulo %}{% set _ = _linhas.append(email.ambiente_rotulo) %}{% endif -%}
-{%- if email.versao %}{% set _ = _linhas.append("v" ~ email.versao) %}{% endif -%}
-{%- if email.versao_luftbase %}{% set _ = _linhas.append("LuftBase " ~ email.versao_luftbase) %}{% endif -%}
+{%- if email.ambiente_rotulo %}{% set _ = _linhas.append("Ambiente: " ~ email.ambiente_rotulo) %}{% endif -%}
+{%- if email.versao %}{% set _ = _linhas.append("Aplicação: v" ~ email.versao) %}{% endif -%}
+{%- if email.versao_luftbase %}{% set _ = _linhas.append("LuftBase: " ~ email.versao_luftbase) %}{% endif -%}
 {%- if _linhas or email.url %}
 <div style="margin-top:6px; font-size:11px; line-height:15px; color:#aab3c0; text-align:right; font-family:{{ _fonte }};">
   {%- for linha in _linhas %}{{ linha }}{% if not loop.last or email.url %}<br>{% endif %}{% endfor -%}
