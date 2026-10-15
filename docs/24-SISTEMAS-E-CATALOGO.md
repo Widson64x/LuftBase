@@ -132,5 +132,7 @@ O **icone** e escolhido num catalogo visual (botao "Escolher..."): 225 icones em
 ## Alterar e descontinuar
 
 - Editar um sistema: **Painel de Controle > Sistemas**, botao de editar no card. O sistema `0` (Workspace) so permite consulta.
-- **Descontinuar** (`ativo = false`) tira o sistema do ar para todos e exige uma permissao propria.
+- **Descontinuar** (`ativo = false`) tira o sistema do ar para todos e exige uma permissao propria
+  (`CONFIGURACOES.SISTEMAS.DESATIVAR`). Sem ela, o checkbox "Ativo no Catalogo" fica desabilitado e a API responde 403 com
+  mensagem, sem salvar nada. O card passa a mostrar "DESATIVADO - OCULTO NO HUB" e o Hub deixa de listar o sistema.
 - Toda criacao e alteracao entra na **auditoria** com o antes e o depois.

@@ -120,6 +120,19 @@
         background: linear-gradient(145deg, color-mix(in srgb, var(--luft-warning-50) 48%, var(--luft-bg-panel)), var(--luft-bg-panel) 62%);
     }
 
+    .sistema-card.inativo {
+        border-style: dashed;
+        background: color-mix(in srgb, var(--luft-text-muted) 6%, var(--luft-bg-panel));
+    }
+
+    .sistema-card.inativo .sistema-icon-box,
+    .sistema-card.inativo .sistema-title,
+    .sistema-card.inativo .sistema-desc,
+    .sistema-card.inativo .sistema-chips-row {
+        opacity: 0.55;
+        filter: grayscale(0.8);
+    }
+
     .sistema-card:hover {
         border-color: var(--luft-primary-300);
         box-shadow: var(--luft-shadow-md);
@@ -646,7 +659,7 @@
 
                 <div class="sistemas-grid" id="container-sistemas">
                     {% for sys in sistemas %}
-                    <div class="sistema-card {% if sys.Id_Sistema == 0 %}protegido{% endif %}" 
+                    <div class="sistema-card {% if sys.Id_Sistema == 0 %}protegido{% endif %}{% if not sys.Ativo %} inativo{% endif %}" 
                          data-id="{{ sys.Id_Sistema }}"
                          data-nome="{{ sys.Nome_Sistema }}"
                          data-categoria="{{ sys.Categoria }}"
@@ -696,15 +709,15 @@
                                             <span class="luft-badge luft-badge-secondary" style="font-size: 0.65rem; padding: 2px 6px;"><i class="ph-bold ph-lock-key"></i> NÚCLEO PROTEGIDO</span>
                                         {% endif %}
                                         {% if not sys.Ativo %}
-                                            <span class="luft-badge luft-badge-danger" style="font-size: 0.65rem; padding: 2px 6px;">INATIVO</span>
+                                            <span class="luft-badge luft-badge-danger" style="font-size: 0.65rem; padding: 2px 6px;" title="Fora do catálogo: não aparece no Hub nem no menu dos usuários"><i class="ph-bold ph-eye-slash"></i> DESATIVADO · OCULTO NO HUB</span>
                                         {% endif %}
                                     </div>
                                 </div>
                             </div>
                             
-                            <span class="status-pill {% if sys.Em_Manutencao %}offline{% else %}online{% endif %}" id="sys-pill-{{ sys.Id_Sistema }}">
+                            <span class="status-pill {% if not sys.Ativo or sys.Em_Manutencao %}offline{% else %}online{% endif %}" id="sys-pill-{{ sys.Id_Sistema }}">
                                 <span class="status-pulse-dot"></span>
-                                <span id="sys-label-{{ sys.Id_Sistema }}">{{ 'Manutenção' if sys.Em_Manutencao else 'Online' }}</span>
+                                <span id="sys-label-{{ sys.Id_Sistema }}">{{ 'Desativado' if not sys.Ativo else ('Manutenção' if sys.Em_Manutencao else 'Online') }}</span>
                             </span>
                         </div>
 
@@ -757,8 +770,8 @@
                                         <input 
                                             type="checkbox" 
                                             id="sys-toggle-{{ sys.Id_Sistema }}" 
-                                            {% if not sys.Em_Manutencao %}checked{% endif %}
-                                            {% if sys.Id_Sistema == 0 or not pode_gerenciar_manutencao or (not is_master and sys.Id_Sistema != sistema_atual_id) %}disabled{% endif %}
+                                            {% if sys.Ativo and not sys.Em_Manutencao %}checked{% endif %}
+                                            {% if sys.Id_Sistema == 0 or not sys.Ativo or not pode_gerenciar_manutencao or (not is_master and sys.Id_Sistema != sistema_atual_id) %}disabled{% endif %}
                                             {% if sys.Id_Sistema != 0 and pode_gerenciar_manutencao and (is_master or sys.Id_Sistema == sistema_atual_id) %}onchange="alternarManutencaoIndividual({{ sys.Id_Sistema }}, !this.checked, '{{ sys.Nome_Sistema }}')"{% endif %}
                                         >
                                         <span class="luft-slider"></span>
@@ -909,7 +922,7 @@
                         </div>
                         <div class="d-flex align-items-center gap-4">
                             <label class="d-flex align-items-center gap-2 m-0 cursor-pointer text-xs font-semibold text-main">
-                                <input type="checkbox" id="editSysAtivo" class="form-check-input m-0">
+                                <input type="checkbox" id="editSysAtivo" class="form-check-input m-0" {% if not pode_desativar_sistemas %}disabled title="Sem permissão para desativar ou reativar sistemas"{% endif %}>
                                 <span>Ativo no Catálogo</span>
                             </label>
                             <label class="d-flex align-items-center gap-2 m-0 cursor-pointer text-xs font-semibold text-danger">
@@ -1726,7 +1739,9 @@
                 },
                 body: JSON.stringify(payload)
             });
-            const resp = await req.json();
+            const resp = await req.json().catch(() => ({
+                message: req.status === 403 ? 'Você não tem permissão para esta alteração.' : null
+            }));
 
             if (resp.status === 'success') {
                 exibirToast('Sucesso', 'Configurações atualizadas com sucesso.', 'success');

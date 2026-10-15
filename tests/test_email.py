@@ -10,6 +10,7 @@ from email.message import EmailMessage
 import pytest
 from flask import Flask
 
+from luftbase._versao import __version__
 from luftbase import Anexo, PlataformaLuft, ResultadoEnvio, enviar_email
 from luftbase.configuracao import Ambiente, resolver_caminhos_vault
 from luftbase.infraestrutura.cofre.credenciais import CredencialEmail, Segredo, SegurancaSmtp
@@ -523,7 +524,7 @@ def test_email_traz_ambiente_versao_e_link() -> None:
     assert html_parte is not None
     html = html_parte.get_content()
     assert "Ambiente: Homologação" in html
-    assert "LuftBase: 0.1.0a109" in html
+    assert f"LuftBase: {__version__}" in html
     assert "Aplicação: v0.4.2a01" in html
     assert "https://hml.luft.example/control" in html
     texto = envio.mensagem.get_body(("plain",))

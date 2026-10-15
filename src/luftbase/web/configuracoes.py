@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from flask import Blueprint, abort, current_app, jsonify, render_template, request, url_for
+from flask import Blueprint, current_app, jsonify, render_template, request, url_for
 from flask_login import login_required
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -290,6 +290,7 @@ def _renderizar_painel_controle() -> str:
             PermissaoLuftBase.VARIAVEIS_EDITAR,
             PermissaoLuftBase.SISTEMAS_VISUALIZAR,
             PermissaoLuftBase.SISTEMAS_EDITAR,
+            PermissaoLuftBase.SISTEMAS_DESATIVAR,
             PermissaoLuftBase.SISTEMAS_CRIAR,
             PermissaoLuftBase.SERVICOS_VISUALIZAR,
             PermissaoLuftBase.SERVICOS_EXECUTAR,
@@ -325,6 +326,7 @@ def _renderizar_painel_controle() -> str:
         ),
         pode_ver_sistemas=bool(decisoes.get(PermissaoLuftBase.SISTEMAS_VISUALIZAR)),
         pode_editar_sistemas=bool(decisoes.get(PermissaoLuftBase.SISTEMAS_EDITAR)),
+        pode_desativar_sistemas=bool(decisoes.get(PermissaoLuftBase.SISTEMAS_DESATIVAR)),
         pode_editar_ambiente=bool(decisoes.get(PermissaoLuftBase.VARIAVEIS_EDITAR)),
         pode_ver_variaveis=bool(decisoes.get(PermissaoLuftBase.VARIAVEIS_VISUALIZAR)),
         pode_ver_servicos=bool(decisoes.get(PermissaoLuftBase.SERVICOS_VISUALIZAR)),
@@ -508,6 +510,24 @@ def api_sistema_atualizar():  # type: ignore[no-untyped-def]
         if not sistema:
             return jsonify({"status": "error", "message": "Sistema não encontrado."}), 404
 
+        # Descontinuar tira o sistema do ar para todos; exige permissao propria. Checado antes
+        # de qualquer alteracao, senao o abort derruba a transacao e perde as demais edicoes.
+        if (
+            "Ativo" in dados
+            and id_sistema != 0
+            and bool(dados["Ativo"]) != bool(sistema.ativo is not False)
+            and not tem_permissao(PermissaoLuftBase.SISTEMAS_DESATIVAR)
+        ):
+            return (
+                jsonify(
+                    {
+                        "status": "error",
+                        "message": "Você não tem permissão para desativar ou reativar sistemas.",
+                    }
+                ),
+                403,
+            )
+
         anteriores = {
             "nome_sistema": sistema.nome_sistema,
             "descricao_sistema": sistema.descricao_sistema,
@@ -595,10 +615,7 @@ def api_sistema_atualizar():  # type: ignore[no-untyped-def]
         if "OrdemExibicao" in dados and id_sistema != 0:
             with contextlib.suppress(TypeError, ValueError):
                 sistema.ordem_exibicao = max(0, int(dados["OrdemExibicao"]))
-        if "Ativo" in dados and id_sistema != 0 and bool(dados["Ativo"]) != sistema.ativo:
-            # Descontinuar tira o sistema do ar para todos; exige permissao propria.
-            if not tem_permissao(PermissaoLuftBase.SISTEMAS_DESATIVAR):
-                abort(403)
+        if "Ativo" in dados and id_sistema != 0:
             sistema.ativo = bool(dados["Ativo"])
         if "EmManutencao" in dados and id_sistema != 0:
             sistema.em_manutencao = bool(dados["EmManutencao"])

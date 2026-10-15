@@ -12,6 +12,20 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a110] - 2026-10-15
+
+### Corrigido
+
+- **Desativar sistema nao persistia**: a checagem da permissao `CONFIGURACOES.SISTEMAS.DESATIVAR` rodava no meio da gravacao e
+  fazia `abort(403)`, descartando a edicao inteira sem aviso. Agora e feita antes de qualquer alteracao e devolve JSON com a
+  mensagem "Voce nao tem permissao para desativar ou reativar sistemas." (nada e salvo pela metade).
+
+### Alterado
+
+- Painel de Controle: o checkbox "Ativo no Catalogo" fica desabilitado para quem nao tem a permissao de desativar.
+- Card de sistema desativado: borda tracejada, conteudo esmaecido, selo "DESATIVADO - OCULTO NO HUB", status "Desativado" e
+  interruptor de operacao travado. O Hub ja escondia sistemas inativos (`Sistema.ativo`).
+
 ## [0.1.0a109] - 2026-10-15
 
 ### Documentacao
