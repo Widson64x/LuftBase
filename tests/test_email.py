@@ -485,3 +485,39 @@ def test_plataforma_sobe_sem_o_segredo_de_email(monkeypatch: pytest.MonkeyPatch)
         from luftbase import obter_luftbase
 
         assert obter_luftbase().email.configurado is False
+
+
+def test_email_traz_ambiente_versao_e_link() -> None:
+    servico = ServicoEmail(
+        _credencial(),
+        ambiente=Ambiente.HOMOLOGACAO,
+        nome_sistema="Luft Control",
+        versao="0.4.2a01",
+        url_publica="https://hml.luft.example/control",
+        transporte=TransporteMemoria(),
+    )
+
+    envio = servico.preparar(
+        "ana@luft.com",
+        "Teste",
+        template="luftbase/email/teste.html",
+        contexto={"servidor": "smtp:587"},
+    )
+
+    html_parte = envio.mensagem.get_body(("html",))
+    assert html_parte is not None
+    html = html_parte.get_content()
+    assert "Homologação" in html
+    assert "0.4.2a01" in html
+    assert "https://hml.luft.example/control" in html
+    texto = envio.mensagem.get_body(("plain",))
+    assert texto is not None and "0.4.2a01" in texto.get_content()
+
+
+def test_email_sem_versao_nem_link_nao_quebra() -> None:
+    envio = _servico().preparar(
+        "ana@luft.com", "Teste", template="luftbase/email/teste.html", contexto={"servidor": "x"}
+    )
+    html_parte = envio.mensagem.get_body(("html",))
+    assert html_parte is not None
+    assert "Versão do projeto" not in html_parte.get_content()

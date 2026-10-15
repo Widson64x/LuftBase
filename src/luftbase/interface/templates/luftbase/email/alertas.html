@@ -12,5 +12,8 @@
     {{ ui_email.tabela_resumo(item.linhas) }}
     {% if not loop.last %}{{ ui_email.divisor() }}{% endif %}
   {% endfor %}
+  {% if luft_email is defined and luft_email.url %}
+    {{ ui_email.botao(luft_email.url, "Abrir " ~ (luft_email.sistema or "o sistema")) }}
+  {% endif %}
   {{ ui_email.nota("Gerado em " ~ gerado_em ~ ". Os dados de requisicao (corpo, parametros, senhas) nunca entram neste aviso; use o id de correlacao para abrir o registro na Auditoria.") }}
 {% endblock %}

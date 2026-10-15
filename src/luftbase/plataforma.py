@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import timedelta
@@ -13,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from flask import current_app
 from flask_login import LoginManager
 
+from luftbase.autorizacao.aviso_acesso import url_absoluta
 from luftbase.autorizacao.cache import CacheAutorizacaoRedis
 from luftbase.autorizacao.catalogo import PermissaoLuftBase
 from luftbase.autorizacao.catalogo_aplicacao import (
@@ -629,6 +631,12 @@ class PlataformaLuft:
             infraestrutura.credencial_email,
             ambiente=configuracao.aplicacao.ambiente,
             nome_sistema=configuracao.aplicacao.nome,
+            versao=configuracao.aplicacao.versao,
+            url_publica=url_absoluta(
+                configuracao.aplicacao.link, os.environ.get("LUFT_URL_PUBLICA")
+            )
+            or (os.environ.get("LUFT_URL_PUBLICA") or "").strip()
+            or None,
             auditor=auditar,
         )
 

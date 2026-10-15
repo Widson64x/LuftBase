@@ -12,6 +12,16 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 - `README.md`, `ROADMAP.md`, `HANDOFF.md` e o indice de `docs/` atualizados; nota sobre os nomes atuais das tabelas de log
   no doc 12.
 
+## [0.1.0a103] - 2026-10-15
+
+### Alterado
+
+- **E-mails de alerta e de acesso liberado trazem ambiente, versao e link**: o cabecalho ganha o selo do ambiente
+  (Desenvolvimento, Homologacao ou Producao) e o rodape mostra ambiente, versao do projeto, versao do LuftBase e o
+  link da aplicacao. Vale para todo e-mail que estende `luftbase/email/base.html`. O alerta ganhou o botao
+  "Abrir <sistema>". `ServicoEmail` aceita `versao` e `url_publica`; a plataforma preenche com
+  `LUFT_APLICACAO_VERSAO` e `LUFT_URL_PUBLICA` (ou o `link` absoluto do sistema).
+
 ## [0.1.0a102] - 2026-10-13
 
 ### Corrigido

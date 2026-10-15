@@ -50,6 +50,7 @@
                   </td>
                   <td align="right" style="font-size:13px; color:#1e44a4; font-family:Arial, Helvetica, sans-serif;">
                     {% block titulo_cabecalho %}{{ _sistema }}{% endblock %}
+                    {% if _email.ambiente_rotulo %}<br><span style="line-height:26px;">{{ _ui.selo_ambiente(_email.ambiente, _email.ambiente_rotulo) }}</span>{% endif %}
                   </td>
                 </tr>
               </table>
@@ -74,6 +75,7 @@
 
           <tr>
             <td style="background-color:#f8f9fb; padding:20px 32px; border-top:1px solid #e6e9ef;">
+              {{ _ui.origem(_email) }}
               <p style="margin:0; font-size:12px; line-height:18px; color:#a0aab8; font-family:Arial, Helvetica, sans-serif;">
                 Este e-mail foi enviado automaticamente pelo {{ _sistema }}.
                 {% block rodape_extra %}{% endblock %}

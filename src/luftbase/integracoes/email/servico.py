@@ -11,6 +11,7 @@ from email.utils import formataddr, formatdate, make_msgid
 from functools import lru_cache
 from importlib import resources
 
+from luftbase._versao import __version__
 from luftbase.configuracao.ambientes import Ambiente
 from luftbase.infraestrutura.cofre.credenciais import CredencialEmail
 from luftbase.integracoes.email.enderecos import (
@@ -31,6 +32,13 @@ from luftbase.nucleo.tempo import agora_local
 CID_LOGO = "luftbase-logo"
 PREFIXO_TESTE = "[TESTE]"
 NOME_REMETENTE_PADRAO = "Luft Logistics"
+
+# Nome do ambiente como aparece no cabecalho e no rodape dos e-mails.
+ROTULOS_AMBIENTE: dict[Ambiente, str] = {
+    Ambiente.DESENVOLVIMENTO: "Desenvolvimento",
+    Ambiente.HOMOLOGACAO: "Homologação",
+    Ambiente.PRODUCAO: "Produção",
+}
 
 Renderizador = Callable[[str, Mapping[str, object]], str]
 Auditor = Callable[[ResultadoEnvio], None]
@@ -108,6 +116,8 @@ class ServicoEmail:
         *,
         ambiente: Ambiente,
         nome_sistema: str | None = None,
+        versao: str | None = None,
+        url_publica: str | None = None,
         transporte: TransporteEmail | None = None,
         renderizador: Renderizador | None = None,
         auditor: Auditor | None = None,
@@ -115,6 +125,8 @@ class ServicoEmail:
         self._credencial = credencial
         self._ambiente = ambiente
         self._nome_sistema = (nome_sistema or "").strip() or None
+        self._versao = (versao or "").strip() or None
+        self._url_publica = (url_publica or "").strip() or None
         self._transporte = transporte or (TransporteSmtp(credencial) if credencial else None)
         self._renderizador = renderizador or renderizar_template_email
         self._auditor = auditor
@@ -326,6 +338,10 @@ class ServicoEmail:
             "assunto": assunto,
             "sistema": self._nome_sistema or NOME_REMETENTE_PADRAO,
             "ambiente": self._ambiente.value,
+            "ambiente_rotulo": ROTULOS_AMBIENTE.get(self._ambiente, self._ambiente.value),
+            "versao": self._versao,
+            "versao_luftbase": __version__,
+            "url": self._url_publica,
             "cid_logo": CID_LOGO,
             "modo_teste": redirecionado,
             "destinatarios_reais": originais if redirecionado else (),
