@@ -16,6 +16,7 @@ funcionamento estao na secao "Quando algo da errado" do [doc 20](20-OPERACAO-E-D
 - [Comparar estrutura](#comparar-estrutura)
 - [Painel de Controle](#painel-de-controle)
 - [Aplicacao nao sobe ou nao enxerga o banco](#aplicacao-nao-sobe-ou-nao-enxerga-o-banco)
+- [Catalogo, e-mail e CSRF na subida da aplicacao](#catalogo-e-mail-e-csrf-na-subida-da-aplicacao)
 
 ---
 
@@ -208,5 +209,26 @@ O nome do icone nao existe na biblioteca Phosphor 2.1.2. O catalogo do LuftBase 
 | o sistema sobe mas as telas nao mostram dados | a role do sistema nao tem acesso ao schema copiado | rode `banco espelhar` de novo (ele concede acesso as roles `*_dev_app`) ou `banco conceder-permissoes` |
 | `Tabela ausente: modelo=... tabela=...` no log | modelo declarado sem a tabela no schema | gere o SQL com `banco comparar` ou crie com `estrutura criar` ([doc 05](05-BANCO-E-SCHEMAS.md)) |
 | `GET /_luftbase/saude` com dependencia `indisponivel` | banco, Vault ou sessao fora do ar | veja `diagnostico saude` e a aba Integracoes do Painel |
+
+## Catalogo, e-mail e CSRF na subida da aplicacao
+
+### `A acao 'X' de '<chave>' nao e aceita pelo core`
+O ultimo trecho da chave (`MODULO.RECURSO.ACAO`) precisa estar na lista do core (`ACESSAR`, `ADMINISTRAR`, `APROVAR`, `ARQUIVAR`, `ATIVAR`, `BAIXAR`,
+`CANCELAR`, `CONCEDER`, `CONFIGURAR`, `CRIAR`, `DESATIVAR`, `EDITAR`, `ENVIAR`, `EXECUTAR`, `EXCLUIR`, `EXPORTAR`, `GERENCIAR`, `IGNORAR`, `IMPORTAR`,
+`IMPRIMIR`, `LISTAR`, `PROCESSAR`, `PUBLICAR`, `REJEITAR`, `REPROCESSAR`, `REVOGAR`, `SINCRONIZAR`, `VISUALIZAR`). Troque a acao no `Catalogo.py` do
+sistema (nao o LuftBase) e rode `CATALOGO.validar()` num teste para pegar isso antes do deploy ([doc 28](28-TUTORIAL-PRATICO-DO-DESENVOLVEDOR.md)).
+
+### E-mail: segredo `integracoes/email` incompleto (sem `senha`)
+Ate a 0.1.0a111 isso derrubava a subida de **todos** os sistemas do ambiente. A partir da 0.1.0a112 vira um aviso no log e o envio de e-mail fica
+desligado (a notificacao no sistema continua). Corrija o segredo no Vault e reinicie o servico.
+
+### `Tabela ausente: ... luft_aplicacao.tb_...` ou `could not find table` na subida
+O schema esta vazio (rode a migracao ou o DDL) ou uma `ForeignKey` foi escrita sem o schema logico: use `ForeignKey("luft_aplicacao.tb_x.Id")`.
+
+### Escrita pela API passa sem token CSRF
+Esperado: o LuftBase valida o CSRF apenas das **proprias** rotas. Na aplicacao, chame `validar_csrf_requisicao()` (`luftbase.interface.web`) em cada rota
+que grava, ou num `before_request` ([doc 10](10-IDENTIDADE-E-SESSAO.md), [doc 19](19-GUIA-DA-APLICACAO-SATELITE.md)).
+
+---
 
 Mais casos operacionais (cookie `Secure`, prefixo de URL, fuso, deploy, servicos) estao no [doc 20](20-OPERACAO-E-DEPLOY.md).

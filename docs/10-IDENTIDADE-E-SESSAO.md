@@ -134,4 +134,4 @@ plataforma usa um armazenamento em memoria para esses dois usos e registra no lo
 - Senha nunca e gravada nem registrada.
 - Cookie com `Secure` obrigatorio em producao (a excecao precisa de `LUFT_PERMITIR_COOKIE_INSEGURO=true`, explicita e avisada no log).
 - `SameSite` padrao `Lax`; nome, caminho e dominio configuraveis.
-- Toda mutacao HTTP exige o token CSRF da sessao (`X-CSRF-Token`).
+- As rotas do **proprio LuftBase** que gravam (login, painel, publicacoes, perfil...) validam o token CSRF da sessao (`X-CSRF-Token` ou campo `csrf_token`). **Nas rotas da aplicacao a validacao nao e automatica**: cabe a ela chamar `validar_csrf_requisicao()` (`luftbase.interface.web`) em cada rota que grava, ou num `before_request` (como faz o Luft-Docs). Hoje so o Luft-Docs (todas as escritas) e o Luft-Integrador (rotas de Parametros) validam; Control e ConnectAir nao.

@@ -4,6 +4,10 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
 ## [Nao lancado]
 
+### Documentacao
+- Novo [doc 28](docs/28-TUTORIAL-PRATICO-DO-DESENVOLVEDOR.md): tutorial pratico (sistema de exemplo executado com testes) e roteiro de migracao de sistema legado.
+- Corrigido que o CSRF nao e automatico nas rotas da aplicacao (docs 10 e 19); README com Control e Docs; docs 20 e 26 com mapa de portas e erros de subida.
+
 ## [0.1.0a112] - 2026-10-19
 
 ### Corrigido

@@ -161,6 +161,22 @@ sistema, com o `.venv` do servidor (Linux: `.venv/bin/flask`; Windows: `.venv\Sc
 5. Retencao: `FLASK banco tamanho-logs`, depois `FLASK banco retencao` (simular). So entao
    `FLASK banco retencao --executar --arquivar-em <pasta>`, em horario calmo; agende (semanal) quando os numeros fizerem sentido.
 
+## Mapa de portas e prefixos
+
+A porta do `.env` de cada sistema precisa ser a do `upstream` do nginx do ambiente (conferido nos `b2bi-apps.conf` de 2026-10-19; confirme no servidor antes
+de criar um sistema novo). O prefixo diferencia maiusculas e minusculas.
+
+| Sistema | Homologacao | Producao |
+|---|---|---|
+| Luft-Workspace | 9000 | 8000 |
+| Luft-ConnectAir | 9001 | 9003 |
+| Luft-Control | 9002 | 9002 |
+| Luft-Integrador | 9003 | 9005 |
+| Luft-Docs | 9004 | 9000 |
+
+No Windows, o `DeployMirror` apaga o que nao esta no repositorio; guarde conteudo de runtime (ex.: `DOCS_DATA_ROOT` do Luft-Docs) **fora** da pasta do projeto.
+E-mail: segredo incompleto no Vault so gera aviso (0.1.0a112+), nunca impede a subida.
+
 ## Quando algo da errado
 
 | Sintoma | Causa provavel | O que fazer |

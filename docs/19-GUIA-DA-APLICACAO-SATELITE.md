@@ -63,7 +63,7 @@ Chaves seguem `MODULO.RECURSO.ACAO` ([doc 11](11-AUTORIZACAO.md)). Regras pratic
   (com antes/depois). **Nunca** coloque senha, token ou valor sensivel nos dados; o LuftBase sanitiza, mas nao confie nisso.
 - Rotas que nao devem gerar log de acesso (polling): `@sem_log`.
 - Erros 500 sao registrados so com **tipos e linhas da pilha**, nunca a mensagem nem valores.
-- Toda mutacao via fetch envia `X-CSRF-Token` (`<meta name="luft-csrf-token">`).
+- Toda mutacao via fetch envia `X-CSRF-Token` (`<meta name="luft-csrf-token">`) **e a rota valida o token** com `validar_csrf_requisicao()` (`luftbase.interface.web`): o LuftBase nao valida o CSRF das rotas da aplicacao sozinho. Veja o [doc 10](10-IDENTIDADE-E-SESSAO.md).
 
 ## Bancos
 

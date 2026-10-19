@@ -8,7 +8,7 @@ permissoes, auditoria, notificacoes e comunicados, temas, perfil do usuario, e-m
 equipe de TI. As aplicacoes cuidam so do que e delas.
 
 - Repositorio: <https://github.com/Widson64x/LuftBase> (publico)
-- Versao atual: **0.1.0a109** (alpha), com mais de 1000 testes automatizados; o que mudou em cada versao esta no [CHANGELOG](CHANGELOG.md)
+- Versao atual: **0.1.0a112** (alpha), com mais de 1000 testes automatizados; o que mudou em cada versao esta no [CHANGELOG](CHANGELOG.md)
 - Python 3.11 ou superior
 
 ## Em 5 minutos
@@ -65,7 +65,8 @@ def algo():
 | **Luft-Workspace** (sistema 0) | portal central e Painel de Controle de todo o ecossistema | [Luft-Workspace](https://github.com/Widson64x/Luft-Workspace) |
 | **Luft-ConnectAir** | planejamento aereo de cargas | [Luft-ConnectAir](https://github.com/Widson64x/Luft-ConnectAir) |
 | **Luft-Integrador** | Ecobox, Reintegracao WMS e FASTLINE | [Luft-Integrador](https://github.com/Widson64x/Luft-Integrador) |
-| **Luft-Control** | DRE, Budget e Razao | em migracao para o padrao (veja o [Roadmap](ROADMAP.md)) |
+| **Luft-Control** | DRE, Budget e Razao | [Luft-Control](https://github.com/Widson64x/Luft-Control) |
+| **Luft-Docs** | documentacao viva dos sistemas, com versoes, aprovacao e assistente de IA | [Luft-Docs](https://github.com/Widson64x/Luft-Docs) |
 
 Ferramentas feitas com outras tecnologias (C#, executaveis, sistemas de terceiros) **nao usam** o LuftBase, mas podem aparecer no catalogo
 como **sistemas externos**, com card e link ([doc 24](docs/24-SISTEMAS-E-CATALOGO.md)).
@@ -97,7 +98,7 @@ como **sistemas externos**, com card e link ([doc 24](docs/24-SISTEMAS-E-CATALOG
 | quem quer o **panorama** | [01 Visao](docs/01-VISAO-DO-PRODUTO.md), [02 Arquitetura](docs/02-ARQUITETURA.md), [27 Glossario](docs/27-GLOSSARIO.md) |
 | quem vai **contribuir com o LuftBase** | [AGENTS.md](AGENTS.md), [06 Padroes e contribuicao](docs/06-PADROES-DE-CODIGO.md) |
 
-O [indice completo](docs/README.md) lista os 27 documentos e as 18 decisoes de arquitetura. Estado do projeto: [Roadmap](ROADMAP.md) (marcos e o que
+O [indice completo](docs/README.md) lista os 28 documentos e as 18 decisoes de arquitetura. Estado do projeto: [Roadmap](ROADMAP.md) (marcos e o que
 falta), [CHANGELOG](CHANGELOG.md) e [Handoff](HANDOFF.md) (continuidade entre pessoas e agentes).
 
 ## Linha de comando

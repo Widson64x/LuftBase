@@ -11,6 +11,7 @@ Esta pasta tem **27 documentos** e **18 decisoes de arquitetura**. Voce nao prec
 | **cadastrar** um sistema (inclusive um executavel ou uma ferramenta em C#) | [24 Sistemas e catalogo](24-SISTEMAS-E-CATALOGO.md) -> [14 Painel de Controle](14-PAINEL-DE-CONTROLE.md) |
 | entender **login, sessao e permissao** | [10 Identidade e sessao](10-IDENTIDADE-E-SESSAO.md) -> [11 Autorizacao](11-AUTORIZACAO.md) -> [15 Controle de sessoes](15-AUDITORIA-ANALITICA-E-CONTROLE-DE-SESSOES.md) |
 | cuidar do **servidor, deploy e incidentes** | [20 Operacao e deploy](20-OPERACAO-E-DEPLOY.md) -> [17 Servidor e rede](17-SERVIDOR-REDE-E-FUSO.md) -> [26 Solucao de problemas](26-SOLUCAO-DE-PROBLEMAS.md) |
+| **aprender fazendo** (tela, API, permissao, tabela, teste) e **migrar um sistema legado** | [28 Tutorial pratico](28-TUTORIAL-PRATICO-DO-DESENVOLVEDOR.md) -> [19 Aplicacao satelite](19-GUIA-DA-APLICACAO-SATELITE.md) |
 | **resolver um erro** agora | [26 Solucao de problemas](26-SOLUCAO-DE-PROBLEMAS.md) (procure pela mensagem) |
 | ter o **panorama** do produto | [01 Visao](01-VISAO-DO-PRODUTO.md) -> [02 Arquitetura](02-ARQUITETURA.md) -> [27 Glossario](27-GLOSSARIO.md) |
 | **contribuir** com o LuftBase | [AGENTS.md](../AGENTS.md) -> [06 Padroes e contribuicao](06-PADROES-DE-CODIGO.md) |
@@ -21,6 +22,7 @@ Palavra desconhecida? [Glossario](27-GLOSSARIO.md).
 
 | # | Documento | Para que serve |
 |---|---|---|
+| 28 | [Tutorial pratico do desenvolvedor](28-TUTORIAL-PRATICO-DO-DESENVOLVEDOR.md) | aprender fazendo: um sistema de exemplo completo (catalogo, tabela, rota, API, teste) e o roteiro de migracao de um sistema legado |
 | 22 | [Guia rapido do desenvolvedor](22-GUIA-RAPIDO-DO-DESENVOLVEDOR.md) | o caminho completo: preparar a maquina, `projeto novo`, `.env`, subir, cadastrar em homologacao, levar tabelas, publicar |
 | 19 | [Guia da aplicacao satelite](19-GUIA-DA-APLICACAO-SATELITE.md) | o que o LuftBase entrega, o que a aplicacao escreve, permissoes, bancos e armadilhas |
 | 25 | [Banco local e promocao de estrutura](25-BANCO-LOCAL-E-PROMOCAO-DE-ESTRUTURA.md) | `banco espelhar`, `atualizar-core`, `comparar`, scripts SQL do core |
