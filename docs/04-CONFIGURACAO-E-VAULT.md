@@ -175,8 +175,9 @@ Todas as aplicacoes do ambiente leem `luft/{ambiente}/integracoes/email`:
 - `tipo` e opcional e, se informado, deve ser `smtp`.
 - No Gmail, `senha` e uma senha de app da conta, nunca a senha de login.
 
-O segredo e opcional: sem ele a aplicacao sobe e o envio fica indisponivel. Com ele, qualquer
-campo invalido interrompe a inicializacao. `luftbase vault verificar --conectar` informa
+O segredo e opcional: ausente ou com algum campo invalido (ex.: sem `senha`), a aplicacao sobe do mesmo jeito, registra um
+aviso no log (`Segredo de e-mail invalido no Vault ...`) e o envio fica indisponivel; as telas informam que o e-mail nao esta
+configurado. Corrija o segredo e reinicie a aplicacao. `luftbase vault verificar --conectar` informa
 `email_status` e `luftbase email testar --para <endereco>` envia uma mensagem real de teste.
 
 ## LDAP e cookie

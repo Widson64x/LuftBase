@@ -1,6 +1,6 @@
 # Handoff
 
-## Ultima continuidade (2026-10-15, versao 0.1.0a111 (a109 ja publicada; a110/a111 corrigem a desativacao de sistema))
+## Ultima continuidade (2026-10-19, versao 0.1.0a112 (a112: segredo de e-mail invalido nao derruba mais a subida))
 
 **Entregue** (marco M22 do [ROADMAP](ROADMAP.md), decisoes no [ADR-018](docs/decisoes/ADR-018-TIPOS-DE-SISTEMA-ESPELHO-LOCAL-E-PROJETO-NOVO.md)):
 
@@ -93,7 +93,7 @@ receber aplicacoes satelites.
 - Integracao de e-mail (`luftbase.integracoes.email`) liberada pela plataforma a partir do
   segredo `luft/{ambiente}/integracoes/email` (ADR-014, docs 03, 04 e 07);
 - `CredencialEmail` e `CarregadorCredenciais.carregar_email`, com `starttls`/`ssl` apenas;
-- segredo opcional na `FabricaInfraestruturaPadrao`; invalido interrompe a inicializacao;
+- segredo opcional na `FabricaInfraestruturaPadrao`; invalido so avisa no log e desliga o envio (0.1.0a112);
 - `ServicoEmail` com modo teste, envio em lote, texto alternativo e auditoria;
 - layout `luftbase/email/base.html`, macros e logo no wheel;
 - CLI `luftbase email testar` e status de e-mail no `vault verificar`;

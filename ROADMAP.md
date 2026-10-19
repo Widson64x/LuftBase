@@ -1,7 +1,7 @@
 # Roadmap do LuftBase
 
 Cada marco precisa atender seus criterios de aceite antes de ser marcado como concluido.
-Estado em **2026-10-15**, versao `0.1.0a111` (M22 em validacao). Legenda: `[x]` feito e em uso, `[ ]` pendente.
+Estado em **2026-10-19**, versao `0.1.0a112` (M22 em validacao). Legenda: `[x]` feito e em uso, `[ ]` pendente.
 O historico por versao esta no [CHANGELOG](CHANGELOG.md); a documentacao, em [docs/](docs/README.md).
 
 Producao hoje: Luft-Workspace e Luft-Integrador (Windows). Homologacao: os tres sistemas (Linux).

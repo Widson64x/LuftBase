@@ -26,7 +26,7 @@ from luftbase.infraestrutura.cofre.credenciais import (
 from luftbase.infraestrutura.cofre.criptografia import DesprotetorFernet
 from luftbase.infraestrutura.cofre.servico import CarregadorCredenciais
 from luftbase.infraestrutura.redis import FabricaClienteRedis
-from luftbase.nucleo.excecoes import SegredoNaoEncontrado
+from luftbase.nucleo.excecoes import ErroCredencial, SegredoNaoEncontrado
 
 
 class ArmazenamentoSessoesMemoria:
@@ -262,7 +262,7 @@ class FabricaInfraestruturaPadrao:
         configuracao: ConfiguracaoLuftBase,
         caminhos: CaminhosVault,
     ) -> CredencialEmail | None:
-        """E-mail e opcional; um segredo presente porem invalido interrompe a inicializacao."""
+        """E-mail e opcional: ausente ou invalido, a aplicacao sobe e o envio fica indisponivel (com aviso no log)."""
 
         if not caminhos.email:
             return None
@@ -274,6 +274,16 @@ class FabricaInfraestruturaPadrao:
                 "O envio de e-mail ficara indisponivel.",
                 caminhos.email,
                 configuracao.aplicacao.ambiente.value,
+            )
+            return None
+        except ErroCredencial as erro:
+            # A mensagem cita so o caminho e o campo com problema, nunca o valor do segredo.
+            logging.getLogger("luftbase").warning(
+                "Segredo de e-mail invalido no Vault (%s) em ambiente %s: %s "
+                "A aplicacao segue sem envio de e-mail; corrija o segredo e reinicie.",
+                caminhos.email,
+                configuracao.aplicacao.ambiente.value,
+                erro,
             )
             return None
 

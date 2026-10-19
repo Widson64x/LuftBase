@@ -400,3 +400,39 @@ def test_diretorio_sem_nenhum_segredo_aponta_o_caminho_novo(monkeypatch) -> None
         FabricaInfraestruturaPadrao(FabricaBancosFalsa(), FabricaRedisFalsa()).criar(  # type: ignore[arg-type]
             configuracao, caminhos
         )
+
+
+def test_segredo_de_email_invalido_nao_derruba_a_aplicacao(caplog):
+    """E-mail e acessorio: campo faltando no segredo vira aviso e o envio fica indisponivel."""
+
+    from luftbase.configuracao import ConfiguracaoLuftBase
+    from luftbase.configuracao.caminhos_vault import resolver_caminhos_vault
+    from luftbase.infraestrutura.cofre.servico import CarregadorCredenciais
+
+    class ProvedorSemSenha:
+        def validar_acesso(self) -> None:
+            return None
+
+        def ler_segredo(self, caminho: str) -> Mapping[str, object]:
+            return {"host": "smtp.luft", "porta": "587", "seguranca": "starttls", "usuario": "conta@luft.com"}
+
+    configuracao = ConfiguracaoLuftBase.de_mapeamento(
+        {
+            "LUFT_SISTEMA_ID": "1",
+            "LUFT_AMBIENTE": "producao",
+            "LUFT_VAULT_ENDERECO": "http://vault:8200",
+            "LUFT_LDAP_SERVIDOR": "ad.luft",
+            "LUFT_LDAP_DOMINIO": "luftfarma",
+        }
+    )
+    caminhos = resolver_caminhos_vault(
+        ambiente=configuracao.aplicacao.ambiente, sistema_id=configuracao.aplicacao.sistema_id
+    )
+
+    with caplog.at_level("WARNING", logger="luftbase"):
+        resultado = FabricaInfraestruturaPadrao._carregar_email(
+            CarregadorCredenciais(ProvedorSemSenha()), configuracao, caminhos
+        )
+
+    assert resultado is None
+    assert "senha" in caplog.text and "sem envio de e-mail" in caplog.text

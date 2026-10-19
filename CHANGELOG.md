@@ -4,6 +4,15 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
 ## [Nao lancado]
 
+## [0.1.0a112] - 2026-10-19
+
+### Corrigido
+
+- **Segredo de e-mail invalido derrubava a aplicacao na subida**: `luft/<ambiente>/integracoes/email` presente mas com campo
+  faltando ou invalido (ex.: sem `senha`) levantava `ErroCredencial` e a aplicacao nao iniciava (todas as apps do ambiente,
+  em qualquer reinicio). Agora o e-mail e acessorio: a aplicacao sobe, registra um aviso no log (so caminho e campo, nunca o
+  valor) e o envio fica indisponivel; as telas ja informam "o e-mail nao esta configurado neste ambiente".
+
 ### Documentacao
 
 - Novos documentos 14 a 21: Painel de Controle, auditoria analitica e controle de sessoes, perfil, servidor/rede/fuso,
