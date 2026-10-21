@@ -132,12 +132,14 @@ Algumas versoes do LuftBase trazem mudancas no `core` que precisam estar no banc
 | Versao | Revisao | O que muda | Como aplicar |
 |---|---|---|---|
 | 0.1.0a96 | `20261008_0015` | tabela `tb_notificacao_oculta` | `bootstrap --atualizar` (abaixo) |
-| 0.1.0a109 | `20261015_0016` | colunas `integra_luftbase`, `tipo_acesso`, `url_download` em `tb_sistema` | `tools/sql/20261015_tb_sistema_tipo_de_integracao.sql` ou `banco atualizar` |
-| 0.1.0a109 | `20261015_0017` | novas categorias de sistema (CHECK de `categoria`) | `tools/sql/20261015_tb_sistema_categorias.sql` ou `banco atualizar` |
-| 0.1.0a113 | `20261021_0018` | `tb_publicacao.formato_conteudo` e tabela `tb_publicacaoimagem` (editor rico) | `tools/sql/20261021_publicacao_conteudo_rico.sql` ou `banco atualizar` |
+| 0.1.0a109 | `20261015_0016` | colunas `integra_luftbase`, `tipo_acesso`, `url_download` em `tb_sistema` | `tools/sql/20261015_tb_sistema_tipo_de_integracao.sql` ou `bootstrap --atualizar` |
+| 0.1.0a109 | `20261015_0017` | novas categorias de sistema (CHECK de `categoria`) | `tools/sql/20261015_tb_sistema_categorias.sql` ou `bootstrap --atualizar` |
+| 0.1.0a113 | `20261021_0018` | `tb_publicacao.formato_conteudo` e tabela `tb_publicacaoimagem` (editor rico) | `tools/sql/20261021_publicacao_conteudo_rico.sql` ou `bootstrap --atualizar` |
 
-`banco atualizar` precisa de um usuario **dono** das tabelas do `core`. Com o usuario da aplicacao (ex.: `luft_workspace_hml_app`) ele falha com
-`must be owner of table ...`; nesse caso rode os scripts de `tools/sql/` com o dono (ex.: `luft_web_owner`), na ordem das revisoes.
+**O comando que mantem o banco em dia** e `FLASK bootstrap --atualizar --ambiente <ambiente>`: ele pede o **usuario de migracao** (o dono das tabelas do
+`core`, ex.: `luft_web_owner`), aplica todas as migracoes pendentes e sincroniza o catalogo. `FLASK banco pendencias` mostra o que falta.
+`banco atualizar` usa a credencial da aplicacao e, com o usuario do app (ex.: `luft_workspace_hml_app`), falha com `must be owner of table ...`.
+Sem o comando, os scripts de `tools/sql/` fazem o mesmo, na ordem das revisoes.
 
 Os scripts de `tools/sql/` sao repetiveis, transacionais e atualizam a revisao do Alembic ([doc 25](25-BANCO-LOCAL-E-PROMOCAO-DE-ESTRUTURA.md#scripts-sql-de-promocao-do-core)).
 Rode **em homologacao primeiro**, valide e so entao em producao.
