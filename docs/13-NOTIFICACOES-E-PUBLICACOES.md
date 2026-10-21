@@ -107,6 +107,13 @@ Todas as rotas exigem uma sessao Flask-Login valida:
 - `PUT /_luftbase/publicacoes/<id>/leitura`;
 - `GET /_luftbase/publicacoes/eventos`.
 
+Rotas das telas de publicacao (prefixo `/publicacoes`, exigem login):
+
+- `GET /publicacoes/comunicados` e `GET /publicacoes/atualizacoes` (caixa de entrada), `GET /publicacoes/<id>` (leitura);
+- `GET /publicacoes/painel/comunicados` e `/painel/atualizacoes` (administracao);
+- `POST /publicacoes/api/{comunicados|atualizacoes}` (criar), `POST` ou `PUT` em `.../<id>` (editar rascunho), `.../<id>/publicar`, `.../<id>/arquivar`;
+- `POST /publicacoes/api/imagens` (upload), `GET /publicacoes/imagem/<id>` (entrega) e `POST /publicacoes/api/previa` (pre-visualizacao). Detalhes do editor e da seguranca no [doc 21](21-CONTEUDO-RICO-E-NOTAS-DE-ATUALIZACAO.md).
+
 As rotas de leitura sao idempotentes. Consultar um detalhe nao grava implicitamente; o
 cliente confirma a leitura por `PUT`. Essa separacao evita escrita inesperada em prefetch,
 robos ou repeticao de GET.

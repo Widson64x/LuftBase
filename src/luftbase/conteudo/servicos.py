@@ -143,6 +143,24 @@ class PortaPublicacoes(Protocol):
     def arquivar(self, id_sistema: int, id_publicacao: int) -> bool:
         """Arquiva uma publicacao."""
 
+    def corrigir_texto(
+        self,
+        id_sistema: int,
+        id_publicacao: int,
+        *,
+        titulo: str,
+        resumo: str | None,
+        conteudo: str,
+        formato: str = "MARKDOWN",
+    ) -> bool:
+        """Corrige o texto de uma publicacao ja publicada, sem renotificar."""
+
+    def salvar_imagem(self, *, dados: bytes, mime: str, nome: str | None, criado_por: str) -> int:
+        """Guarda uma imagem do editor rico."""
+
+    def obter_imagem(self, id_imagem: int) -> tuple[str, bytes, str, int | None]:
+        """Le uma imagem: (mime, bytes, sha256, id_publicacao)."""
+
     def listar_administracao(
         self,
         *,
@@ -408,6 +426,7 @@ class ServicoPublicacoes:
             titulo=dados.titulo,
             resumo=dados.resumo,
             conteudo=dados.conteudo,
+            formato=dados.formato,
         )
 
     def arquivar(self, id_publicacao: int) -> bool:
@@ -446,6 +465,20 @@ class ServicoPublicacoes:
             id_sistema=self._id_sistema,
             id_publicacao=id_publicacao,
         )
+
+    def salvar_imagem(self, *, dados: bytes, mime: str, nome: str | None, criado_por: str) -> int:
+        """Guarda uma imagem do editor rico e devolve o identificador."""
+
+        if not dados:
+            raise ErroConteudo("A imagem esta vazia.")
+        return self._repositorio.salvar_imagem(dados=dados, mime=mime, nome=nome, criado_por=criado_por)
+
+    def obter_imagem(self, id_imagem: int) -> tuple[str, bytes, str, int | None]:
+        """Le uma imagem: (mime, bytes, sha256, id_publicacao)."""
+
+        if id_imagem <= 0:
+            raise ErroConteudo("id_imagem deve ser positivo.")
+        return self._repositorio.obter_imagem(id_imagem)
 
     def importar_comunicado_externo(self, comunicado: ComunicadoExterno) -> int:
         """Importa comunicado de fonte externa (idempotente por id_externo + fonte)."""

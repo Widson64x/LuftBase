@@ -18,6 +18,7 @@ from luftbase.persistencia.core.publicacoes import (
     NotaAtualizacaoItem,
     Publicacao,
     PublicacaoGrupo,
+    PublicacaoImagem,
     PublicacaoLeitura,
     PublicacaoNotificacao,
 )
@@ -52,6 +53,7 @@ __all__ = [
     "PermissaoUsuario",
     "Publicacao",
     "PublicacaoGrupo",
+    "PublicacaoImagem",
     "PublicacaoLeitura",
     "PublicacaoNotificacao",
     "RepositorioSistemas",

@@ -44,6 +44,13 @@
         {% endif %}
     </header>
 
+    <section class="publicacoes-kpis" aria-label="Resumo por situação">
+        <button type="button" class="pub-kpi ativo" data-filtro=""><i class="ph-bold ph-stack"></i><div><strong>{{ publicacoes|length }}</strong><span>Total</span></div></button>
+        <button type="button" class="pub-kpi" data-filtro="PUBLICADO"><i class="ph-bold ph-check-circle"></i><div><strong>{{ publicacoes|selectattr('status', 'equalto', 'PUBLICADO')|list|length }}</strong><span>Publicados</span></div></button>
+        <button type="button" class="pub-kpi" data-filtro="AGENDADO"><i class="ph-bold ph-clock-countdown"></i><div><strong>{{ publicacoes|selectattr('status', 'equalto', 'AGENDADO')|list|length }}</strong><span>Agendados</span></div></button>
+        <button type="button" class="pub-kpi" data-filtro="RASCUNHO"><i class="ph-bold ph-pencil-simple-line"></i><div><strong>{{ publicacoes|selectattr('status', 'equalto', 'RASCUNHO')|list|length }}</strong><span>Rascunhos</span></div></button>
+    </section>
+
     <section class="publicacoes-toolbar luft-card">
         <div class="publicacoes-switcher" aria-label="Tipo de publicação">
             {% if pode_ver_comunicados %}
@@ -103,7 +110,7 @@
                     {% if publicacao.versao %}<span class="publicacao-version">v{{ publicacao.versao|replace('v', '') }}</span>{% endif %}
                     <h2>{{ publicacao.titulo }}</h2>
                 </div>
-                <p>{{ publicacao.resumo or publicacao.conteudo|truncate(220) }}</p>
+                <p>{{ publicacao.previa|truncate(260) }}</p>
                 {% if publicacao.itens_atualizacao %}
                 <div class="publicacao-items-preview">
                     {% for item in publicacao.itens_atualizacao[:4] %}
@@ -159,14 +166,14 @@
     </div>
 </main>
 
-{% call ui.modal('modalPublicacao', nome_singular, 'lg', 'ph-bold ' ~ ('ph-megaphone' if eh_comunicado else 'ph-rocket-launch')) %}
+{% call ui.modal('modalPublicacao', nome_singular, 'xl', 'ph-bold ' ~ ('ph-megaphone' if eh_comunicado else 'ph-rocket-launch')) %}
 <form id="formPublicacao" class="publicacao-form" novalidate onsubmit="LuftPublicacoesPainel.salvar(event)">
     <input id="publicacaoId" type="hidden">
     <div id="publicacaoErros" class="publicacao-erros" role="alert" aria-live="assertive" hidden></div>
     <p class="publicacao-legenda">Campos com <span class="publicacao-obrigatorio">*</span> são obrigatórios. O restante é opcional.</p>
-    <div class="publicacao-form-grid cols-2">
-        <label class="publicacao-field span-2">
-            <span>Título <b class="publicacao-obrigatorio">*</b></span>
+    <div class="publicacao-form-grid {{ 'cols-2' if eh_comunicado else 'cols-3' }}">
+        <label class="publicacao-field">
+            <span>{{ 'Assunto' if eh_comunicado else 'Título' }} <b class="publicacao-obrigatorio">*</b></span>
             <input id="publicacaoTitulo" class="form-control" type="text" maxlength="200" required placeholder="Um título claro e objetivo">
         </label>
         {% if not eh_comunicado %}
@@ -175,21 +182,29 @@
             <input id="publicacaoVersao" class="form-control" type="text" maxlength="50" required placeholder="Ex.: 2.4.0">
         </label>
         {% endif %}
-        <label class="publicacao-field {{ '' if not eh_comunicado else 'span-2' }}">
+        <label class="publicacao-field">
             <span>Prioridade</span>
             <select id="publicacaoPrioridade" class="form-select">
                 <option value="BAIXA">Baixa</option><option value="NORMAL" selected>Normal</option><option value="ALTA">Alta</option><option value="CRITICA">Crítica</option>
             </select>
         </label>
-        <label class="publicacao-field span-2">
-            <span>Resumo</span>
-            <textarea id="publicacaoResumo" class="form-control" rows="2" maxlength="500" placeholder="Texto curto exibido na notificação"></textarea>
-            <small>Se ficar vazio, o LuftBase criará um resumo a partir do conteúdo.</small>
-        </label>
-        <label class="publicacao-field span-2">
-            <span>Conteúdo <b class="publicacao-obrigatorio">*</b></span>
-            <textarea id="publicacaoConteudo" class="form-control publicacao-editor" rows="8" required placeholder="Escreva a mensagem completa. Quebras de linha serão preservadas."></textarea>
-        </label>
+    </div>
+    <label class="publicacao-field">
+        <span>Resumo</span>
+        <textarea id="publicacaoResumo" class="form-control" rows="2" maxlength="500" placeholder="Texto curto exibido na notificação e na lista"></textarea>
+        <small>Se ficar vazio, o LuftBase cria um resumo a partir da mensagem.</small>
+    </label>
+    <div class="pub-mensagem">
+        <div class="pub-mensagem-topo">
+            <span>Mensagem <b class="publicacao-obrigatorio">*</b></span>
+            <div class="pub-abas" role="tablist" aria-label="Modo da mensagem">
+                <button type="button" class="pub-aba ativa" role="tab" data-aba="escrever" onclick="LuftPublicacoesPainel.alternarAba('escrever')"><i class="ph-bold ph-pencil-simple"></i> Escrever</button>
+                <button type="button" class="pub-aba" role="tab" data-aba="previa" onclick="LuftPublicacoesPainel.alternarAba('previa')"><i class="ph-bold ph-eye"></i> Pré-visualizar</button>
+            </div>
+        </div>
+        <div id="publicacaoEditor"></div>
+        <div id="publicacaoPrevia" class="pub-previa pub-corpo" hidden></div>
+        <small class="text-muted">Formate como em um e-mail: títulos, tamanhos, cores, listas, tabelas e imagens (cole ou arraste). A pré-visualização mostra o que o leitor verá.</small>
     </div>
 
     {% if not eh_comunicado %}
@@ -284,12 +299,15 @@
     'sistema_atual_id': sistema_atual_id,
     'endpoints': {
         'comunicados': url_for('LuftPublicacoes.criar_comunicado'),
-        'atualizacoes': url_for('LuftPublicacoes.criar_atualizacao')
+        'atualizacoes': url_for('LuftPublicacoes.criar_atualizacao'),
+        'imagens': url_for('LuftPublicacoes.enviar_imagem'),
+        'previa': url_for('LuftPublicacoes.previa_conteudo')
     }
 }|tojson }}</script>
 {% endblock %}
 
 {% block extra_scripts %}
 {{ super() }}
+<script src="{{ url_for('luftbase.static', filename='js/editor_rico.js') }}"></script>
 <script src="{{ url_for('luftbase.static', filename='js/publicacoes.js') }}"></script>
 {% endblock %}

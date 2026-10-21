@@ -1,6 +1,7 @@
 /** Administração de comunicados e notas de atualização do LuftBase. */
 const LuftPublicacoesPainel = {
     _config: null,
+    _editor: null,
 
     init() {
         const no = document.getElementById('publicacoes-config');
@@ -23,7 +24,61 @@ const LuftPublicacoesPainel = {
             }));
         }
         document.getElementById('publicacoesBusca')?.addEventListener('input', () => this.filtrar());
-        document.getElementById('publicacoesFiltroStatus')?.addEventListener('change', () => this.filtrar());
+        document.getElementById('publicacoesFiltroStatus')?.addEventListener('change', () => { this._sincronizarKpis(); this.filtrar(); });
+        document.querySelectorAll('.pub-kpi').forEach(botao => botao.addEventListener('click', () => {
+            const filtro = document.getElementById('publicacoesFiltroStatus');
+            if (filtro) filtro.value = botao.dataset.filtro || '';
+            this._sincronizarKpis();
+            this.filtrar();
+        }));
+        this._montarEditor();
+    },
+
+    _montarEditor() {
+        const raiz = document.getElementById('publicacaoEditor');
+        if (!raiz || !window.LuftEditorRico) return;
+        this._editor = new window.LuftEditorRico(raiz, {
+            urlImagens: this._config.endpoints.imagens,
+            csrf: () => document.querySelector('meta[name="luft-csrf-token"]')?.content || '',
+            aoMudar: () => this._limparErro('publicacaoEditor'),
+            aviso: (titulo, mensagem, tipo) => this._toast(titulo, mensagem, tipo),
+        });
+    },
+
+    _sincronizarKpis() {
+        const atual = document.getElementById('publicacoesFiltroStatus')?.value || '';
+        document.querySelectorAll('.pub-kpi').forEach(b => b.classList.toggle('ativo', (b.dataset.filtro || '') === atual));
+    },
+
+    /** Alterna entre escrever e ver como o leitor receberá (a prévia vem do servidor, já sanitizada). */
+    async alternarAba(aba) {
+        document.querySelectorAll('.pub-aba').forEach(b => b.classList.toggle('ativa', b.dataset.aba === aba));
+        const raiz = document.getElementById('publicacaoEditor');
+        const previa = document.getElementById('publicacaoPrevia');
+        if (!raiz || !previa || !this._editor) return;
+        if (aba === 'escrever') {
+            previa.hidden = true;
+            raiz.hidden = false;
+            this._editor.focar();
+            return;
+        }
+        raiz.hidden = true;
+        previa.hidden = false;
+        if (this._editor.vazio()) {
+            previa.innerHTML = '<p class="pub-previa-vazia">Nada para mostrar ainda. Volte para "Escrever" e digite a mensagem.</p>';
+            return;
+        }
+        previa.innerHTML = '<p class="pub-previa-vazia"><i class="ph-bold ph-spinner ph-spin"></i> Montando a pré-visualização...</p>';
+        try {
+            const resposta = await this._requisicao(this._config.endpoints.previa, 'POST', { conteudo: this._editor.html(), formato: 'HTML' });
+            previa.innerHTML = resposta.dados?.html || '';
+        } catch (erro) {
+            previa.innerHTML = '';
+            const aviso = document.createElement('p');
+            aviso.className = 'pub-previa-vazia';
+            aviso.textContent = `Não foi possível montar a pré-visualização: ${erro.message}`;
+            previa.appendChild(aviso);
+        }
     },
 
     abrirNovo() {
@@ -31,6 +86,8 @@ const LuftPublicacoesPainel = {
         if (!form) return;
         form.reset();
         document.getElementById('publicacaoId').value = '';
+        this._editor?.definirHtml('');
+        this.alternarAba('escrever');
         document.getElementById('publicacaoPrioridade').value = 'NORMAL';
         document.getElementById('publicacaoAudiencia').value = 'GERAL';
         document.getElementById('publicacaoNotificar').checked = true;
@@ -123,7 +180,8 @@ const LuftPublicacoesPainel = {
         document.getElementById('publicacaoId').value = publicacao.id;
         document.getElementById('publicacaoTitulo').value = publicacao.titulo || '';
         document.getElementById('publicacaoResumo').value = publicacao.resumo || '';
-        document.getElementById('publicacaoConteudo').value = publicacao.conteudo || '';
+        this._editor?.definirHtml(publicacao.conteudo_editor || '');
+        this.alternarAba('escrever');
         document.getElementById('publicacaoPrioridade').value = publicacao.prioridade || 'NORMAL';
         document.getElementById('publicacaoAudiencia').value = publicacao.tipo_audiencia || 'GERAL';
         document.getElementById('publicacaoSistema').value = String(publicacao.id_sistema);
@@ -203,6 +261,10 @@ const LuftPublicacoesPainel = {
         const base = this._endpointBase();
         const botoes = Array.from(document.querySelectorAll('#formPublicacao [type="submit"]'));
 
+        if (this._editor?.ocupado()) {
+            this._mostrarErros({ _geral: 'Aguarde o envio das imagens terminar antes de salvar.' });
+            return;
+        }
         const payload = this._coletarPayload();
         const erros = this._validar(payload);
         if (Object.keys(erros).length) {
@@ -244,7 +306,7 @@ const LuftPublicacoesPainel = {
     _CAMPOS: {
         titulo: { id: 'publicacaoTitulo', rotulo: 'Título' },
         versao: { id: 'publicacaoVersao', rotulo: 'Versão' },
-        conteudo: { id: 'publicacaoConteudo', rotulo: 'Conteúdo' },
+        conteudo: { id: 'publicacaoEditor', rotulo: 'Mensagem' },
         resumo: { id: 'publicacaoResumo', rotulo: 'Resumo' },
         grupos: { id: 'publicacaoGruposCampo', rotulo: 'Grupos destinatários' },
         inicio: { id: 'publicacaoInicio', rotulo: 'Exibir a partir de' },
@@ -257,7 +319,7 @@ const LuftPublicacoesPainel = {
         else if (payload.titulo.length > 200) erros.titulo = `O título aceita até 200 caracteres (atual: ${payload.titulo.length}).`;
 
         if (this._config.tipo !== 'COMUNICADO' && !payload.versao) erros.versao = 'Informe a versão (ex.: 2.4.0).';
-        if (!payload.conteudo) erros.conteudo = 'Escreva o conteúdo completo da publicação.';
+        if (!payload.conteudo) erros.conteudo = 'Escreva a mensagem da publicação.';
         if (payload.resumo.length > 500) erros.resumo = `O resumo aceita até 500 caracteres (atual: ${payload.resumo.length}).`;
 
         if (payload.tipo_audiencia === 'GRUPOS' && !payload.ids_grupos.length) {
@@ -280,7 +342,7 @@ const LuftPublicacoesPainel = {
             const campo = this._CAMPOS[chave];
             if (!campo) { lista.push({ rotulo: null, mensagem }); return; }
             const alvo = document.getElementById(campo.id);
-            const grupo = alvo?.closest('.publicacao-field') || alvo;
+            const grupo = alvo?.closest('.publicacao-field, .pub-mensagem') || alvo;
             if (alvo) alvo.classList.add('campo-invalido');
             if (grupo) {
                 const aviso = document.createElement('div');
@@ -383,7 +445,8 @@ const LuftPublicacoesPainel = {
         const payload = {
             titulo: document.getElementById('publicacaoTitulo').value.trim(),
             resumo: document.getElementById('publicacaoResumo').value.trim(),
-            conteudo: document.getElementById('publicacaoConteudo').value.trim(),
+            conteudo: this._editor && !this._editor.vazio() ? this._editor.html() : '',
+            formato: 'HTML',
             prioridade: document.getElementById('publicacaoPrioridade').value,
             tipo_audiencia: audiencia,
             ids_grupos: audiencia === 'GRUPOS' ? Array.from(document.querySelectorAll('[name="publicacaoGrupo"]:checked')).map(item => Number(item.value)) : [],

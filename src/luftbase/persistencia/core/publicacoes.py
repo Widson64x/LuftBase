@@ -13,6 +13,7 @@ from sqlalchemy import (
     Identity,
     Index,
     Integer,
+    LargeBinary,
     PrimaryKeyConstraint,
     String,
     Text,
@@ -63,6 +64,10 @@ class Publicacao(BaseLuft):
             name="ck_core_publicacao_vigencia",
         ),
         CheckConstraint(
+            "formato_conteudo IN ('MARKDOWN', 'HTML')",
+            name="ck_core_publicacao_formato",
+        ),
+        CheckConstraint(
             "metadados_json IS NULL OR metadados_json::jsonb IS NOT NULL",
             name="ck_core_publicacao_metadados_json",
         ),
@@ -99,6 +104,11 @@ class Publicacao(BaseLuft):
     titulo: Mapped[str] = mapped_column(String(200), nullable=False)
     resumo: Mapped[str | None] = mapped_column(String(500))
     conteudo: Mapped[str] = mapped_column(Text, nullable=False)
+    formato_conteudo: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        server_default="MARKDOWN",
+    )
     prioridade: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
@@ -160,6 +170,10 @@ class Publicacao(BaseLuft):
         back_populates="publicacao",
         cascade="all, delete-orphan",
         order_by="NotaAtualizacaoItem.ordem",
+    )
+    imagens: Mapped[list[PublicacaoImagem]] = relationship(
+        back_populates="publicacao",
+        cascade="all, delete-orphan",
     )
 
 
@@ -296,6 +310,47 @@ class NotaAtualizacaoItem(BaseLuft):
     publicacao: Mapped[Publicacao] = relationship(back_populates="itens_atualizacao")
 
 
+class PublicacaoImagem(BaseLuft):
+    """Imagem inserida no corpo de uma publicacao pelo editor rico.
+
+    Nasce solta (`id_publicacao` nulo) no upload e e vinculada ao salvar a publicacao que a cita.
+    """
+
+    __tablename__ = "tb_publicacaoimagem"
+    __table_args__ = (
+        CheckConstraint(
+            "tipo_mime IN ('image/png', 'image/jpeg', 'image/gif', 'image/webp')",
+            name="ck_core_publicacaoimagem_mime",
+        ),
+    )
+
+    id_imagem: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    id_publicacao: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "core.tb_publicacao.id_publicacao",
+            name="fk_core_publicacaoimagem_publicacao",
+            ondelete="CASCADE",
+        )
+    )
+    tipo_mime: Mapped[str] = mapped_column(String(50), nullable=False)
+    nome_arquivo: Mapped[str | None] = mapped_column(String(255))
+    tamanho: Mapped[int] = mapped_column(Integer, nullable=False)
+    hash_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    dados: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    criado_por: Mapped[str] = mapped_column(String(150), nullable=False)
+    data_criacao: Mapped[datetime] = mapped_column(
+        TIMESTAMP_MILISSEGUNDOS,
+        nullable=False,
+        server_default=DATA_HORA_LOCAL,
+    )
+
+    publicacao: Mapped[Publicacao | None] = relationship(back_populates="imagens")
+
+
+Index(
+    "ix_core_publicacaoimagem_publicacao",
+    PublicacaoImagem.id_publicacao,
+)
 Index(
     "ix_core_publicacao_escopo_tipo_status_data",
     Publicacao.id_sistema,

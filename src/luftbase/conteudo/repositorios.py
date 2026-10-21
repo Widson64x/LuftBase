@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -25,8 +26,11 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session, selectinload
 
+from luftbase.conteudo.formatacao import resumo_automatico
+from luftbase.conteudo.html_seguro import ids_imagens
 from luftbase.conteudo.modelos import (
     CategoriaNotificacao,
+    ItemNotaAtualizacao,
     NotificacaoUsuario,
     NovaNotificacao,
     NovaPublicacao,
@@ -34,6 +38,7 @@ from luftbase.conteudo.modelos import (
     PaginaPublicacoes,
     PublicacaoUsuario,
     TipoAudiencia,
+    TipoItemAtualizacao,
     TipoPublicacao,
 )
 from luftbase.infraestrutura.banco.sessoes import BancoSQLAlchemy
@@ -48,6 +53,7 @@ from luftbase.persistencia.core.publicacoes import (
     NotaAtualizacaoItem,
     Publicacao,
     PublicacaoGrupo,
+    PublicacaoImagem,
     PublicacaoLeitura,
     PublicacaoNotificacao,
 )
@@ -598,6 +604,7 @@ class RepositorioPublicacoes:
                 titulo=dados.titulo,
                 resumo=dados.resumo,
                 conteudo=dados.conteudo,
+                formato_conteudo=dados.formato,
                 prioridade=dados.prioridade.value,
                 versao=dados.versao,
                 notificar=dados.notificar,
@@ -613,6 +620,7 @@ class RepositorioPublicacoes:
             )
             sessao.add(entidade)
             sessao.flush()
+            self._vincular_imagens(sessao, entidade.id_publicacao, dados)
             for id_grupo in dados.ids_grupos:
                 sessao.add(PublicacaoGrupo(id_publicacao=entidade.id_publicacao, id_grupo=id_grupo))
             for item in dados.itens_atualizacao:
@@ -667,7 +675,8 @@ class RepositorioPublicacoes:
                 for id_grupo in ids_grupos:
                     notificacao = NovaNotificacao(
                         titulo=publicacao.titulo,
-                        mensagem=publicacao.resumo or publicacao.conteudo,
+                        mensagem=publicacao.resumo
+                        or resumo_automatico(publicacao.conteudo, publicacao.formato_conteudo),
                         categoria=(
                             CategoriaNotificacao.ATUALIZACAO
                             if publicacao.tipo_publicacao == TipoPublicacao.ATUALIZACAO.value
@@ -715,6 +724,8 @@ class RepositorioPublicacoes:
             publicacao.titulo = dados.titulo
             publicacao.resumo = dados.resumo
             publicacao.conteudo = dados.conteudo
+            publicacao.formato_conteudo = dados.formato
+            self._vincular_imagens(sessao, id_publicacao, dados)
             publicacao.tipo_audiencia = dados.audiencia.value
             publicacao.prioridade = dados.prioridade.value
             publicacao.versao = dados.versao
@@ -748,6 +759,58 @@ class RepositorioPublicacoes:
                 )
             return ResultadoPublicacao(id_publicacao)
 
+    def salvar_imagem(self, *, dados: bytes, mime: str, nome: str | None, criado_por: str) -> int:
+        """Guarda a imagem enviada pelo editor; ela fica solta ate a publicacao que a cita ser salva."""
+
+        with self._banco.unidade_trabalho() as sessao:
+            imagem = PublicacaoImagem(
+                tipo_mime=mime,
+                nome_arquivo=(nome or None) and nome[:255],
+                tamanho=len(dados),
+                hash_sha256=hashlib.sha256(dados).hexdigest(),
+                dados=dados,
+                criado_por=criado_por[:150],
+            )
+            sessao.add(imagem)
+            sessao.flush()
+            return int(imagem.id_imagem)
+
+    def obter_imagem(self, id_imagem: int) -> tuple[str, bytes, str, int | None]:
+        """Devolve (mime, bytes, sha256, id_publicacao) ou levanta ConteudoNaoEncontrado."""
+
+        with self._banco.leitura() as sessao:
+            linha = sessao.execute(
+                select(
+                    PublicacaoImagem.tipo_mime,
+                    PublicacaoImagem.dados,
+                    PublicacaoImagem.hash_sha256,
+                    PublicacaoImagem.id_publicacao,
+                ).where(PublicacaoImagem.id_imagem == id_imagem)
+            ).one_or_none()
+        if linha is None:
+            raise ConteudoNaoEncontrado("Imagem nao encontrada.")
+        return linha[0], bytes(linha[1]), linha[2], linha[3]
+
+    @staticmethod
+    def _vincular_imagens(sessao: Session, id_publicacao: int, dados: NovaPublicacao) -> None:
+        """Liga as imagens citadas no HTML a esta publicacao (so as que ainda estao soltas ou ja sao dela)."""
+
+        if dados.formato != "HTML":
+            return
+        ids = ids_imagens(dados.conteudo)
+        if ids:
+            sessao.execute(
+                update(PublicacaoImagem)
+                .where(
+                    PublicacaoImagem.id_imagem.in_(ids),
+                    or_(
+                        PublicacaoImagem.id_publicacao.is_(None),
+                        PublicacaoImagem.id_publicacao == id_publicacao,
+                    ),
+                )
+                .values(id_publicacao=id_publicacao)
+            )
+
     def corrigir_texto(
         self,
         id_sistema: int,
@@ -756,6 +819,7 @@ class RepositorioPublicacoes:
         titulo: str,
         resumo: str | None,
         conteudo: str,
+        formato: str = "MARKDOWN",
     ) -> bool:
         """Corrige o texto de uma publicacao ja publicada (sem notificar de novo).
 
@@ -774,11 +838,13 @@ class RepositorioPublicacoes:
             )
             if publicacao is None:
                 raise ConteudoNaoEncontrado("Publicacao nao encontrada no sistema atual.")
-            if (publicacao.titulo, publicacao.resumo, publicacao.conteudo) == (titulo, resumo, conteudo):
+            atual = (publicacao.titulo, publicacao.resumo, publicacao.conteudo, publicacao.formato_conteudo)
+            if atual == (titulo, resumo, conteudo, formato):
                 return False
             publicacao.titulo = titulo
             publicacao.resumo = resumo
             publicacao.conteudo = conteudo
+            publicacao.formato_conteudo = formato
             publicacao.data_atualizacao = _agora_local()
             return True
 
@@ -820,6 +886,7 @@ class RepositorioPublicacoes:
                 Publicacao.tipo_publicacao,
                 Publicacao.tipo_audiencia,
                 Publicacao.titulo,
+                Publicacao.criado_por,
                 Publicacao.resumo,
                 Publicacao.prioridade,
                 Publicacao.versao,
@@ -873,8 +940,10 @@ class RepositorioPublicacoes:
                 Publicacao.tipo_publicacao,
                 Publicacao.tipo_audiencia,
                 Publicacao.titulo,
+                Publicacao.criado_por,
                 Publicacao.resumo,
                 Publicacao.conteudo,
+                Publicacao.formato_conteudo,
                 Publicacao.prioridade,
                 Publicacao.versao,
                 Publicacao.fixado,
@@ -897,9 +966,22 @@ class RepositorioPublicacoes:
         )
         with self._banco.leitura() as sessao:
             linha = sessao.execute(consulta).mappings().one_or_none()
-        if linha is None:
-            raise ConteudoNaoEncontrado("Publicacao nao encontrada para este usuario.")
-        return self._publicacao_da_linha(linha, incluir_conteudo=True)
+            if linha is None:
+                raise ConteudoNaoEncontrado("Publicacao nao encontrada para este usuario.")
+            itens = tuple(
+                ItemNotaAtualizacao(
+                    titulo=item.titulo,
+                    descricao=item.descricao,
+                    tipo=TipoItemAtualizacao(item.tipo_item),
+                    ordem=item.ordem,
+                )
+                for item in sessao.scalars(
+                    select(NotaAtualizacaoItem)
+                    .where(NotaAtualizacaoItem.id_publicacao == id_publicacao)
+                    .order_by(NotaAtualizacaoItem.ordem, NotaAtualizacaoItem.id_item)
+                )
+            )
+        return self._publicacao_da_linha(linha, incluir_conteudo=True, itens=itens)
 
     def marcar_lida(
         self,
@@ -1045,6 +1127,7 @@ class RepositorioPublicacoes:
         linha: RowMapping,
         *,
         incluir_conteudo: bool = False,
+        itens: tuple[ItemNotaAtualizacao, ...] = (),
     ) -> PublicacaoUsuario:
         return PublicacaoUsuario(
             id_publicacao=linha["id_publicacao"],
@@ -1061,4 +1144,7 @@ class RepositorioPublicacoes:
             exibir_a_partir_de=linha["exibir_a_partir_de"],
             expira_em=linha["expira_em"],
             data_publicacao=linha["data_publicacao"],
+            formato=(linha.get("formato_conteudo") or "MARKDOWN") if incluir_conteudo else "MARKDOWN",
+            itens_atualizacao=itens,
+            criado_por=linha.get("criado_por"),
         )

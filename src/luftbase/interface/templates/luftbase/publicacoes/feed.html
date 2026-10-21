@@ -4,6 +4,15 @@
 {% set eh_comunicado = tipo_publicacao == 'COMUNICADO' %}
 {% set titulo_feed = 'Comunicados' if eh_comunicado else 'Notas de atualização' %}
 
+{% macro data_curta(valor) -%}
+{%- if valor -%}{{ valor[8:10] }}/{{ valor[5:7] }}/{{ valor[0:4] }} {{ valor[11:16] }}{%- endif -%}
+{%- endmacro %}
+
+{% macro iniciais(nome) -%}
+{%- set partes = (nome or 'Luft').split() -%}
+{{- (partes[0][0] ~ (partes[1][0] if partes|length > 1 else ''))|upper -}}
+{%- endmacro %}
+
 {% block titulo %}{{ titulo_feed }}{% endblock %}
 
 {% block extra_head %}
@@ -18,6 +27,7 @@
 {% endblock %}
 
 {% block content %}
+{% set nao_lidas = publicacoes|rejectattr('lida')|list|length %}
 <main class="publicacoes-shell">
     <header class="publicacoes-header">
         <div class="publicacoes-title-group">
@@ -42,61 +52,57 @@
         </div>
         <div class="publicacoes-search">
             <i class="ph ph-magnifying-glass"></i>
-            <input id="publicacoesFeedBusca" type="search" placeholder="{{ 'Buscar comunicados por título, resumo ou autor...' if eh_comunicado else 'Buscar notas de atualização por título, versão ou melhoria...' }}" autocomplete="off">
+            <input id="publicacoesFeedBusca" type="search" placeholder="{{ 'Buscar comunicados por assunto, texto ou autor...' if eh_comunicado else 'Buscar notas por título, versão ou melhoria...' }}" autocomplete="off">
         </div>
         <div class="publicacoes-feed-info">
             <span class="publicacoes-feed-badge" id="publicacoesFeedBadge">
                 <strong id="publicacoesFeedContador">{{ publicacoes|length }}</strong>
                 <span id="publicacoesFeedRotulo">{{ 'comunicado(s)' if eh_comunicado else 'nota(s)' }}</span>
+                {% if nao_lidas %}<span>· <strong>{{ nao_lidas }}</strong> nova(s)</span>{% endif %}
             </span>
         </div>
     </section>
 
     {% if publicacoes %}
-    <section class="publicacoes-list" id="publicacoesFeedLista" aria-label="{{ titulo_feed }}">
+    {% set grupo = namespace(atual='') %}
+    <section class="pub-inbox" id="publicacoesFeedLista" aria-label="{{ titulo_feed }}">
         {% for publicacao in publicacoes %}
+        {% set rotulo_grupo = 'Fixados' if publicacao.fixado else 'Mais recentes' %}
+        {% if rotulo_grupo != grupo.atual %}
+        {% set grupo.atual = rotulo_grupo %}
+        <div class="pub-inbox-grupo" data-grupo="{{ rotulo_grupo }}">{% if publicacao.fixado %}<i class="ph-fill ph-push-pin"></i> {% endif %}{{ rotulo_grupo }}</div>
+        {% endif %}
         {% set termos_busca = [
             publicacao.titulo,
             publicacao.resumo or '',
-            publicacao.conteudo or '',
             publicacao.versao or '',
             publicacao.criado_por or '',
             'fixado' if publicacao.fixado else '',
             'novo' if not publicacao.lida else '',
             'global' if publicacao.id_sistema == 0 else ''
         ] %}
-        {% if publicacao.itens_atualizacao %}
-            {% for item in publicacao.itens_atualizacao %}
-                {% set _ = termos_busca.append(item.titulo or '') %}
-                {% set _ = termos_busca.append(item.descricao or '') %}
-                {% set _ = termos_busca.append(item.tipo or '') %}
-            {% endfor %}
-        {% endif %}
-        <article class="publicacao-card" data-busca="{{ termos_busca|join(' ')|lower|striptags }}">
-            <span class="publicacao-accent prioridade-{{ publicacao.prioridade|lower }}"></span>
-            <a class="publicacao-main publicacao-feed-link" href="{{ url_for('LuftPublicacoes.visualizar_publicacao', id_publicacao=publicacao.id) }}">
-                <div class="publicacao-topline">
-                    <div class="publicacao-badges">
-                        {% if not publicacao.lida %}<span class="publicacao-status status-publicado">Novo</span>{% endif %}
-                        {% if publicacao.fixado %}<span class="publicacao-chip"><i class="ph-bold ph-push-pin"></i> Fixado</span>{% endif %}
-                        {% if publicacao.id_sistema == 0 %}<span class="publicacao-chip global"><i class="ph-bold ph-globe"></i> Global</span>{% endif %}
-                        {% if publicacao.fonte != 'INTERNO' %}<span class="publicacao-chip fonte"><i class="ph-bold ph-envelope"></i> {{ publicacao.fonte }}</span>{% endif %}
-                    </div>
-                </div>
-                <div class="publicacao-heading">
-                    <h2>{{ publicacao.titulo }}</h2>
+        {% for item in publicacao.itens_atualizacao %}
+            {% set _ = termos_busca.append(item.titulo or '') %}
+            {% set _ = termos_busca.append(item.descricao or '') %}
+        {% endfor %}
+        <a class="pub-msg prioridade-{{ publicacao.prioridade|lower }} {{ '' if publicacao.lida else 'nao-lida' }}" data-grupo-item="{{ rotulo_grupo }}" data-busca="{{ termos_busca|join(' ')|lower|striptags }}" href="{{ url_for('LuftPublicacoes.visualizar_publicacao', id_publicacao=publicacao.id) }}">
+            <span class="pub-avatar" aria-hidden="true">{{ iniciais(publicacao.criado_por) }}</span>
+            <div class="pub-msg-corpo">
+                <span class="pub-msg-autor">{{ publicacao.criado_por }}{% if publicacao.id_sistema == 0 %} · Luft{% endif %}</span>
+                <h2 class="pub-msg-titulo">{{ publicacao.titulo }}</h2>
+                <p class="pub-msg-previa">{{ publicacao.resumo }}</p>
+                <div class="pub-msg-chips">
                     {% if publicacao.versao %}<span class="publicacao-version">v{{ publicacao.versao|replace('v', '') }}</span>{% endif %}
+                    {% if publicacao.prioridade in ('ALTA', 'CRITICA') %}<span class="publicacao-chip" style="color:{{ '#dc2626' if publicacao.prioridade == 'CRITICA' else '#c2410c' }}"><i class="ph-bold ph-warning"></i> {{ 'Urgente' if publicacao.prioridade == 'CRITICA' else 'Importante' }}</span>{% endif %}
+                    {% if publicacao.itens_atualizacao %}<span class="publicacao-chip"><i class="ph-bold ph-list-checks"></i> {{ publicacao.itens_atualizacao|length }} mudança(s)</span>{% endif %}
+                    {% if publicacao.fonte != 'INTERNO' %}<span class="publicacao-chip fonte"><i class="ph-bold ph-envelope"></i> {{ publicacao.fonte }}</span>{% endif %}
                 </div>
-                <p>{{ (publicacao.resumo or publicacao.conteudo)|truncate(220, true) }}</p>
-                <div class="publicacao-meta">
-                    <span><i class="ph ph-user"></i> {{ publicacao.criado_por }}</span>
-                    <span><i class="ph ph-calendar-blank"></i> {{ (publicacao.data_publicacao or publicacao.data_criacao or '')[:16]|replace('T', ' ') }}</span>
-                </div>
-            </a>
-            <div class="publicacao-actions">
-                <a class="btn btn-outline btn-sm" href="{{ url_for('LuftPublicacoes.visualizar_publicacao', id_publicacao=publicacao.id) }}"><i class="ph-bold ph-arrow-right"></i><span>Abrir</span></a>
             </div>
-        </article>
+            <div class="pub-msg-lado">
+                {% if not publicacao.lida %}<span class="pub-ponto" title="Não lido"></span>{% endif %}
+                <span>{{ data_curta(publicacao.data_publicacao or publicacao.data_criacao) }}</span>
+            </div>
+        </a>
         {% endfor %}
     </section>
 
@@ -104,7 +110,7 @@
         <div><i class="ph-bold ph-magnifying-glass"></i></div>
         <h2>Nenhum resultado encontrado</h2>
         <p>Não encontramos nenhum {{ 'comunicado' if eh_comunicado else 'registro de atualização' }} correspondente aos termos digitados.</p>
-        <button type="button" class="btn btn-outline btn-sm" id="btnLimparBuscaFeed" style="margin: 0 auto; display: inline-flex; align-items: center; gap: 6px;">
+        <button type="button" class="btn btn-outline btn-sm" id="btnLimparBuscaFeed">
             <i class="ph-bold ph-x"></i> Limpar pesquisa
         </button>
     </section>
@@ -123,62 +129,44 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const inputBusca = document.getElementById('publicacoesFeedBusca');
-    const containerLista = document.getElementById('publicacoesFeedLista');
-    const cards = Array.from(document.querySelectorAll('.publicacao-card'));
+    const lista = document.getElementById('publicacoesFeedLista');
+    const mensagens = Array.from(document.querySelectorAll('.pub-msg'));
     const vazioBusca = document.getElementById('publicacoesFeedVazioBusca');
-    const contadorVisiveis = document.getElementById('publicacoesFeedContador');
-    const rotuloContador = document.getElementById('publicacoesFeedRotulo');
+    const contador = document.getElementById('publicacoesFeedContador');
+    const rotulo = document.getElementById('publicacoesFeedRotulo');
     const btnLimpar = document.getElementById('btnLimparBuscaFeed');
     const ehComunicado = {{ 'true' if eh_comunicado else 'false' }};
 
-    function normalizar(texto) {
-        return (texto || '')
-            .toString()
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .trim();
-    }
+    const normalizar = texto => (texto || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 
     function filtrar() {
         const termo = normalizar(inputBusca?.value);
         let visiveis = 0;
-
-        cards.forEach(card => {
-            const textoBusca = normalizar(card.getAttribute('data-busca'));
-            const corresponde = !termo || textoBusca.includes(termo);
-            card.style.display = corresponde ? '' : 'none';
-            if (corresponde) visiveis++;
+        mensagens.forEach(item => {
+            const combina = !termo || normalizar(item.getAttribute('data-busca')).includes(termo);
+            item.hidden = !combina;
+            if (combina) visiveis++;
         });
-
-        if (contadorVisiveis) contadorVisiveis.textContent = visiveis;
-        if (rotuloContador) {
-            if (ehComunicado) {
-                rotuloContador.textContent = visiveis === 1 ? 'comunicado' : 'comunicado(s)';
-            } else {
-                rotuloContador.textContent = visiveis === 1 ? 'nota' : 'nota(s)';
-            }
-        }
-
-        if (vazioBusca) {
-            vazioBusca.style.display = (visiveis === 0 && cards.length > 0) ? '' : 'none';
-        }
-        if (containerLista) {
-            containerLista.style.display = (visiveis === 0 && cards.length > 0) ? 'none' : '';
-        }
+        // Um cabeçalho de grupo só aparece se sobrou alguma mensagem dele.
+        document.querySelectorAll('.pub-inbox-grupo').forEach(cab => {
+            cab.hidden = !mensagens.some(m => !m.hidden && m.dataset.grupoItem === cab.dataset.grupo);
+        });
+        if (contador) contador.textContent = visiveis;
+        if (rotulo) rotulo.textContent = ehComunicado ? (visiveis === 1 ? 'comunicado' : 'comunicado(s)') : (visiveis === 1 ? 'nota' : 'nota(s)');
+        if (vazioBusca) vazioBusca.style.display = (visiveis === 0 && mensagens.length > 0) ? '' : 'none';
+        if (lista) lista.style.display = (visiveis === 0 && mensagens.length > 0) ? 'none' : '';
     }
 
     inputBusca?.addEventListener('input', filtrar);
     btnLimpar?.addEventListener('click', () => {
-        if (inputBusca) {
-            inputBusca.value = '';
-            inputBusca.focus();
-            filtrar();
-        }
+        if (!inputBusca) return;
+        inputBusca.value = '';
+        inputBusca.focus();
+        filtrar();
     });
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const termoUrl = urlParams.get('q') || urlParams.get('busca');
+    const parametros = new URLSearchParams(window.location.search);
+    const termoUrl = parametros.get('q') || parametros.get('busca');
     if (termoUrl && inputBusca) {
         inputBusca.value = termoUrl;
         filtrar();

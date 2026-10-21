@@ -1,6 +1,10 @@
 # Handoff
 
-## Ultima continuidade (2026-10-19, versao 0.1.0a112 (a112: segredo de e-mail invalido nao derruba mais a subida))
+## Ultima continuidade (2026-10-21, versao 0.1.0a113 (a113: editor rico de comunicados, estilo e-mail, e telas de publicacao renovadas))
+
+**Entregue na a113**: editor visual de comunicados e notas (formatacao, imagens, tabelas, destaques), caixa de entrada e leitura estilo e-mail, painel com indicadores, correcao da edicao de rascunho (PUT) e itens do changelog na leitura. Migracao `20261021_0018`. Detalhes no [doc 21](docs/21-CONTEUDO-RICO-E-NOTAS-DE-ATUALIZACAO.md) e no [CHANGELOG](CHANGELOG.md).
+
+### Continuidade anterior (2026-10-19, versao 0.1.0a112 (a112: segredo de e-mail invalido nao derruba mais a subida))
 
 **Entregue** (marco M22 do [ROADMAP](ROADMAP.md), decisoes no [ADR-018](docs/decisoes/ADR-018-TIPOS-DE-SISTEMA-ESPELHO-LOCAL-E-PROJETO-NOVO.md)):
 

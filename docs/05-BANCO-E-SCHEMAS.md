@@ -55,7 +55,7 @@ control    -> tabelas particulares do Luft-Control
 | Auditoria | `tb_logs` (acesso HTTP), `tb_logevento` (evento de negocio), `tb_logdetalhe` (antes/depois) ([doc 12](12-AUDITORIA-E-OBSERVABILIDADE.md)) |
 | Alertas | `tb_alerta`, `tb_alerta_controle` |
 | Notificacoes | `tb_notificacao`, `tb_notificacao_leitura`, `tb_notificacao_oculta` ([doc 13](13-NOTIFICACOES-E-PUBLICACOES.md)) |
-| Comunicados e notas | `tb_publicacao`, `tb_publicacaogrupo`, `tb_publicacaoleitura`, `tb_publicacaonotificacao`, `tb_notaatualizacaoitem` |
+| Comunicados e notas | `tb_publicacao`, `tb_publicacaogrupo`, `tb_publicacaoleitura`, `tb_publicacaonotificacao`, `tb_notaatualizacaoitem`, `tb_publicacaoimagem` (imagens do editor; `tb_publicacao.formato_conteudo` = `MARKDOWN`/`HTML`) |
 
 ## Propriedade e acesso
 

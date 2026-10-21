@@ -7,6 +7,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
+from luftbase.conteudo.formatacao import (
+    FORMATO_HTML,
+    FORMATOS,
+    normalizar_conteudo,
+    resumo_automatico,
+)
+from luftbase.conteudo.html_seguro import texto_puro
 from luftbase.nucleo.excecoes import ErroConteudo
 
 
@@ -213,10 +220,18 @@ class NovaPublicacao:
     url_externa: str | None = None
     metadados: Mapping[str, object] | None = field(default=None, repr=False)
     itens_atualizacao: Sequence[ItemNotaAtualizacao] = ()
+    formato: str = "MARKDOWN"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "titulo", _texto_obrigatorio(self.titulo, "titulo", 200))
-        object.__setattr__(self, "conteudo", _texto_obrigatorio(self.conteudo, "conteudo"))
+        if self.formato not in FORMATOS:
+            raise ErroConteudo("formato deve ser MARKDOWN ou HTML.")
+        conteudo = normalizar_conteudo(self.conteudo, self.formato)
+        if self.formato == FORMATO_HTML and not (texto_puro(conteudo) or "<img " in conteudo):
+            raise ErroConteudo("conteudo e obrigatorio.")
+        object.__setattr__(self, "conteudo", _texto_obrigatorio(conteudo, "conteudo"))
+        if self.resumo is None or not self.resumo.strip():
+            object.__setattr__(self, "resumo", resumo_automatico(conteudo, self.formato) or None)
         object.__setattr__(
             self,
             "criado_por",
@@ -257,6 +272,9 @@ class PublicacaoUsuario:
     exibir_a_partir_de: datetime | None
     expira_em: datetime | None
     data_publicacao: datetime | None
+    formato: str = "MARKDOWN"
+    itens_atualizacao: tuple[ItemNotaAtualizacao, ...] = ()
+    criado_por: str | None = None
 
     def como_dict(self) -> dict[str, object]:
         """Serializa a publicacao sem expor uma entidade ORM."""
@@ -269,6 +287,8 @@ class PublicacaoUsuario:
             "titulo": self.titulo,
             "resumo": self.resumo,
             "conteudo": self.conteudo,
+            "formato": self.formato,
+            "criado_por": self.criado_por,
             "prioridade": self.prioridade,
             "versao": self.versao,
             "fixado": self.fixado,

@@ -45,6 +45,7 @@ TABELAS_ESPERADAS = {
     "tb_publicacaoleitura",
     "tb_publicacaonotificacao",
     "tb_notaatualizacaoitem",
+    "tb_publicacaoimagem",
 }
 
 TABELAS_NOVAS = {
@@ -58,6 +59,7 @@ TABELAS_NOVAS = {
 INDICES_ESPERADOS = {
     "ix_core_alerta_status",
     "ix_core_alerta_chave",
+    "ix_core_publicacaoimagem_publicacao",
     "ix_core_sistema_ativo_ordem",
     "ix_core_modulo_sistema_ordem",
     "ix_core_permissao_sistema",
@@ -143,6 +145,7 @@ CHAVES_ESTRANGEIRAS_ESPERADAS = {
     "fk_core_usuario_sessao_atual",
     "fk_core_notificacaooculta_notificacao",
     "fk_core_notificacaooculta_usuario",
+    "fk_core_publicacaoimagem_publicacao",
 }
 
 
@@ -222,6 +225,8 @@ def test_checks_preservam_nomes_fisicos() -> None:
         "ck_core_publicacao_prioridade",
         "ck_core_publicacao_fonte",
         "ck_core_publicacao_versao",
+        "ck_core_publicacao_formato",
+        "ck_core_publicacaoimagem_mime",
         "ck_core_publicacao_vigencia",
         "ck_core_publicacao_metadados_json",
         "ck_core_nota_item_tipo",

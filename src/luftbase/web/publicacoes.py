@@ -6,14 +6,29 @@ import contextlib
 from datetime import datetime
 from typing import Any
 
-from flask import Blueprint, abort, current_app, jsonify, render_template, request, url_for
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    current_app,
+    jsonify,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required
 from sqlalchemy import select
 from werkzeug.exceptions import HTTPException
 
 from luftbase.autorizacao.catalogo import PermissaoLuftBase
 from luftbase.autorizacao.web import consultar_permissoes, exigir_permissao
-from luftbase.conteudo.markdown_seguro import renderizar as renderizar_markdown
+from luftbase.conteudo.formatacao import (
+    FORMATO_HTML,
+    FORMATO_MARKDOWN,
+    detectar_tipo_imagem,
+    renderizar_conteudo,
+    resumo_automatico,
+)
 from luftbase.conteudo.modelos import (
     ItemNotaAtualizacao,
     NovaPublicacao,
@@ -48,6 +63,21 @@ def _data_iso(valor: datetime | None) -> str | None:
     return valor.isoformat() if valor is not None else None
 
 
+_TAMANHO_MAXIMO_IMAGEM = 5 * 1024 * 1024
+
+
+def _url_imagem(id_imagem: int) -> str:
+    return url_for("LuftPublicacoes.imagem_publicacao", id_imagem=id_imagem)
+
+
+def _url_estatico(caminho: str) -> str:
+    return url_for("luftbase.static", filename=caminho)
+
+
+def _html_para_exibir(conteudo: str | None, formato: str) -> object:
+    return renderizar_conteudo(conteudo, formato, _url_estatico, _url_imagem)
+
+
 def _publicacao_feed(item: PublicacaoUsuario) -> dict[str, object]:
     """Adapta o contrato enxuto do dominio ao template visual oficial."""
 
@@ -61,17 +91,26 @@ def _publicacao_feed(item: PublicacaoUsuario) -> dict[str, object]:
         "titulo": item.titulo,
         "resumo": item.resumo or "",
         "conteudo": item.conteudo or "",
+        "formato": item.formato,
         "prioridade": item.prioridade,
         "versao": item.versao,
         "fixado": item.fixado,
         "lida": item.lida,
         "fonte": "INTERNO",
-        "criado_por": "Luft",
+        "criado_por": item.criado_por or "Equipe Luft",
         "data_criacao": _data_iso(item.data_publicacao),
         "data_publicacao": _data_iso(item.data_publicacao),
         "exibir_a_partir_de": _data_iso(item.exibir_a_partir_de),
         "expira_em": _data_iso(item.expira_em),
-        "itens_atualizacao": [],
+        "itens_atualizacao": [
+            {
+                "tipo": detalhe.tipo.value,
+                "titulo": detalhe.titulo,
+                "descricao": detalhe.descricao,
+                "ordem": detalhe.ordem,
+            }
+            for detalhe in item.itens_atualizacao
+        ],
         "url_externa": None,
     }
 
@@ -88,7 +127,11 @@ def _publicacao_administracao(item: Publicacao) -> dict[str, object]:
         "ids_grupos": [grupo.id_grupo for grupo in item.grupos],
         "titulo": item.titulo,
         "resumo": item.resumo,
+        "previa": item.resumo or resumo_automatico(item.conteudo, item.formato_conteudo),
         "conteudo": item.conteudo,
+        "formato": item.formato_conteudo,
+        # Texto no formato do editor visual: markdown antigo vira HTML ao ser aberto para edicao.
+        "conteudo_editor": str(_html_para_exibir(item.conteudo, item.formato_conteudo)),
         "prioridade": item.prioridade,
         "versao": item.versao,
         "notificar": item.notificar,
@@ -118,7 +161,9 @@ def _listar_feed(tipo: TipoPublicacao) -> list[dict[str, object]]:
         id_grupo,
         limite=100,
     )
-    return [_publicacao_feed(item) for item in pagina.itens if item.tipo == tipo.value]
+    itens = [_publicacao_feed(item) for item in pagina.itens if item.tipo == tipo.value]
+    # Fixados primeiro e, depois, do mais novo para o mais antigo (a pagina vem em ordem crescente).
+    return sorted(itens, key=lambda i: (bool(i["fixado"]), int(str(i["id"]))), reverse=True)
 
 
 def _listar_administracao(tipo: TipoPublicacao) -> list[dict[str, object]]:
@@ -272,10 +317,9 @@ def visualizar_publicacao(id_publicacao: int):  # type: ignore[no-untyped-def]
         )
 
     publicacao = _publicacao_feed(item)
-    publicacao["conteudo_html"] = renderizar_markdown(
-        item.conteudo,
-        lambda caminho: url_for("luftbase.static", filename=caminho),
-    )
+    publicacao["conteudo_html"] = _html_para_exibir(item.conteudo, item.formato)
+    if item.resumo == resumo_automatico(item.conteudo, item.formato):
+        publicacao["resumo"] = ""  # resumo gerado a partir do proprio texto: repetiria o corpo
     return render_template("luftbase/publicacoes/detalhe.html", publicacao=publicacao)
 
 
@@ -296,6 +340,13 @@ def _booleano_payload(valor: Any, *, padrao: bool) -> bool:
     if isinstance(valor, bool):
         return valor
     return str(valor).strip().casefold() in {"1", "true", "sim", "yes", "on"}
+
+
+def _formato_payload(valor: Any) -> str:
+    formato = str(valor or FORMATO_MARKDOWN).strip().upper()
+    if formato not in {FORMATO_MARKDOWN, FORMATO_HTML}:
+        raise ErroConteudo("formato deve ser MARKDOWN ou HTML.")
+    return formato
 
 
 def _nova_publicacao(tipo: TipoPublicacao, dados: dict[str, Any]) -> NovaPublicacao:
@@ -326,6 +377,7 @@ def _nova_publicacao(tipo: TipoPublicacao, dados: dict[str, Any]) -> NovaPublica
         exibir_a_partir_de=_data_payload(dados.get("exibir_a_partir_de"), "exibir_a_partir_de"),
         expira_em=_data_payload(dados.get("expira_em"), "expira_em"),
         itens_atualizacao=itens,
+        formato=_formato_payload(dados.get("formato")),
     )
 
 
@@ -435,8 +487,9 @@ def _editar(tipo: TipoPublicacao, id_publicacao: int) -> dict[str, object]:
     return {"id_publicacao": id_publicacao, "alterada": alterada}
 
 
-@PublicacoesBp.post(
+@PublicacoesBp.route(
     "/api/comunicados/<int:id_publicacao>",
+    methods=["POST", "PUT"],
     endpoint="editar_comunicado",
 )
 @PublicacoesBp.post(
@@ -449,8 +502,9 @@ def editar_comunicado(id_publicacao: int):  # type: ignore[no-untyped-def]
     return _resposta_operacao(lambda: _editar(TipoPublicacao.COMUNICADO, id_publicacao))
 
 
-@PublicacoesBp.post(
+@PublicacoesBp.route(
     "/api/atualizacoes/<int:id_publicacao>",
+    methods=["POST", "PUT"],
     endpoint="editar_atualizacao",
 )
 @PublicacoesBp.post(
@@ -515,6 +569,105 @@ def obter_publicacao_admin(id_publicacao: int):  # type: ignore[no-untyped-def]
         lambda: _publicacao_administracao(
             obter_luftbase().publicacoes.obter_administracao(id_publicacao)
         )
+    )
+
+
+_PERMISSOES_EDITOR = (
+    PermissaoLuftBase.COMUNICADOS_CRIAR,
+    PermissaoLuftBase.COMUNICADOS_EDITAR,
+    PermissaoLuftBase.ATUALIZACOES_CRIAR,
+    PermissaoLuftBase.ATUALIZACOES_EDITAR,
+)
+_PERMISSOES_GESTAO = (
+    PermissaoLuftBase.COMUNICADOS_VISUALIZAR,
+    PermissaoLuftBase.ATUALIZACOES_VISUALIZAR,
+)
+
+
+def _tem_alguma_permissao(chaves: tuple[str, ...]) -> bool:
+    decisoes = consultar_permissoes(chaves)
+    return any(decisoes.get(chave) for chave in chaves)
+
+
+@PublicacoesBp.post("/api/imagens", endpoint="enviar_imagem")
+@login_required
+def enviar_imagem():  # type: ignore[no-untyped-def]
+    """Recebe uma imagem do editor rico e devolve a URL para inseri-la no texto."""
+
+    if not _tem_alguma_permissao(_PERMISSOES_EDITOR):
+        abort(403)
+
+    def operacao() -> dict[str, object]:
+        validar_csrf_requisicao()
+        arquivo = request.files.get("arquivo")
+        if arquivo is None:
+            raise ErroConteudo("Selecione uma imagem.")
+        dados = arquivo.stream.read(_TAMANHO_MAXIMO_IMAGEM + 1)
+        if len(dados) > _TAMANHO_MAXIMO_IMAGEM:
+            raise ErroConteudo("A imagem pode ter no maximo 5 MB.")
+        tipo = detectar_tipo_imagem(dados)
+        if tipo is None:
+            raise ErroConteudo("Use uma imagem PNG, JPEG, GIF ou WebP.")
+        _id, _grupo, nome = _identidade_usuario()
+        id_imagem = obter_luftbase().publicacoes.salvar_imagem(
+            dados=dados,
+            mime=tipo,
+            nome=arquivo.filename,
+            criado_por=nome,
+        )
+        return {"id_imagem": id_imagem, "url": _url_imagem(id_imagem)}
+
+    return _resposta_operacao(operacao)
+
+
+@PublicacoesBp.post("/api/previa", endpoint="previa_conteudo")
+@login_required
+def previa_conteudo():  # type: ignore[no-untyped-def]
+    """Mostra como o texto ficara para quem le (ja sanitizado pelo servidor)."""
+
+    if not _tem_alguma_permissao(_PERMISSOES_EDITOR):
+        abort(403)
+
+    def operacao() -> dict[str, object]:
+        validar_csrf_requisicao()
+        dados = request.get_json(silent=True) or {}
+        formato = _formato_payload(dados.get("formato"))
+        html = _html_para_exibir(str(dados.get("conteudo") or ""), formato)
+        return {"html": str(html)}
+
+    return _resposta_operacao(operacao)
+
+
+@PublicacoesBp.get("/imagem/<int:id_imagem>", endpoint="imagem_publicacao")
+@login_required  # type: ignore[untyped-decorator]
+def imagem_publicacao(id_imagem: int):  # type: ignore[no-untyped-def]
+    """Entrega a imagem a quem pode ver a publicacao dela (ou a quem gere publicacoes)."""
+
+    servico = obter_luftbase().publicacoes
+    try:
+        mime, dados, hash_sha256, id_publicacao = servico.obter_imagem(id_imagem)
+    except (ConteudoNaoEncontrado, ErroConteudo):
+        abort(404)
+    if not _tem_alguma_permissao(_PERMISSOES_GESTAO):
+        if id_publicacao is None:
+            abort(404)
+        id_usuario, id_grupo, _nome = _identidade_usuario()
+        try:
+            servico.obter_para_usuario(id_usuario, id_grupo, id_publicacao)
+        except ConteudoNaoEncontrado:
+            abort(404)
+    etag = f'"{hash_sha256}"'
+    if request.headers.get("If-None-Match") == etag:
+        return Response(status=304, headers={"ETag": etag})
+    return Response(
+        dados,
+        mimetype=mime,
+        headers={
+            "ETag": etag,
+            "Cache-Control": "private, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+        },
     )
 
 

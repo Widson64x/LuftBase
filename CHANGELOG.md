@@ -4,6 +4,28 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
 ## [Nao lancado]
 
+## [0.1.0a113] - 2026-10-21
+
+### Adicionado
+
+- **Editor rico de comunicados e notas de atualizacao (estilo e-mail)**: o campo de texto virou um editor visual com estilo (paragrafo, titulo, subtitulo, secao), tamanho da letra, negrito, italico, sublinhado, tachado, cor do texto, marca-texto, alinhamento, listas, citacao, linha divisoria, destaques (informacao, sucesso, alerta, perigo), links, tabelas e **imagens** (botao, colar ou arrastar; PNG, JPEG, GIF ou WebP de ate 5 MB, reduzidas no navegador quando passam de 1600 px). Aba "Pre-visualizar" mostra o que o leitor vera, ja sanitizado pelo servidor.
+- **Formato do conteudo**: `tb_publicacao.formato_conteudo` (`MARKDOWN` ou `HTML`). O conteudo existente continua em markdown e segue funcionando; ao abrir uma publicacao antiga para editar, ela e convertida para o editor e passa a ser salva como HTML.
+- **Sanitizador de HTML de lista fechada** (`conteudo/html_seguro.py`): so tags, atributos e estilos conhecidos; sem `script`, eventos (`onclick`...), `javascript:` ou `data:`; imagens so internas, estaticas do LuftBase ou `https://`.
+- **Imagens das publicacoes** em `core.tb_publicacaoimagem` (migracao `20261021_0018`, aditiva), entregues por `GET /publicacoes/imagem/<id>` a quem pode ver a publicacao (ou a quem gere publicacoes), com `nosniff` e cache privado.
+- Rotas `POST /publicacoes/api/imagens` (upload) e `POST /publicacoes/api/previa`.
+- **Resumo automatico**: sem resumo, o LuftBase gera um texto limpo (sem marcacao) a partir da mensagem; ele tambem e a mensagem da notificacao (antes a notificacao podia sair com o texto cru).
+
+### Alterado
+
+- **Telas de publicacao renovadas**: caixa de entrada (fixados no topo, mais novo primeiro, ponto de nao lido, autor e data), leitura como e-mail (remetente, data, audiencia, imprimir) e painel com indicadores por situacao que tambem filtram a lista. Corpo do texto com estilo unico entre editor, previa e leitura; tema escuro.
+- O feed de quem le agora ordena do mais novo para o mais antigo (antes vinha do mais antigo).
+
+### Corrigido
+
+- **Editar rascunho dava erro 405**: a tela enviava `PUT` e a rota so aceitava `POST`; agora aceita os dois.
+- A leitura de uma nota de atualizacao nao mostrava os itens do changelog ("O que mudou") nem o autor real.
+- Publicacao sem resumo aparecia em branco no feed.
+
 ### Documentacao
 - Novo [doc 28](docs/28-TUTORIAL-PRATICO-DO-DESENVOLVEDOR.md): tutorial pratico (sistema de exemplo executado com testes) e roteiro de migracao de sistema legado.
 - Corrigido que o CSRF nao e automatico nas rotas da aplicacao (docs 10 e 19); README com Control e Docs; docs 20 e 26 com mapa de portas e erros de subida.

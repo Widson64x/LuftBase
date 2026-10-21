@@ -1,13 +1,33 @@
 # Conteudo rico: comunicados e notas de atualizacao
 
-O corpo de um comunicado ou de uma nota de atualizacao aceita **markdown seguro** (titulos, listas, imagens, destaques e
-cards). Este documento explica o formato, as garantias de seguranca e como publicar uma nota global (o caso do lancamento do
-LuftBase). O fluxo de criacao, publicacao e notificacao esta no [doc 13](13-NOTIFICACOES-E-PUBLICACOES.md).
+O corpo de um comunicado ou de uma nota de atualizacao e escrito no **editor visual** do Painel de Controle (como um e-mail:
+titulos, tamanhos, cores, listas, tabelas, imagens e destaques) e gravado como **HTML sanitizado**. Publicacoes antigas e as
+criadas por codigo (como a nota de lancamento) usam **markdown seguro**. Este documento explica os dois formatos, as garantias
+de seguranca e como publicar uma nota global (o caso do lancamento do LuftBase). O fluxo de criacao, publicacao e notificacao esta no [doc 13](13-NOTIFICACOES-E-PUBLICACOES.md).
 
-Codigo: `conteudo/markdown_seguro.py` (renderizador), `web/publicacoes.py` (rota de leitura),
+Codigo: `conteudo/html_seguro.py` (sanitizador do editor), `conteudo/formatacao.py` (une os formatos e gera o resumo),
+`interface/static/js/editor_rico.js` (editor), `conteudo/markdown_seguro.py` (renderizador markdown), `web/publicacoes.py` (rotas),
 `interface/static/css/publicacoes.css` (aparencia), `conteudo/changelog_plataforma.py` (nota de lancamento).
 
-## Sintaxe suportada
+## Editor visual (formato HTML)
+
+No painel (Comunicados ou Changelog > Novo), o campo **Mensagem** tem uma barra com: desfazer/refazer; estilo (paragrafo, titulo,
+subtitulo, secao); tamanho (12, 15, 20, 28 e 40 px); negrito, italico, sublinhado e tachado; cor do texto e marca-texto;
+alinhamento; listas, citacao e linha divisoria; destaques (informacao, sucesso, alerta, perigo); link (Ctrl+K); imagem; tabela;
+limpar formatacao. Ao clicar numa imagem aparecem largura (25 a 100%), descricao (acessibilidade) e remover; dentro de uma tabela,
+adicionar ou remover linha e coluna. Colar de e-mail ou Word mantem so o que o editor sabe representar, e colar ou arrastar uma
+imagem envia o arquivo. A aba **Pre-visualizar** chama `POST /publicacoes/api/previa` e mostra o resultado ja sanitizado.
+
+- **Formato**: `tb_publicacao.formato_conteudo` = `HTML` (editor) ou `MARKDOWN` (padrao, conteudo antigo). Abrir uma publicacao
+markdown no editor a converte; ao salvar vira HTML. `NovaPublicacao(formato="HTML")` sanitiza o texto na criacao.
+- **Imagens**: enviadas por `POST /publicacoes/api/imagens` (multipart, campo `arquivo`, so com permissao de criar ou editar). O tipo e
+decidido pelos primeiros bytes (PNG, JPEG, GIF, WebP; SVG e recusado), limite de 5 MB. Ficam em `core.tb_publicacaoimagem` e, no
+texto, como `luftimg:<id>`, independente do prefixo da aplicacao; o link real e resolvido na exibicao. A imagem nasce solta e e
+vinculada a publicacao quando ela e salva (uma imagem ja vinculada a outra publicacao nao e reaproveitada).
+- **Resumo**: se o autor nao escrever, o LuftBase gera um texto sem marcacao (ate 280 caracteres) a partir da mensagem; ele e a
+mensagem da notificacao e o texto das listas.
+
+## Sintaxe suportada (markdown)
 
 ```text
 # Titulo      ## Subtitulo      ### Terceiro nivel     (viram h2, h3 e h4: o h1 e o titulo da publicacao)
@@ -42,6 +62,19 @@ Texto
 - Os marcadores internos usados na conversao nao podem ser forjados por quem digita (o caractere nulo e removido).
 
 Esses pontos tem testes (`tests/test_changelog_plataforma.py`).
+
+### HTML do editor
+
+O navegador nunca e confiavel: o servidor sanitiza ao salvar (`NovaPublicacao`), na pre-visualizacao e **de novo ao exibir**.
+
+- So passam as tags `p div span br hr h2 h3 h4 strong em u s sub sup ul ol li blockquote a img code table thead tbody tr th td`
+(`b`, `i`, `strike`, `h1`, `h5` e `h6` sao convertidas). `script`, `style`, `iframe`, `object`, `svg` e similares somem com o conteudo; as demais tags perdem a marcacao e o texto fica.
+- Atributos de evento (`onclick`...) nunca passam. `a` so com `http://`, `https://` ou `mailto:` (nova aba, `noopener noreferrer`).
+- `style` aceita so cor, cor de fundo, tamanho da letra (8 a 72 px), alinhamento, negrito, italico, decoracao e largura (so em imagem e tabela); nada de `url(...)` nem `position`. `class` so nos destaques `pub-callout`, `pub-info`, `pub-sucesso`, `pub-alerta`, `pub-perigo`.
+- `img`: so imagem interna (`luftimg:`), estatica do LuftBase (`luftbase:img/...`) ou `https://`.
+- A rota de imagem responde com `X-Content-Type-Options: nosniff` e CSP `sandbox`, e so entrega a quem pode ver a publicacao.
+
+Testes: `tests/test_conteudo_rico.py` e `tests/test_repositorio_conteudo_rico.py`.
 
 ## Imagens do LuftBase (`luftbase:`)
 
