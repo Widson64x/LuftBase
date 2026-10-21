@@ -174,8 +174,16 @@ const LuftPublicacoesPainel = {
         alvo.append(titulo, texto);
     },
 
-    editar(id) {
-        const publicacao = (this._config.publicacoes || []).find(item => Number(item.id) === Number(id));
+    /** O texto completo vem do servidor so aqui: a lista da pagina nao carrega o conteudo de cada publicacao. */
+    async editar(id) {
+        let publicacao = null;
+        try {
+            const resposta = await this._requisicao(this._config.endpoints.detalhe.replace(/0$/, String(id)), 'GET');
+            publicacao = resposta.dados;
+        } catch (erro) {
+            this._toast('Não foi possível abrir a publicação', erro.message, 'error');
+            return;
+        }
         if (!publicacao) return;
         document.getElementById('publicacaoId').value = publicacao.id;
         document.getElementById('publicacaoTitulo').value = publicacao.titulo || '';

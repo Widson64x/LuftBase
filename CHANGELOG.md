@@ -2,6 +2,17 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a114] - 2026-10-21
+
+### Adicionado
+
+- **Bloco de codigo (`pre`)** no HTML do editor: preserva espacos e quebras de linha; o conteudo continua sanitizado.
+- **Nota global da plataforma** (`conteudo/changelog_plataforma.py`): nova secao sobre os comunicados como e-mails (3 imagens novas em `img/changelog`), lista de itens por categoria (`ITENS`) e parametros `criado_por` e `criado_por_id` em `nova_publicacao` e `publicar_changelog_plataforma`.
+
+### Alterado
+
+- **Painel de publicacoes mais leve**: a lista nao embute mais o texto completo (`conteudo` e `conteudo_editor`) de cada publicacao; ele vem de `GET /publicacoes/api/publicacoes/<id>` so ao clicar em Editar. Publicacoes muito grandes deixam de pesar a pagina.
+
 ## [Nao lancado]
 
 ### Documentacao

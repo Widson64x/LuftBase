@@ -161,6 +161,8 @@
 .pub-corpo ul, .pub-corpo ol, .md ul, .md ol { margin: 0 0 14px; padding-left: 24px; }
 .pub-corpo li, .md li { margin: 4px 0; }
 .pub-corpo code, .md code { padding: 1px 6px; border-radius: 6px; background: var(--luft-bg-hover, #f1f5f9); font-size: .86em; }
+.pub-corpo pre { margin: 0 0 16px; padding: 14px 16px; overflow-x: auto; border: 1px solid var(--luft-border); border-radius: 10px; background: var(--luft-bg-app); font-size: .84rem; line-height: 1.55; }
+.pub-corpo pre code { padding: 0; background: transparent; font-size: inherit; }
 .pub-corpo hr, .md hr { margin: 26px 0; border: 0; border-top: 1px solid var(--luft-border); }
 .pub-corpo blockquote, .md blockquote { margin: 0 0 14px; padding: 10px 16px; border-left: 4px solid var(--luft-primary-500, #2563eb); border-radius: 0 10px 10px 0; background: var(--luft-brand-tint, #eff6ff); color: #1e3a8a; }
 [data-theme="dark"] .pub-corpo blockquote, [data-theme="dark"] .md blockquote { background: rgba(59, 130, 246, .14); color: var(--luft-text-main); }

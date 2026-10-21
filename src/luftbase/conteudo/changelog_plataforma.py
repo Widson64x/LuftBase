@@ -10,9 +10,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from luftbase.conteudo.modelos import (
+    ItemNotaAtualizacao,
     NovaPublicacao,
     PrioridadePublicacao,
     TipoAudiencia,
+    TipoItemAtualizacao,
     TipoPublicacao,
 )
 from luftbase.conteudo.servicos import ServicoPublicacoes
@@ -20,7 +22,7 @@ from luftbase.conteudo.servicos import ServicoPublicacoes
 TITULO = "Uma base nova para o Workspace, o ConnectAir e o Integrador"
 RESUMO = (
     "O Luft-Workspace, o Luft-ConnectAir e o Luft-Integrador passaram a usar uma base nova: login único, "
-    "perfil renovado e avisos com notificação. O Luft-Control será o próximo a migrar."
+    "perfil renovado, avisos com notificação e comunicados escritos como e-mails. O Luft-Control será o próximo a migrar."
 )
 
 # Titulos de versoes anteriores da mesma nota: a nota ja publicada e reconhecida e tem o texto corrigido.
@@ -143,6 +145,22 @@ identidade ESG. A escolha fica salva na sua conta.
 
 ---
 
+## Novo: comunicados escritos como e-mails
+
+![Do texto simples ao editor visual]({_IMG}comunicados-antes-depois.png)
+
+Quem publica comunicados e notas de atualização agora tem um **editor visual**: títulos, tamanhos de letra, cores, marca-texto, listas, tabelas, links e **imagens** (cole, arraste ou use o botão). Você, que lê, recebe o aviso com a mesma cara de um e-mail, em uma caixa de entrada própria, com o que é novo em destaque.
+
+![Barra de ferramentas do editor]({_IMG}comunicados-barra.png)
+
+![Destaques de informação, sucesso, alerta e perigo]({_IMG}comunicados-destaques.png)
+
+- **Caixa de entrada:** os comunicados fixados ficam no topo, o mais novo vem primeiro e um ponto azul marca o que você ainda não leu.
+- **Leitura como e-mail:** quem enviou, quando e para quem, com opção de imprimir ou salvar em PDF.
+- **Notas de atualização:** cada mudança aparece na categoria certa (novo, melhoria, correção, segurança ou técnico).
+
+---
+
 ## O que você precisa fazer
 
 1. **Entre normalmente.** Talvez seja pedido um novo login uma única vez.
@@ -176,6 +194,20 @@ aproximado**. Uma captura de tela ajuda bastante. Nunca envie a sua senha.
 """
 
 
+ITENS = (
+    ItemNotaAtualizacao("Login único nos sistemas Luft", "Entre uma vez e use o Workspace, o ConnectAir e o Integrador.", TipoItemAtualizacao.NOVO, 0),
+    ItemNotaAtualizacao("Comunicados escritos como e-mails", "Editor visual com tamanhos, cores, listas, tabelas, destaques e imagens.", TipoItemAtualizacao.NOVO, 1),
+    ItemNotaAtualizacao("Caixa de entrada de comunicados", "Fixados no topo, mais novo primeiro e indicação do que não foi lido.", TipoItemAtualizacao.MELHORIA, 2),
+    ItemNotaAtualizacao("Perfil renovado", "Foto com recorte, dispositivos conectados e histórico de acessos.", TipoItemAtualizacao.MELHORIA, 3),
+    ItemNotaAtualizacao("Busca global e temas", "Encontre telas pelo nome e escolha entre o tema claro, o escuro e o ESG.", TipoItemAtualizacao.MELHORIA, 4),
+    ItemNotaAtualizacao("Edição de rascunhos", "Corrigido o erro que impedia salvar a edição de um rascunho.", TipoItemAtualizacao.CORRECAO, 5),
+    ItemNotaAtualizacao("Leitura das notas", "A leitura passou a mostrar o autor e a lista do que mudou.", TipoItemAtualizacao.CORRECAO, 6),
+    ItemNotaAtualizacao("Texto protegido", "O conteúdo dos comunicados é limpo no servidor: sem scripts e sem links perigosos.", TipoItemAtualizacao.SEGURANCA, 7),
+    ItemNotaAtualizacao("Sessão única e encerramento em todos os sistemas", "Sair em um sistema encerra a sessão nos demais.", TipoItemAtualizacao.SEGURANCA, 8),
+    ItemNotaAtualizacao("Nova base da plataforma", "Workspace, ConnectAir e Integrador passam a usar o mesmo LuftBase.", TipoItemAtualizacao.TECNICO, 9),
+)
+
+
 @dataclass(frozen=True, slots=True)
 class ResultadoChangelog:
     """O que `publicar_changelog_plataforma` fez."""
@@ -186,12 +218,20 @@ class ResultadoChangelog:
     arquivadas: int = 0  # copias antigas da mesma nota que foram arquivadas
 
 
-def nova_publicacao(*, versao: str, notificar: bool = True, criado_por: str = "Equipe Luft") -> NovaPublicacao:
+def nova_publicacao(
+    *,
+    versao: str,
+    notificar: bool = True,
+    criado_por: str = "Equipe Luft",
+    criado_por_id: int | None = None,
+) -> NovaPublicacao:
     return NovaPublicacao(
         titulo=TITULO,
         resumo=RESUMO,
         conteudo=CONTEUDO,
         criado_por=criado_por,
+        criado_por_id=criado_por_id,
+        itens_atualizacao=ITENS,
         tipo=TipoPublicacao.ATUALIZACAO,
         audiencia=TipoAudiencia.GERAL,
         prioridade=PrioridadePublicacao.ALTA,
@@ -207,10 +247,14 @@ def publicar_changelog_plataforma(
     versao: str,
     notificar: bool = True,
     publicar: bool = True,
+    criado_por: str = "Equipe Luft",
+    criado_por_id: int | None = None,
 ) -> ResultadoChangelog:
     """Cria (ou atualiza o rascunho de) a nota e a publica; nunca duplica uma já publicada."""
 
-    dados = nova_publicacao(versao=versao, notificar=notificar)
+    dados = nova_publicacao(
+        versao=versao, notificar=notificar, criado_por=criado_por, criado_por_id=criado_por_id
+    )
     candidatas = sorted(
         (
             p
@@ -247,6 +291,7 @@ def publicar_changelog_plataforma(
 
 __all__ = [
     "CONTEUDO",
+    "ITENS",
     "RESUMO",
     "TITULO",
     "ResultadoChangelog",

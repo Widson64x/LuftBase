@@ -301,7 +301,8 @@
         'comunicados': url_for('LuftPublicacoes.criar_comunicado'),
         'atualizacoes': url_for('LuftPublicacoes.criar_atualizacao'),
         'imagens': url_for('LuftPublicacoes.enviar_imagem'),
-        'previa': url_for('LuftPublicacoes.previa_conteudo')
+        'previa': url_for('LuftPublicacoes.previa_conteudo'),
+        'detalhe': url_for('LuftPublicacoes.obter_publicacao_admin', id_publicacao=0)
     }
 }|tojson }}</script>
 {% endblock %}

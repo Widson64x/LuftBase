@@ -13,7 +13,7 @@ class LuftEditorRico {
     static LARGURA_MAX = 1600;
 
     static _TAGS = new Set(['P', 'DIV', 'SPAN', 'BR', 'HR', 'H2', 'H3', 'H4', 'STRONG', 'EM', 'U', 'S', 'SUB', 'SUP', 'UL', 'OL', 'LI',
-        'BLOCKQUOTE', 'A', 'IMG', 'CODE', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
+        'BLOCKQUOTE', 'A', 'IMG', 'CODE', 'PRE', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD']);
     static _EQUIV = { B: 'STRONG', I: 'EM', STRIKE: 'S', DEL: 'S', H1: 'H2', H5: 'H4', H6: 'H4' };
     static _DESCARTAR = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'TEMPLATE', 'NOSCRIPT', 'SVG', 'MATH', 'HEAD', 'TITLE', 'META', 'LINK']);
 

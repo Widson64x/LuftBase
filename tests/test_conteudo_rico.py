@@ -478,3 +478,32 @@ def test_painel_renderiza_indicadores_e_previa_das_publicacoes(monkeypatch) -> N
     assert "js/editor_rico.js" in resposta.text
     assert 'id="publicacaoEditor"' in resposta.text
     assert "/publicacoes/api/imagens" in resposta.text
+
+
+def test_bloco_de_codigo_preserva_texto_e_remove_perigo() -> None:
+    limpo = sanitizar('<pre onclick="x()"><code>linha 1\n  linha 2 &lt;b&gt;</code></pre><pre><script>1</script></pre>')
+
+    assert limpo.startswith("<pre><code>linha 1\n  linha 2 &lt;b&gt;</code></pre>")
+    assert "onclick" not in limpo and "script" not in limpo
+
+
+def test_lista_do_painel_nao_carrega_o_texto_completo() -> None:
+    import luftbase.web.publicacoes as modulo
+
+    app, _estado = _aplicacao()
+    item = SimpleNamespace(
+        id_publicacao=5, id_sistema=0, tipo_publicacao="COMUNICADO", status_publicacao="RASCUNHO",
+        tipo_audiencia="GERAL", grupos=[], titulo="T", resumo="r", conteudo="<p>" + "x" * 5000 + "</p>",
+        formato_conteudo="HTML", prioridade="NORMAL", versao=None, notificar=True, fixado=False,
+        criado_por="W", fonte="INTERNO", data_criacao=None, data_publicacao=None,
+        exibir_a_partir_de=None, expira_em=None, itens_atualizacao=[],
+    )
+
+    leve = modulo._publicacao_administracao(item)
+    with app.test_request_context("/"):
+        completo = modulo._publicacao_administracao(item, completo=True)
+
+    assert "conteudo" not in leve and "conteudo_editor" not in leve
+    assert leve["resumo"] == "r" and leve["formato"] == "HTML"
+    assert completo["conteudo"].startswith("<p>xxx")
+    assert completo["conteudo_editor"].startswith("<p>xxx")

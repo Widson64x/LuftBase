@@ -67,7 +67,7 @@ Esses pontos tem testes (`tests/test_changelog_plataforma.py`).
 
 O navegador nunca e confiavel: o servidor sanitiza ao salvar (`NovaPublicacao`), na pre-visualizacao e **de novo ao exibir**.
 
-- So passam as tags `p div span br hr h2 h3 h4 strong em u s sub sup ul ol li blockquote a img code table thead tbody tr th td`
+- So passam as tags `p div span br hr h2 h3 h4 strong em u s sub sup ul ol li blockquote a img code pre table thead tbody tr th td`
 (`b`, `i`, `strike`, `h1`, `h5` e `h6` sao convertidas). `script`, `style`, `iframe`, `object`, `svg` e similares somem com o conteudo; as demais tags perdem a marcacao e o texto fica.
 - Atributos de evento (`onclick`...) nunca passam. `a` so com `http://`, `https://` ou `mailto:` (nova aba, `noopener noreferrer`).
 - `style` aceita so cor, cor de fundo, tamanho da letra (8 a 72 px), alinhamento, negrito, italico, decoracao e largura (so em imagem e tabela); nada de `url(...)` nem `position`. `class` so nos destaques `pub-callout`, `pub-info`, `pub-sucesso`, `pub-alerta`, `pub-perigo`.

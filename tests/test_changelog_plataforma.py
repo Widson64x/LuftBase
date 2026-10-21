@@ -184,3 +184,18 @@ def test_copias_duplicadas_da_nota_sao_arquivadas_e_fica_a_mais_nova() -> None:
 
     assert resultado.id_publicacao == 6 and resultado.arquivadas == 1
     assert servico.arquivadas == [5] and servico.corrigidas == [6] and not servico.criadas
+
+
+def test_nota_traz_itens_do_changelog_e_o_autor_informado() -> None:
+    servico = _ServicoFalso()
+
+    changelog.publicar_changelog_plataforma(
+        servico, versao="2.2.0", publicar=False, criado_por="Widson Araujo", criado_por_id=2280
+    )
+
+    dados = servico.criadas[0]
+    assert (dados.criado_por, dados.criado_por_id) == ("Widson Araujo", 2280)
+    assert len(dados.itens_atualizacao) == len(changelog.ITENS) >= 8
+    assert {item.tipo.value for item in dados.itens_atualizacao} == {
+        "NOVO", "MELHORIA", "CORRECAO", "SEGURANCA", "TECNICO",
+    }

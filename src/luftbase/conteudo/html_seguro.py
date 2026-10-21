@@ -22,7 +22,7 @@ _PERMITIDAS = frozenset(
     {
         "p", "div", "span", "br", "hr", "h2", "h3", "h4", "strong", "em", "u", "s", "sub", "sup",
         "ul", "ol", "li", "blockquote", "a", "img", "code",
-        "table", "thead", "tbody", "tr", "th", "td",
+        "table", "thead", "tbody", "tr", "th", "td", "pre",
     }
 )  # fmt: skip
 _EQUIVALENTES = {"b": "strong", "i": "em", "strike": "s", "del": "s", "h1": "h2", "h5": "h4", "h6": "h4"}

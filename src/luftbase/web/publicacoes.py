@@ -115,8 +115,10 @@ def _publicacao_feed(item: PublicacaoUsuario) -> dict[str, object]:
     }
 
 
-def _publicacao_administracao(item: Publicacao) -> dict[str, object]:
-    return {
+def _publicacao_administracao(item: Publicacao, *, completo: bool = False) -> dict[str, object]:
+    """Dados de gestao. O texto completo so vai com `completo=True`: a lista nao precisa dele."""
+
+    dados: dict[str, object] = {
         "id": item.id_publicacao,
         "id_publicacao": item.id_publicacao,
         "id_sistema": item.id_sistema,
@@ -128,10 +130,7 @@ def _publicacao_administracao(item: Publicacao) -> dict[str, object]:
         "titulo": item.titulo,
         "resumo": item.resumo,
         "previa": item.resumo or resumo_automatico(item.conteudo, item.formato_conteudo),
-        "conteudo": item.conteudo,
         "formato": item.formato_conteudo,
-        # Texto no formato do editor visual: markdown antigo vira HTML ao ser aberto para edicao.
-        "conteudo_editor": str(_html_para_exibir(item.conteudo, item.formato_conteudo)),
         "prioridade": item.prioridade,
         "versao": item.versao,
         "notificar": item.notificar,
@@ -152,6 +151,11 @@ def _publicacao_administracao(item: Publicacao) -> dict[str, object]:
             for detalhe in item.itens_atualizacao
         ],
     }
+    if completo:
+        dados["conteudo"] = item.conteudo
+        # Texto no formato do editor visual: markdown antigo vira HTML ao ser aberto para edicao.
+        dados["conteudo_editor"] = str(_html_para_exibir(item.conteudo, item.formato_conteudo))
+    return dados
 
 
 def _listar_feed(tipo: TipoPublicacao) -> list[dict[str, object]]:
@@ -567,7 +571,7 @@ def obter_publicacao_admin(id_publicacao: int):  # type: ignore[no-untyped-def]
         abort(403)
     return _resposta_operacao(
         lambda: _publicacao_administracao(
-            obter_luftbase().publicacoes.obter_administracao(id_publicacao)
+            obter_luftbase().publicacoes.obter_administracao(id_publicacao), completo=True
         )
     )
 
