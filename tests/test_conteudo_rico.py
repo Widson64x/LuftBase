@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -507,3 +508,34 @@ def test_lista_do_painel_nao_carrega_o_texto_completo() -> None:
     assert leve["resumo"] == "r" and leve["formato"] == "HTML"
     assert completo["conteudo"].startswith("<p>xxx")
     assert completo["conteudo_editor"].startswith("<p>xxx")
+
+
+def test_markdown_aberto_no_editor_preserva_destaques_e_cards() -> None:
+    from luftbase.conteudo.formatacao import conteudo_para_editor
+
+    texto = (
+        ":::alerta\n**Atencao** ao prazo\n:::\n\n"
+        ":::cards\n### Um\nTexto um\n### Dois\nTexto dois\n:::\n\n"
+        "![x](luftbase:img/changelog/banner.png)\n"
+    )
+
+    html = str(conteudo_para_editor(texto, "MARKDOWN", lambda c: f"/_luftbase/static/{c}", lambda i: str(i)))
+    salvo = sanitizar(html)
+
+    assert "md-destaque" not in html and "md-card" not in html
+    assert '<div class="pub-callout pub-alerta">' in salvo  # a caixa colorida sobrevive ao sanitizador
+    assert "<strong>Atencao</strong>" in salvo
+    assert "<h4>Um</h4>" in salvo and "<h4>Dois</h4>" in salvo
+    assert 'src="luftbase:img/changelog/banner.png"' in salvo  # a imagem volta ao formato interno
+
+
+def test_nota_da_plataforma_no_editor_nao_perde_formatacao() -> None:
+    from luftbase.conteudo import changelog_plataforma as nota
+    from luftbase.conteudo.formatacao import conteudo_para_editor
+
+    html = str(conteudo_para_editor(nota.CONTEUDO, "MARKDOWN", lambda c: f"/_luftbase/static/{c}", lambda i: str(i)))
+    salvo = sanitizar(html)
+
+    assert salvo.count("<img") == nota.CONTEUDO.count("luftbase:img/changelog/")
+    destaques = re.findall(r"^:::(?:info|sucesso|alerta|perigo)$", nota.CONTEUDO, re.MULTILINE)
+    assert destaques and salvo.count('class="pub-callout pub-') == len(destaques)

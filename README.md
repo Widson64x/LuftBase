@@ -8,7 +8,7 @@ permissoes, auditoria, notificacoes e comunicados, temas, perfil do usuario, e-m
 equipe de TI. As aplicacoes cuidam so do que e delas.
 
 - Repositorio: <https://github.com/Widson64x/LuftBase> (publico)
-- Versao atual: **0.1.0a116** (alpha), com mais de 1000 testes automatizados; o que mudou em cada versao esta no [CHANGELOG](CHANGELOG.md)
+- Versao atual: **0.1.0a117** (alpha), com mais de 1000 testes automatizados; o que mudou em cada versao esta no [CHANGELOG](CHANGELOG.md)
 - Python 3.11 ou superior
 
 ## Em 5 minutos

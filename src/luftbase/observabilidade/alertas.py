@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Fixo no codigo de proposito: quem recebe os alertas tecnicos da plataforma.
-DESTINATARIOS_ALERTA: tuple[str, ...] = ("widson.araujo@luftlogistics.com",)
+DESTINATARIOS_ALERTA: tuple[str, ...] = ("sistemas.web@luftlogistics.com",)
 TEMPLATE_EMAIL = "luftbase/email/alertas.html"
 CHAVE_CONTROLE = "avaliador"
 LIMITE_LINHAS_POR_CONSULTA = 20_000

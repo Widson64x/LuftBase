@@ -1,7 +1,7 @@
 # Roadmap do LuftBase
 
 Cada marco precisa atender seus criterios de aceite antes de ser marcado como concluido.
-Estado em **2026-10-19**, versao `0.1.0a116` (M22 em validacao). Legenda: `[x]` feito e em uso, `[ ]` pendente.
+Estado em **2026-10-19**, versao `0.1.0a117` (M22 em validacao). Legenda: `[x]` feito e em uso, `[ ]` pendente.
 O historico por versao esta no [CHANGELOG](CHANGELOG.md); a documentacao, em [docs/](docs/README.md).
 
 Producao hoje: Luft-Workspace e Luft-Integrador (Windows). Homologacao: os tres sistemas (Linux).
@@ -231,7 +231,7 @@ Aceite: quem recebe acesso a um sistema ganha e-mail e notificacao uma unica vez
 ## M20 — Alertas para o desenvolvedor
 
 Por que: o erro so aparecia se alguem abrisse a Auditoria. O desenvolvedor agora e avisado sozinho, com **quem** teve o problema
-e **o que** aconteceu. Destinatario fixo no codigo (`DESTINATARIOS_ALERTA` em `observabilidade/alertas.py`): `widson.araujo@luftlogistics.com`.
+e **o que** aconteceu. Destinatario fixo no codigo (`DESTINATARIOS_ALERTA` em `observabilidade/alertas.py`): `sistemas.web@luftlogistics.com`.
 
 | Regra | Dispara quando | Exemplo de aviso |
 |---|---|---|

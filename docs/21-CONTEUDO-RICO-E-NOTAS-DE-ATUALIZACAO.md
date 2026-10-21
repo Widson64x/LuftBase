@@ -88,14 +88,16 @@ prefixo da aplicacao (`url_for('luftbase.static', ...)`). Para a nota de lancame
 
 ## Nota de lancamento global
 
-`conteudo/changelog_plataforma.py` guarda o texto ("Uma base nova para o Workspace, o ConnectAir e o Integrador") e a funcao
-`publicar_changelog_plataforma(servico, versao=..., notificar=True, publicar=True)`:
+`conteudo/changelog_plataforma.py` guarda o texto ("Uma base nova para o Workspace, o ConnectAir, o Integrador, o Control e o Docs"), a lista de itens por categoria (`ITENS`) e a funcao
+`publicar_changelog_plataforma(servico, versao=..., notificar=True, publicar=True, criado_por=..., criado_por_id=...)`:
 
 - cria a nota como **atualizacao global** (sistema 0, audiencia geral), prioridade alta, fixada, com notificacao;
 - e **idempotente**: se a nota ja existe publicada (mesmo com o titulo de uma versao anterior do texto), corrige titulo, resumo
   e texto **sem notificar de novo** (`ServicoPublicacoes.corrigir_texto`);
 - se houver copias duplicadas, mantem a mais nova e **arquiva** as outras;
-- com `publicar=False` deixa so o rascunho.
+- com `publicar=False` deixa so o rascunho;
+- o texto e markdown e as imagens (`luftbase:img/changelog/...`) sao geradas por `tools/gerar_imagens_changelog.py` (perfil, notificacoes, busca, temas) e
+  `tools/gerar_imagens_changelog_sistemas.py` (banner, linha do tempo, Hub, acesso, protecao da conta e as demais). Cada gerador cuida de imagens diferentes.
 
 O Workspace expoe isso em `scripts/PublicarChangelogPlataforma.py`:
 
@@ -112,4 +114,5 @@ Rode primeiro em **homologacao**; depois, com o mesmo `.env` de producao, la.
 
 - Fale do que a pessoa **ve e faz** (login unico, perfil, avisos), nao de infraestrutura (cofre, auditoria, servicos).
 - Nao generalize: cite so os sistemas realmente migrados; os de outras tecnologias seguem como estao.
-- Maquetes devem ser avisadas como ilustracao com dados ficticios.
+- Maquetes devem ser avisadas como ilustracao com dados ficticios (a nota traz essa linha antes de "Precisa de ajuda?").
+- Ao abrir uma publicacao em markdown no editor, destaques e cards sao convertidos (`conteudo_para_editor`); sem isso eles perderiam a formatacao.

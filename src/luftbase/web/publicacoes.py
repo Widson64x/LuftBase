@@ -25,6 +25,7 @@ from luftbase.autorizacao.web import consultar_permissoes, exigir_permissao
 from luftbase.conteudo.formatacao import (
     FORMATO_HTML,
     FORMATO_MARKDOWN,
+    conteudo_para_editor,
     detectar_tipo_imagem,
     renderizar_conteudo,
     resumo_automatico,
@@ -76,6 +77,10 @@ def _url_estatico(caminho: str) -> str:
 
 def _html_para_exibir(conteudo: str | None, formato: str) -> object:
     return renderizar_conteudo(conteudo, formato, _url_estatico, _url_imagem)
+
+
+def _html_para_editor(conteudo: str | None, formato: str) -> object:
+    return conteudo_para_editor(conteudo, formato, _url_estatico, _url_imagem)
 
 
 def _publicacao_feed(item: PublicacaoUsuario) -> dict[str, object]:
@@ -154,7 +159,7 @@ def _publicacao_administracao(item: Publicacao, *, completo: bool = False) -> di
     if completo:
         dados["conteudo"] = item.conteudo
         # Texto no formato do editor visual: markdown antigo vira HTML ao ser aberto para edicao.
-        dados["conteudo_editor"] = str(_html_para_exibir(item.conteudo, item.formato_conteudo))
+        dados["conteudo_editor"] = str(_html_para_editor(item.conteudo, item.formato_conteudo))
     return dados
 
 

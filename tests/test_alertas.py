@@ -87,7 +87,7 @@ def _avaliar(bancos: Bancos, email: EmailFalso, agora: datetime) -> Any:
 
 
 def test_destinatario_fixo_no_codigo() -> None:
-    assert DESTINATARIOS_ALERTA == ("widson.araujo@luftlogistics.com",)
+    assert DESTINATARIOS_ALERTA == ("sistemas.web@luftlogistics.com",)
 
 
 def test_erro_500_abre_alerta_e_avisa_com_usuario_e_rota(bancos: Bancos) -> None:
@@ -107,7 +107,7 @@ def test_erro_500_abre_alerta_e_avisa_com_usuario_e_rota(bancos: Bancos) -> None
         3,
     )
     (envio,) = email.enviados
-    assert envio["para"] == ["widson.araujo@luftlogistics.com"]
+    assert envio["para"] == ["sistemas.web@luftlogistics.com"]
     assert "ana" in envio["assunto"] and "Luft-ConnectAir" in envio["assunto"]
     linhas = dict(envio["contexto"]["itens"][0]["linhas"])
     assert linhas["Usuario"] == "ana" and linhas["Status"] == "500"

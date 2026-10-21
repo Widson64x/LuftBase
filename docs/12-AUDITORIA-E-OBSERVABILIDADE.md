@@ -141,7 +141,7 @@ particionamento por data nem centralizacao dos arquivos fisicos de varias instan
 ## Alertas para o desenvolvedor
 
 O avaliador (`observabilidade/alertas.py`) le a trilha (`tb_logs`, `tb_logevento`) e avisa por e-mail **quem** teve **qual**
-problema. Os destinatarios sao uma constante no codigo (`DESTINATARIOS_ALERTA`, hoje `widson.araujo@luftlogistics.com`).
+problema. Os destinatarios sao uma constante no codigo (`DESTINATARIOS_ALERTA`, hoje `sistemas.web@luftlogistics.com`).
 
 | Regra | Dispara quando | Agrupa por |
 |---|---|---|

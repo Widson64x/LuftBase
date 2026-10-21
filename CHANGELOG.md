@@ -2,6 +2,18 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a117] - 2026-10-21
+
+### Alterado
+
+- **Destinatario dos alertas tecnicos**: `DESTINATARIOS_ALERTA` passa de `widson.araujo@luftlogistics.com` para `sistemas.web@luftlogistics.com` (caixa da equipe). Continua fixo no codigo.
+- **Nota global da plataforma reescrita** (`conteudo/changelog_plataforma.py`): agora cobre os **cinco sistemas ja migrados** (Workspace, ConnectAir, Integrador, Control e Docs, com as datas) e ganhou secoes sobre o Hub, o acesso liberado, o perfil, a protecao da conta, as notificacoes, os comunicados como e-mails, a busca, os temas, o Painel de Controle, perguntas frequentes e glossario. Passou de 156 para ~400 linhas, de 14 para 29 imagens e de 10 para 21 itens por categoria. O titulo mudou; o anterior segue reconhecido (`TITULOS_ANTERIORES`), entao a nota ja criada e atualizada, nao duplicada.
+- **Imagens**: `banner`, `antes-depois`, `linha-do-tempo`, `login-unico` e `tela-hub` foram refeitas (o Control deixou de ser "o proximo a migrar") e ha 11 novas. O gerador novo `tools/gerar_imagens_changelog_sistemas.py` as produz; as 5 antigas saem de `tools/gerar_imagens_changelog.py`, para uma execucao nao desfazer a outra.
+
+### Corrigido
+
+- **Abrir no editor uma publicacao em markdown perdia a formatacao**: os destaques (`:::alerta`...) e os cards viravam texto solto porque o sanitizador descarta as classes `md-*`. `conteudo_para_editor` converte destaques em caixas coloridas e cards em secoes antes de abrir o editor.
+
 ## [0.1.0a116] - 2026-10-21
 
 ### Corrigido

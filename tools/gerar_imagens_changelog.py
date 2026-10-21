@@ -3,6 +3,9 @@
     python tools/gerar_imagens_changelog.py            # gera tudo
     python tools/gerar_imagens_changelog.py perfil-sessoes banner   # só algumas
 
+As imagens banner, antes-depois, linha-do-tempo, login-unico e tela-hub (e as sobre os cinco sistemas) vêm de
+`gerar_imagens_changelog_sistemas.py`.
+
 As telas são maquetes com dados fictícios, desenhadas com a identidade visual do LuftBase; as demais
 são ilustrações. Para trocar uma delas por um print real, basta salvar o arquivo com o mesmo nome em
 `src/luftbase/interface/static/img/changelog/`.
@@ -163,52 +166,6 @@ def cartao_sistema(nome: str, desc: str, icone: str, cor: str, selo: str = "OPER
 
 # ----------------------------------------------------------------------------- ilustrações
 
-@imagem("banner", 1200, 420)
-def _():
-    return f"""<div class="arte g1 aneis" style="height:420px;padding:70px 80px">
-<div class="lin" style="margin-bottom:34px"><div class="ic" style="width:64px;height:64px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:32px">{i("rocket-launch")}</div><div class="kicker">Nota de atualização</div></div>
-<h1>Uma base nova<br>para o seu dia a dia</h1>
-<p class="sub" style="margin-top:20px;max-width:700px">Login único, perfil renovado e avisos com notificação no Workspace, no ConnectAir e no Integrador.</p>
-<div class="vidro" style="position:absolute;right:70px;bottom:60px;width:250px;padding:18px"><div class="chip" style="background:#22d3ee;color:#083344">LuftBase</div>
-<div style="height:10px;border-radius:5px;background:rgba(255,255,255,.7);margin:16px 0 8px;width:70%"></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.35);margin-bottom:8px"></div><div style="height:8px;border-radius:4px;background:rgba(255,255,255,.35);width:80%"></div></div></div>"""
-
-
-@imagem("antes-depois", 1200, 440)
-def _():
-    def caixa(titulo, cor, linhas):
-        itens = "".join(f'<div class="lin" style="font-size:15px">{i(ic, "", "font-size:20px")}{t}</div>' for ic, t in linhas)
-        return f'<div class="card p20 col" style="gap:14px;border-top:5px solid {cor}"><div class="lin"><b style="font-size:20px">{titulo}</b></div>{itens}</div>'
-
-    antes = caixa("Antes", "#94a3b8", [("lock-key", "Um login por sistema"), ("user-circle", "Perfil diferente em cada tela"), ("bell-slash", "Avisos espalhados"), ("question", "Difícil saber onde sua conta está aberta")])
-    depois = caixa("Agora", "#2563eb", [("lock-key-open", "Login único para todos"), ("user-circle", "Perfil igual em todos os sistemas"), ("bell-ringing", "Comunicados e notas com notificação"), ("devices", "Dispositivos e histórico de acessos")])
-    return f"""<div style="padding:40px 50px;height:440px;background:#f8fafc"><div class="lin" style="justify-content:center;margin-bottom:28px"><h2>O que muda, em um olhar</h2></div>
-<div class="grid" style="grid-template-columns:1fr 70px 1fr;align-items:center">{antes}<div style="text-align:center;font-size:44px;color:#2563eb">{i("arrow-right")}</div>{depois}</div></div>"""
-
-
-@imagem("linha-do-tempo", 1200, 330)
-def _():
-    sistemas = [("squares-four", "Luft-Workspace", "Já na nova base", "v", True), ("airplane-tilt", "Luft-ConnectAir", "Já na nova base", "v", True), ("rocket-launch", "Luft-Integrador", "Já na nova base", "v", True), ("cpu", "Luft-Control", "Próximo a migrar", "a", False)]
-    caixas = "".join(
-        f'<div class="card p20" style="text-align:center;{"" if ok else "border-style:dashed"}"><div class="ic {c}" style="margin:0 auto 12px;width:58px;height:58px;font-size:28px">{i(ic)}</div><b style="font-size:16px">{n}</b><div style="margin-top:8px"><span class="chip {"c-verde" if ok else "c-amb"}">{i("check-circle" if ok else "hourglass-medium")}{t}</span></div></div>'
-        for ic, n, t, c, ok in sistemas
-    )
-    return f"""<div style="padding:36px 40px;height:330px;background:#f8fafc"><div class="lin" style="justify-content:center;margin-bottom:6px"><h2>Quais sistemas já estão na nova base</h2></div>
-<div class="mudo" style="text-align:center;font-size:14px;margin-bottom:22px">O Luft-Control será o próximo a migrar</div><div class="grid g4c">{caixas}</div></div>"""
-
-
-@imagem("login-unico", 1200, 420)
-def _():
-    return f"""<div class="arte g2 aneis" style="height:420px">
-<div class="no" style="left:90px;top:130px"><div class="bola">{i("user-circle")}</div><b>Você</b><small>entra uma vez</small></div>
-<div class="fio" style="left:210px;top:172px;width:230px"></div>
-<div class="vidro" style="position:absolute;left:450px;top:120px;width:230px;height:104px;display:flex;align-items:center;justify-content:center;gap:12px"><div style="font-size:34px">{i("lock-key-open")}</div><div><b style="font-size:19px">Sessão única</b><div style="font-size:12px;opacity:.85">protegida e auditada</div></div></div>
-<div class="fio" style="left:690px;top:172px;width:130px"></div>
-<div class="no" style="left:830px;top:40px"><div class="bola" style="width:64px;height:64px;font-size:30px">{i("squares-four")}</div><b style="font-size:15px">Workspace</b></div>
-<div class="no" style="left:830px;top:160px"><div class="bola" style="width:64px;height:64px;font-size:30px">{i("airplane-tilt")}</div><b style="font-size:15px">ConnectAir</b></div>
-<div class="no" style="left:830px;top:280px"><div class="bola" style="width:64px;height:64px;font-size:30px">{i("rocket-launch")}</div><b style="font-size:15px">Integrador</b></div>
-<div class="kicker" style="position:absolute;left:90px;bottom:40px">Entrou em um, está em todos · saiu de um, saiu de todos</div></div>"""
-
-
 @imagem("notificacoes-arte", 1200, 420)
 def _():
     notas = [("rocket-launch", "Nova atualização disponível", "Veja o que mudou no Workspace", "b"), ("megaphone", "Comunicado do TI", "Manutenção programada no sábado", "a"), ("shield-check", "Novo acesso liberado", "Você já pode usar o ConnectAir", "v")]
@@ -224,14 +181,6 @@ def _():
 
 
 # ----------------------------------------------------------------------------- telas (maquetes)
-
-@imagem("tela-hub", 1280, 760)
-def _():
-    cards = cartao_sistema("Luft-ConnectAir", "Sistema de planejamento aéreo", "airplane-tilt", "b") + cartao_sistema("Luft-Integrador", "Integração de arquivos e dados", "rocket-launch", "r") + cartao_sistema("Luft-Workspace", "Portal central dos sistemas", "squares-four", "v")
-    kpis = "".join(f'<div class="card p16 lin"><div class="ic {c}">{i(ic)}</div><div><div class="mudo" style="font-size:12px">{t}</div><b style="font-size:24px">{v}</b></div></div>' for ic, t, v, c in [("squares-four", "Total de sistemas", "3", "b"), ("check-circle", "Operacionais", "3", "v"), ("wrench", "Em manutenção", "0", "a")])
-    corpo = f'<div class="titulo">Hub de Sistemas</div><div class="lede">Portal central para acessar todo o ecossistema Luft</div><div class="grid g3c" style="margin-bottom:18px">{kpis}</div><div class="grid g3c">{cards}</div>'
-    return shell(corpo)
-
 
 def _perfil_hero() -> str:
     return f"""<div class="lin" style="padding:20px 22px"><div class="av" style="width:64px;height:64px;font-size:22px;position:relative">MS<span style="position:absolute;right:0;bottom:0;width:14px;height:14px;border-radius:50%;background:#10b981;border:2px solid #fff"></span></div>
