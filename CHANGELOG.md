@@ -2,6 +2,12 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a115] - 2026-10-21
+
+### Corrigido
+
+- **Tabelas dos comunicados**: o cabecalho de colunas estreitas (ex.: "Atalho") quebrava no meio da palavra; as celulas passam a quebrar so entre palavras.
+
 ## [0.1.0a114] - 2026-10-21
 
 ### Adicionado

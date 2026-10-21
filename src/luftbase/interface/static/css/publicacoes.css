@@ -169,7 +169,7 @@
 .pub-corpo a, .md a { color: var(--luft-primary-600, #2563eb); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .pub-corpo img, .md-img { display: block; max-width: 100%; height: auto; margin: 18px auto; border-radius: 12px; box-shadow: 0 8px 26px rgba(15, 23, 42, .14); }
 .pub-corpo table { width: 100%; margin: 16px 0; border-collapse: collapse; font-size: .92em; }
-.pub-corpo th, .pub-corpo td { padding: 9px 12px; border: 1px solid var(--luft-border); text-align: left; vertical-align: top; }
+.pub-corpo th, .pub-corpo td { padding: 9px 12px; border: 1px solid var(--luft-border); text-align: left; vertical-align: top; overflow-wrap: break-word; }
 .pub-corpo th { background: var(--luft-bg-app); font-weight: 800; }
 .pub-corpo .pub-callout, .md-destaque { margin: 16px 0; padding: 14px 16px; border: 1px solid transparent; border-left-width: 5px; border-radius: 12px; }
 .pub-corpo .pub-callout > :last-child { margin-bottom: 0; }
