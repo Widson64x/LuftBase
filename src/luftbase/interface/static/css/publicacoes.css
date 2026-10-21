@@ -168,7 +168,7 @@
 [data-theme="dark"] .pub-corpo blockquote, [data-theme="dark"] .md blockquote { background: rgba(59, 130, 246, .14); color: var(--luft-text-main); }
 .pub-corpo a, .md a { color: var(--luft-primary-600, #2563eb); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .pub-corpo img, .md-img { display: block; max-width: 100%; height: auto; margin: 18px auto; border-radius: 12px; box-shadow: 0 8px 26px rgba(15, 23, 42, .14); }
-.pub-corpo table { width: 100%; margin: 16px 0; border-collapse: collapse; font-size: .92em; }
+.pub-corpo table { display: block; width: 100%; max-width: 100%; margin: 16px 0; overflow-x: auto; border-collapse: collapse; font-size: .92em; }
 .pub-corpo th, .pub-corpo td { padding: 9px 12px; border: 1px solid var(--luft-border); text-align: left; vertical-align: top; overflow-wrap: break-word; }
 .pub-corpo th { background: var(--luft-bg-app); font-weight: 800; }
 .pub-corpo .pub-callout, .md-destaque { margin: 16px 0; padding: 14px 16px; border: 1px solid transparent; border-left-width: 5px; border-radius: 12px; }
@@ -187,10 +187,11 @@
 @media (prefers-reduced-motion: reduce) { .md-card, .pub-kpi, .publicacao-card { transition: none; } .md-card:hover, .pub-kpi:hover, .publicacao-card:hover { transform: none; } }
 
 /* ----- Formulário de publicação ----- */
-.publicacao-form { display: grid; gap: 16px; }
+.publicacao-form { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.publicacao-form > *, .pub-mensagem, .pub-ed { min-width: 0; max-width: 100%; }
 .publicacao-form-grid { display: grid; gap: 13px; }
-.publicacao-form-grid.cols-2 { grid-template-columns: 1fr 1fr; }
-.publicacao-form-grid.cols-3 { grid-template-columns: 2fr 1fr 1fr; }
+.publicacao-form-grid.cols-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.publicacao-form-grid.cols-3 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
 .publicacao-field { display: flex; min-width: 0; flex-direction: column; gap: 6px; }
 .publicacao-field.span-2 { grid-column: 1 / -1; }
 .publicacao-field > span { color: var(--luft-text-main); font-size: .78rem; font-weight: 750; }
@@ -264,7 +265,7 @@
 .pub-ed-ctx-btn { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px; border: 1px solid var(--luft-border); border-radius: 7px; color: var(--luft-text-main); background: var(--luft-bg-panel); font: inherit; font-size: .72rem; font-weight: 700; cursor: pointer; }
 .pub-ed-ctx-btn:hover { border-color: var(--luft-primary-400); color: var(--luft-primary-700); }
 .pub-ed-ctx-btn.perigo:hover { border-color: var(--luft-danger-500); color: var(--luft-danger-600); }
-.pub-ed-area { position: relative; min-height: 340px; max-height: 58vh; padding: 24px 30px; overflow-y: auto; outline: none; font-size: .95rem; background: var(--luft-bg-panel); }
+.pub-ed-area { position: relative; min-height: 340px; max-height: 58vh; padding: 24px 30px; overflow: auto; outline: none; font-size: .95rem; background: var(--luft-bg-panel); }
 .pub-ed-area.pub-ed-vazio::before { content: attr(data-vazio); position: absolute; left: 30px; right: 30px; top: 24px; color: var(--luft-text-muted); opacity: .75; pointer-events: none; }
 .pub-ed-area img { cursor: pointer; }
 .pub-ed-area img.pub-sel { outline: 3px solid var(--luft-primary-500); outline-offset: 2px; }

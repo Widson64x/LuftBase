@@ -551,15 +551,20 @@ class LuftEditorRico {
     }
 
     _atualizarRodape() {
-        const texto = (this.area.innerText || '').trim();
+        const texto = this._texto();
         const palavras = texto ? texto.split(/\s+/).length : 0;
         const imagens = this.area.querySelectorAll('img').length;
         this.contador.textContent = `${palavras} palavra${palavras === 1 ? '' : 's'}${imagens ? ` · ${imagens} imagem${imagens === 1 ? '' : 'ns'}` : ''}`;
         this.area.classList.toggle('pub-ed-vazio', !texto && !imagens);
     }
 
+    /** `innerText` ignora o que esta com visibility:hidden (modal fechado); nesse caso vale o textContent. */
+    _texto() {
+        return (this.area.innerText || this.area.textContent || '').trim();
+    }
+
     vazio() {
-        return !(this.area.innerText || '').trim() && !this.area.querySelector('img');
+        return !this._texto() && !this.area.querySelector('img');
     }
 
     html() {
@@ -578,6 +583,7 @@ class LuftEditorRico {
     }
 
     focar() {
+        this._atualizarRodape();
         this.area.focus();
     }
 

@@ -2,6 +2,14 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a116] - 2026-10-21
+
+### Corrigido
+
+- **Editor estourava a largura do modal** ao abrir uma publicacao com conteudo largo (tabelas e blocos de codigo): o formulario era uma grade sem `minmax(0, 1fr)`. Agora o editor fica dentro do modal e a area de texto rola por dentro.
+- **Aviso de editor vazio sobreposto ao texto**: ao abrir um rascunho so com texto, o editor se achava vazio porque `innerText` ignora o que esta com `visibility: hidden` (modal fechado). A checagem passou a usar o `textContent` nesse caso.
+- Tabelas largas na leitura passam a rolar na horizontal em vez de alargar a pagina.
+
 ## [0.1.0a115] - 2026-10-21
 
 ### Corrigido
