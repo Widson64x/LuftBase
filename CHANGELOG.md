@@ -4,6 +4,10 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
 ## [Nao lancado]
 
+### Documentacao
+
+- Script `tools/sql/20261021_publicacao_conteudo_rico.sql` (equivale a migracao `20261021_0018`) e aviso no doc 20: `banco atualizar` exige usuario dono das tabelas do `core`.
+
 ## [0.1.0a113] - 2026-10-21
 
 ### Adicionado
