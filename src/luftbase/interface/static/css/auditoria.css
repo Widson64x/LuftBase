@@ -269,3 +269,28 @@ tr.audit-clicavel:hover { background: color-mix(in srgb, var(--luft-brand, #1d63
 .audit-dialog-opcao { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: .8rem; color: var(--luft-text-main); cursor: pointer; }
 .audit-dialog-opcao[hidden] { display: none; }
 
+
+/* ---- Auditoria v2: filtros compactos, tempo real e alertas ---- */
+.audit-filters { padding: 12px 14px; gap: 10px; align-items: end; }
+.audit-field-extra { display: none; }
+.audit-filters.mais .audit-field-extra { display: grid; }
+.audit-field-periodo, .audit-field-sistema { grid-column: span 2; }
+.audit-field-search { grid-column: span 4; }
+.audit-filter-actions { grid-column: span 4; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: end; }
+.audit-filter-actions .audit-filter-action { white-space: nowrap; }
+.audit-live-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--luft-text-muted); font-size: .8rem; font-weight: 700; cursor: pointer; user-select: none; }
+.audit-live-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.audit-switch { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--luft-border); transition: background .15s; }
+.audit-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.audit-live-toggle input:checked + .audit-switch { background: #059669; }
+.audit-live-toggle input:checked + .audit-switch::after { transform: translateX(14px); }
+.audit-live-toggle input:focus-visible + .audit-switch { outline: 2px solid var(--luft-primary-500); outline-offset: 2px; }
+.audit-fonte b { margin-left: 5px; padding: 0 6px; border-radius: 999px; font-size: .68rem; background: color-mix(in srgb, currentColor 14%, transparent); }
+.audit-log-tabs .audit-nav-badge { margin-left: 4px; }
+.audit-linha-btn + .audit-linha-btn { margin-left: 4px; }
+@media (max-width: 900px) {
+    .audit-field-periodo, .audit-field-sistema, .audit-field-search, .audit-filter-actions { grid-column: span 12; }
+    .audit-filter-actions { justify-content: stretch; }
+}
+.audit-field[hidden] { display: none; }
+.audit-total { white-space: nowrap; }

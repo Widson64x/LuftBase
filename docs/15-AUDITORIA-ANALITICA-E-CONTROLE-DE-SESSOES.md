@@ -134,10 +134,22 @@ desconectar nao **bloqueia** novo login.
 | `OBSERVABILIDADE.DADOS_SENSIVEIS.VISUALIZAR` | aba de logs fisicos e payloads |
 | `SEGURANCA.SESSOES.REVOGAR` | botoes de encerrar sessao |
 
+## Filtros, atualizacao e desempenho (v2)
+
+- **Filtros que se aplicam sozinhos**: periodo, sistema, usuario, grupo, resultado e severidade aplicam ao mudar; a busca espera 500 ms depois da ultima
+  tecla. Usuario, grupo, resultado e severidade ficam em **Mais filtros** (com a contagem dos ativos); **Limpar** volta a 24 horas sem filtros.
+- **Uma consulta por vez**: mudar tres filtros seguidos cancela as consultas anteriores (`AbortController`); so a ultima vale.
+- **Tempo real** (chave no cabecalho): atualiza a cada 30 s, sem spinner, so com a aba visivel e a gaveta fechada. **Atualizar** e **Aplicar**
+  ignoram o cache (`?fresco=1`). "Atualizado ha X s" corre sozinho.
+- **Cache curto no servidor**: resumo e insights ficam 15 s, as listas dos filtros 60 s (por aplicacao, nunca compartilhado); as janelas de tempo
+  sao arredondadas a 15 s para que consultas do mesmo instante compartilhem o resultado. As listas so sao pedidas de novo quando muda periodo ou
+  sistema (`/resumo?opcoes=0`; `GET /opcoes` devolve so elas).
+- **Alertas**: aba, KPI e insignias (ver [doc 12](12-AUDITORIA-E-OBSERVABILIDADE.md)). O "Ao vivo" mostra em quanto tempo cada sessao expira.
+
 ## Rotas
 
 `GET /configuracoes/api/auditoria/`: `resumo`, `insights`, `tempo-real`, `acessos`, `detalhes`, `alteracoes`, `sessoes`,
-`fisicos` (com `?fonte=luftbase|aplicacao`), `detalhes/<tipo>/<id>`, `exportar`.
+`fisicos` (com `?fonte=luftbase|aplicacao`), `alertas` (com `?situacao=`), `opcoes`, `detalhes/<tipo>/<id>`, `exportar`.
 
 Os seletores de **fonte** (LuftBase | Aplicacao), **nivel** e **arquivo** so aparecem na aba **Logs fisicos**. Clicar em uma mensagem
 abre a gaveta com o texto inteiro (inclusive as linhas de uma pilha de erro). Detalhes em [doc 12](12-AUDITORIA-E-OBSERVABILIDADE.md#logs-fisicos).

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from io import StringIO
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, Response, abort, jsonify, request
+from flask import Blueprint, Response, abort, current_app, jsonify, request
 from flask_login import current_user, login_required
 
 from luftbase.autorizacao import PermissaoLuftBase
@@ -21,6 +21,7 @@ from luftbase.observabilidade.analise import (
     PaginaAuditoria,
     ServicoAnaliseAuditoria,
 )
+from luftbase.observabilidade.cache_curto import CacheCurto
 from luftbase.observabilidade.controle_sessoes import ServicoControleSessoes
 from luftbase.observabilidade.filtros import NAVEGADORES
 from luftbase.observabilidade.insights import ServicoInsights
@@ -163,10 +164,34 @@ def _montar_drill() -> dict[str, object]:
     return dados
 
 
+_PASSO_JANELA_SEGUNDOS = 15
+
+
+def _arredondar(momento: datetime) -> datetime:
+    """Corta para o multiplo de 15 s anterior: janelas pedidas no mesmo quarto de minuto viram a mesma consulta."""
+
+    return momento.replace(microsecond=0, second=momento.second - momento.second % _PASSO_JANELA_SEGUNDOS)
+
+
+def _cache(nome: str, ttl_segundos: float) -> CacheCurto:
+    """Cache de vida curta de uma consulta, guardado na aplicacao Flask (nada e compartilhado entre instancias)."""
+
+    caches = current_app.extensions.setdefault("luftbase_cache_auditoria", {})
+    if nome not in caches:
+        caches[nome] = CacheCurto(ttl_segundos)
+    return caches[nome]
+
+
+def _fresco() -> bool:
+    """`?fresco=1` (botao Atualizar): ignora o cache e recalcula."""
+
+    return request.args.get("fresco") in {"1", "true"}
+
+
 def _montar_filtro() -> FiltroAuditoria:
-    agora = datetime.now(_FUSO).replace(tzinfo=None)
-    fim = _data_opcional("fim") or agora
-    inicio = _data_opcional("inicio") or (fim - timedelta(hours=24))
+    agora = _arredondar(datetime.now(_FUSO).replace(tzinfo=None))
+    fim = _arredondar(_data_opcional("fim") or agora)
+    inicio = _arredondar(_data_opcional("inicio") or (fim - timedelta(hours=24)))
     marco = dados_confiaveis_desde()
     if marco is not None and inicio < marco:
         inicio = min(marco, fim)
@@ -222,24 +247,55 @@ def api_resumo():  # type: ignore[no-untyped-def]
             PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR,
         )
     )
-    return jsonify(
-        {
-            "status": "success",
-            "data": {
-                **servico.obter_resumo(filtro),
-                "opcoes": servico.obter_opcoes(
-                    filtro,
-                    id_sistema_escopo=_escopo_da_aplicacao(),
-                ),
-                "capacidades": {
-                    "exportar": bool(decisoes.get(PermissaoLuftBase.AUDITORIA_EXPORTAR)),
-                    "ver_sensiveis": bool(
-                        decisoes.get(PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR)
-                    ),
-                },
-            },
-        }
+    ver_sensiveis = bool(decisoes.get(PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR))
+    resumo = _cache("resumo", 15).obter(
+        ("resumo", filtro), lambda: servico.obter_resumo(filtro), forcar=_fresco()
     )
+    dados: dict[str, object] = {
+        **resumo,
+        "capacidades": {
+            "exportar": bool(decisoes.get(PermissaoLuftBase.AUDITORIA_EXPORTAR)),
+            "ver_sensiveis": ver_sensiveis,
+        },
+        # Os alertas so aparecem para quem pode ver dados sensiveis (como a aba de alertas e os logs fisicos).
+        "alertas": _contagem_alertas() if ver_sensiveis else None,
+    }
+    # As listas de filtro (usuarios, grupos, sistemas) pesam: a tela as pede uma vez em /opcoes, nao a cada atualizacao.
+    if request.args.get("opcoes", "1") not in {"0", "false"}:
+        dados["opcoes"] = _opcoes(filtro, servico)
+    return jsonify({"status": "success", "data": dados})
+
+
+def _opcoes(filtro: FiltroAuditoria, servico: ServicoAnaliseAuditoria) -> dict[str, object]:
+    escopo = _escopo_da_aplicacao()
+    # As listas dependem so do periodo e do escopo: ficam 1 minuto guardadas.
+    return _cache("opcoes", 60).obter(
+        ("opcoes", filtro.inicio, filtro.fim, filtro.id_sistema, escopo),
+        lambda: servico.obter_opcoes(filtro, id_sistema_escopo=escopo),
+        forcar=_fresco(),
+    )
+
+
+@AuditoriaBp.get("/opcoes")
+@login_required
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
+def api_opcoes():  # type: ignore[no-untyped-def]
+    """Listas dos filtros (sistemas, usuarios e grupos que apareceram no periodo)."""
+
+    return jsonify({"status": "success", "data": _opcoes(_montar_filtro(), _servico())})
+
+
+def _contagem_alertas() -> dict[str, int] | None:
+    """Alertas por situacao, ou None se nao der para contar (ex.: tabela ainda nao migrada): o painel segue sem eles."""
+
+    from luftbase.observabilidade.alertas import contar_alertas
+
+    try:
+        with obter_luftbase().bancos.core.leitura() as sessao:
+            return contar_alertas(sessao, id_sistema=_escopo_da_aplicacao())
+    except Exception:
+        current_app.logger.warning("Nao foi possivel contar os alertas para o painel de auditoria.", exc_info=True)
+        return None
 
 
 @AuditoriaBp.get("/insights")
@@ -248,8 +304,12 @@ def api_resumo():  # type: ignore[no-untyped-def]
 def api_insights():  # type: ignore[no-untyped-def]
     """Comparativo, mapa de calor, desempenho, seguranca e sessoes do recorte filtrado."""
 
-    dados = ServicoInsights(obter_luftbase().bancos.core).obter(
-        _montar_filtro(), desde=dados_confiaveis_desde()
+    filtro = _montar_filtro()
+    desde = dados_confiaveis_desde()
+    dados = _cache("insights", 15).obter(
+        ("insights", filtro, desde),
+        lambda: ServicoInsights(obter_luftbase().bancos.core).obter(filtro, desde=desde),
+        forcar=_fresco(),
     )
     return jsonify({"status": "success", "data": dados})
 
@@ -497,14 +557,32 @@ def api_detalhe(tipo: str, identificador: int):  # type: ignore[no-untyped-def]
 @exigir_permissao(PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR)
 @exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
 def api_alertas():  # type: ignore[no-untyped-def]
-    """Alertas para o desenvolvedor (abertos por padrao; `?todos=1` inclui os resolvidos)."""
+    """Alertas para o desenvolvedor, por situacao.
 
-    from luftbase.observabilidade.alertas import listar_alertas
+    `situacao` = `abertos` (padrao), `silenciados`, `resolvidos` ou `todos`; `termo` busca na regra, pessoa, rota, IP, detalhe
+    e correlacao; `pagina` e `tamanho` paginam. `?todos=1` (antigo) equivale a `situacao=todos`. Fora do sistema global,
+    so os alertas do proprio sistema.
+    """
 
-    todos = request.args.get("todos") in {"1", "true"}
+    from luftbase.observabilidade.alertas import SITUACOES_ALERTA, consultar_alertas
+
+    situacao = request.args.get("situacao", "").strip().lower() or ("todos" if request.args.get("todos") in {"1", "true"} else "abertos")
+    if situacao not in SITUACOES_ALERTA:
+        abort(400, description="Situacao de alerta invalida.")
+    pagina = _montar_pagina()
+    escopo = _escopo_da_aplicacao()
+    if escopo is None and request.args.get("sistema_id", "").strip() not in {"", "todos"}:
+        escopo = _inteiro_opcional("sistema_id")
     with obter_luftbase().bancos.core.leitura() as sessao:
-        itens = listar_alertas(sessao, somente_abertos=not todos, limite=_inteiro_opcional("limite") or 100)
-    return jsonify(status="success", data={"alertas": itens})
+        dados = consultar_alertas(
+            sessao,
+            situacao=situacao,
+            id_sistema=escopo,
+            termo=request.args.get("termo", "").strip()[:100] or None,
+            limite=pagina.tamanho,
+            deslocamento=pagina.deslocamento,
+        )
+    return jsonify(status="success", data={**dados, "alertas": dados["itens"], "situacao": situacao})
 
 
 @AuditoriaBp.post("/alertas/<int:id_alerta>/silenciar")

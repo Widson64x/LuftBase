@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, case, func, or_, select, update
 
 from luftbase.nucleo.tempo import agora_local
 from luftbase.observabilidade.insights import normalizar_rota
@@ -647,11 +647,20 @@ def _enviar(
 # --------------------------------------------------------------------------- consulta (painel/CLI)
 
 
-def listar_alertas(db: Any, *, somente_abertos: bool = True, limite: int = 100) -> list[dict[str, Any]]:
-    consulta = select(Alerta).order_by(Alerta.ultima_ocorrencia.desc()).limit(max(1, min(limite, 500)))
-    if somente_abertos:
-        consulta = consulta.where(Alerta.status == "ABERTO")
-    alertas = list(db.execute(consulta).scalars())
+SITUACOES_ALERTA = ("abertos", "silenciados", "resolvidos", "todos")
+
+
+def situacao_do_alerta(alerta: Alerta, agora: datetime) -> str:
+    """`ABERTO` (avisa), `SILENCIADO` (aberto, mas sem avisar ate `silenciado_ate`) ou `RESOLVIDO` (parou de ocorrer)."""
+
+    if alerta.status == "RESOLVIDO":
+        return "RESOLVIDO"
+    if alerta.silenciado_ate is not None and alerta.silenciado_ate > agora:
+        return "SILENCIADO"
+    return "ABERTO"
+
+
+def _serializar_alertas(db: Any, alertas: list[Alerta], agora: datetime) -> list[dict[str, Any]]:
     nomes = _nome_sistemas(db, (a.id_sistema for a in alertas))
     return [
         {
@@ -666,17 +675,112 @@ def listar_alertas(db: Any, *, somente_abertos: bool = True, limite: int = 100) 
             "status_http": a.status_http,
             "ocorrencias": a.ocorrencias,
             "status": a.status,
+            "situacao": situacao_do_alerta(a, agora),
             "primeira_ocorrencia": a.primeira_ocorrencia.isoformat(timespec="seconds"),
             "ultima_ocorrencia": a.ultima_ocorrencia.isoformat(timespec="seconds"),
             "resolvido_em": a.resolvido_em.isoformat(timespec="seconds") if a.resolvido_em else None,
-            "silenciado_ate": a.silenciado_ate.isoformat(timespec="seconds")
-            if a.silenciado_ate
-            else None,
+            "silenciado_ate": a.silenciado_ate.isoformat(timespec="seconds") if a.silenciado_ate else None,
             "id_correlacao": a.id_correlacao,
             "detalhe": a.detalhe,
         }
         for a in alertas
     ]
+
+
+def listar_alertas(db: Any, *, somente_abertos: bool = True, limite: int = 100) -> list[dict[str, Any]]:
+    consulta = select(Alerta).order_by(Alerta.ultima_ocorrencia.desc()).limit(max(1, min(limite, 500)))
+    if somente_abertos:
+        consulta = consulta.where(Alerta.status == "ABERTO")
+    return _serializar_alertas(db, list(db.execute(consulta).scalars()), agora_local())
+
+
+def _condicoes_de_situacao(agora: datetime) -> dict[str, Any]:
+    return {
+        "abertos": and_(Alerta.status == "ABERTO", or_(Alerta.silenciado_ate.is_(None), Alerta.silenciado_ate <= agora)),
+        "silenciados": and_(Alerta.status == "ABERTO", Alerta.silenciado_ate > agora),
+        "resolvidos": Alerta.status == "RESOLVIDO",
+    }
+
+
+def contar_alertas(db: Any, *, id_sistema: int | None = None, agora: datetime | None = None) -> dict[str, int]:
+    """Quantos alertas ha em cada situacao (barato: usa o indice de status)."""
+
+    agora = agora or agora_local()
+    condicoes = _condicoes_de_situacao(agora)
+    consulta = select(
+        func.count(Alerta.id_alerta).filter(condicoes["abertos"]),
+        func.count(Alerta.id_alerta).filter(condicoes["silenciados"]),
+        func.count(Alerta.id_alerta).filter(condicoes["resolvidos"]),
+    )
+    if id_sistema is not None:
+        consulta = consulta.where(Alerta.id_sistema == id_sistema)
+    abertos, silenciados, resolvidos = db.execute(consulta).one()
+    return {
+        "abertos": int(abertos or 0),
+        "silenciados": int(silenciados or 0),
+        "resolvidos": int(resolvidos or 0),
+        "todos": int((abertos or 0) + (silenciados or 0) + (resolvidos or 0)),
+    }
+
+
+def consultar_alertas(
+    db: Any,
+    *,
+    situacao: str = "abertos",
+    id_sistema: int | None = None,
+    termo: str | None = None,
+    limite: int = 50,
+    deslocamento: int = 0,
+    agora: datetime | None = None,
+) -> dict[str, Any]:
+    """Pagina os alertas por situacao, sistema e texto livre, com as contagens de cada situacao.
+
+    Os abertos vem primeiro, depois os silenciados e os resolvidos; dentro de cada grupo, o mais recente antes.
+    """
+
+    agora = agora or agora_local()
+    if situacao not in SITUACOES_ALERTA:
+        raise ValueError("situacao invalida")
+    condicoes = _condicoes_de_situacao(agora)
+    filtros: list[Any] = []
+    if id_sistema is not None:
+        filtros.append(Alerta.id_sistema == id_sistema)
+    contagens = contar_alertas(db, id_sistema=id_sistema, agora=agora)
+    if situacao != "todos":
+        filtros.append(condicoes[situacao])
+    texto = (termo or "").strip()
+    if texto:
+        filtros.append(
+            or_(
+                *(
+                    coluna.icontains(texto, autoescape=True)
+                    for coluna in (
+                        Alerta.regra,
+                        Alerta.login_usuario,
+                        Alerta.rota,
+                        Alerta.ip_origem,
+                        Alerta.detalhe,
+                        Alerta.id_correlacao,
+                    )
+                )
+            )
+        )
+    ordem = case(
+        (condicoes["abertos"], 0),
+        (condicoes["silenciados"], 1),
+        else_=2,
+    )
+    total = db.scalar(select(func.count(Alerta.id_alerta)).where(*filtros)) or 0
+    linhas = list(
+        db.execute(
+            select(Alerta)
+            .where(*filtros)
+            .order_by(ordem, Alerta.ultima_ocorrencia.desc())
+            .offset(max(deslocamento, 0))
+            .limit(max(1, min(limite, 200)))
+        ).scalars()
+    )
+    return {"itens": _serializar_alertas(db, linhas, agora), "total": int(total), "contagens": contagens}
 
 
 def silenciar(db: Any, id_alerta: int, ate: datetime | None) -> bool:
@@ -696,7 +800,11 @@ __all__ = [
     "aplicar",
     "avaliar",
     "detectar",
+    "SITUACOES_ALERTA",
+    "consultar_alertas",
+    "contar_alertas",
     "listar_alertas",
+    "situacao_do_alerta",
     "pendentes_de_aviso",
     "silenciar",
 ]

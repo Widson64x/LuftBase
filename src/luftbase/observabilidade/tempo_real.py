@@ -126,6 +126,10 @@ def consolidar_tempo_real(
                 "inativo_segundos": inativo,
                 "conectado_segundos": _segundos(agora - principal["criada_em"]),
                 "ultima_atividade": principal["ultima_atividade"].isoformat(),
+                # Quando a sessao vence se a pessoa nao voltar: deixa a politica (e o "lembrar acesso") a vista.
+                "expira_em_segundos": (
+                    _segundos(principal["expira_em"] - agora) if principal.get("expira_em") else None
+                ),
                 "sessoes": len(lista),
                 "outros_navegadores": sorted(outros)[:3],
                 "fazendo": (
@@ -229,6 +233,7 @@ class ServicoTempoReal:
                     "user_agent": s.user_agent,
                     "criada_em": s.criada_em,
                     "ultima_atividade": s.ultima_atividade,
+                    "expira_em": s.expira_em,
                 }
                 for s, nome, grupo, foto in linhas_sessao
             ]

@@ -200,7 +200,10 @@ e-mail por ciclo reune todos os alertas pendentes; se o envio falhar, o alerta f
 
 Consulta: `luftbase alertas listar [--todos]`, `GET /auditoria/api/alertas` e
 `POST /auditoria/api/alertas/<id>/silenciar` (`{"horas": 0..168}`; `0` volta a avisar), ambos exigindo auditoria e dados
-sensiveis. A aba "Alertas" na tela da Auditoria ainda nao existe (so a API e o comando).
+sensiveis. A tela da Auditoria tem a aba **Alertas** (em Registros, ao lado de Rotas HTTP e Logs fisicos; so com dados sensiveis): filtro por situacao
+(abertos, silenciados, resolvidos, todos, com a contagem de cada), busca, silenciar por 1/8/24 h ou reativar, e gaveta de detalhes. O KPI
+"Alertas abertos" e a insignia em Registros mostram quantos estao avisando. `GET /auditoria/api/alertas` aceita `situacao`, `termo`, `pagina`, `tamanho`
+e `sistema_id` e devolve `itens`, `total` e `contagens`.
 
 ## Retencao dos logs
 

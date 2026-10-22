@@ -422,11 +422,14 @@ def test_api_lista_e_silencia_alertas(bancos: Bancos, monkeypatch: pytest.Monkey
     monkeypatch.setattr(auditoria, "obter_luftbase", lambda: SimpleNamespace(bancos=bancos))
     monkeypatch.setattr(auditoria, "validar_csrf_requisicao", lambda: None)
     monkeypatch.setattr(auditoria, "registrar_alteracao_auditoria", lambda **_k: 1)
+    monkeypatch.setattr(auditoria, "sistema_aplicacao_atual", lambda: 0)  # escopo global: ve todos os sistemas
     app = Flask(__name__)
 
     with app.test_request_context("/auditoria/api/alertas"):
         corpo = _rota_sem_decoradores(auditoria.api_alertas)().get_json()
     assert corpo["data"]["alertas"][0]["login"] == "ana"
+    assert corpo["data"]["itens"] == corpo["data"]["alertas"]
+    assert corpo["data"]["contagens"]["abertos"] == 1 and corpo["data"]["total"] == 1
 
     with app.test_request_context(method="POST", json={"horas": 4}):
         resposta = _rota_sem_decoradores(auditoria.api_silenciar_alerta)(id_alerta)

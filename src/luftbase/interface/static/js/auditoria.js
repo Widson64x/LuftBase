@@ -13,12 +13,20 @@
         ranking: 'rotas',
         total: 0,
         arquivo: '',
-        fonte: 'luftbase'
+        fonte: 'luftbase',
+        situacao: 'abertos',
+        chaveOpcoes: null,
+        controle: null,
+        sequencia: 0,
+        atualizadoEm: null
     };
     const $ = (id) => document.getElementById(id);
     const numero = new Intl.NumberFormat('pt-BR');
     const dataHora = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' });
     const abasLocais = new Set(['fisicos']);
+    const csrf = () => document.querySelector('meta[name="luft-csrf-token"]')?.getAttribute('content') || '';
+    const NOMES_SITUACAO = { ABERTO: 'Aberto', SILENCIADO: 'Silenciado', RESOLVIDO: 'Resolvido' };
+    const CLASSES_SITUACAO = { ABERTO: 'error', SILENCIADO: 'warning', RESOLVIDO: 'ok' };
 
     function escapar(valor) {
         const el = document.createElement('span');
@@ -69,8 +77,8 @@
         return p;
     }
 
-    async function obter(url) {
-        const resposta = await fetch(url, { headers: { Accept: 'application/json' } });
+    async function obter(url, sinal) {
+        const resposta = await fetch(url, { headers: { Accept: 'application/json' }, signal: sinal });
         const dados = await resposta.json().catch(() => ({}));
         if (!resposta.ok || dados.status !== 'success') {
             throw new Error(dados.message || `Falha HTTP ${resposta.status}`);
@@ -199,16 +207,56 @@
         });
     }
 
-    async function carregarResumo() {
-        const dados = await obter(`${raiz.dataset.resumoUrl}?${parametros()}`);
+    // As listas de usuários, grupos e sistemas pesam: só vão de novo quando muda o período ou o sistema.
+    function chaveDasOpcoes() {
+        return [$('auditPeriodo').value, $('auditInicio').value, $('auditFim').value, $('auditSistema').value].join('|');
+    }
+
+    function aplicarAlertas(contagens) {
+        const abertos = contagens ? contagens.abertos : null;
+        const kpi = raiz.querySelector('[data-kpi="alertas_abertos"]');
+        if (kpi) kpi.textContent = abertos == null ? '—' : numero.format(abertos);
+        const sufixo = raiz.querySelector('[data-kpi-suffix="alertas"]');
+        if (sufixo && contagens) sufixo.textContent = contagens.silenciados ? `${numero.format(contagens.silenciados)} silenciado(s)` : 'avisando agora';
+        [['auditNavAlertas', abertos], ['auditTabAlertas', abertos]].forEach(([id, valor]) => {
+            const el = $(id);
+            if (!el) return;
+            el.hidden = !valor;
+            el.textContent = numero.format(valor || 0);
+        });
+        raiz.querySelectorAll('#auditAlertaSituacoes [data-situacao]').forEach(botao => {
+            const total = contagens?.[botao.dataset.situacao];
+            botao.querySelector('b').textContent = total == null ? '–' : numero.format(total);
+        });
+    }
+
+    async function carregarResumo(sinal, fresco) {
+        const p = parametros();
+        const chave = chaveDasOpcoes();
+        const pedirOpcoes = fresco || estado.chaveOpcoes !== chave;
+        if (!pedirOpcoes) p.set('opcoes', '0');
+        if (fresco) p.set('fresco', '1');
+        const dados = await obter(`${raiz.dataset.resumoUrl}?${p}`, sinal);
         renderizarKpis(dados.indicadores);
+        aplicarAlertas(dados.alertas);
         renderizarSerie(dados.serie || []);
         estado.rankings = dados.rankings || {};
         renderizarRanking();
-        preencherSelect('auditSistema', dados.opcoes?.sistemas || [], { valor: 'todos', texto: 'Todos' });
-        preencherSelect('auditUsuario', dados.opcoes?.usuarios || [], { valor: '', texto: 'Todos' });
-        preencherSelect('auditGrupo', dados.opcoes?.grupos || [], { valor: '', texto: 'Todos' });
-        $('auditAtualizadoEm').innerHTML = `<i class="ph-bold ph-check-circle"></i> Atualizado às ${new Date().toLocaleTimeString('pt-BR')}`;
+        if (dados.opcoes) {
+            preencherSelect('auditSistema', dados.opcoes.sistemas || [], { valor: 'todos', texto: 'Todos' });
+            preencherSelect('auditUsuario', dados.opcoes.usuarios || [], { valor: '', texto: 'Todos' });
+            preencherSelect('auditGrupo', dados.opcoes.grupos || [], { valor: '', texto: 'Todos' });
+            estado.chaveOpcoes = chaveDasOpcoes();
+        }
+        estado.atualizadoEm = Date.now();
+        mostrarFrescor();
+    }
+
+    function mostrarFrescor() {
+        if (!estado.atualizadoEm) return;
+        const s = Math.max(0, Math.round((Date.now() - estado.atualizadoEm) / 1000));
+        const texto = s < 5 ? 'agora' : s < 60 ? `há ${s} s` : `há ${Math.floor(s / 60)} min`;
+        $('auditAtualizadoEm').innerHTML = `<i class="ph-bold ph-check-circle"></i> Atualizado ${texto}`;
     }
 
     const colunas = {
@@ -216,12 +264,26 @@
         detalhes: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['grupo', 'Grupo'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['descricao', 'Descrição'], ['severidade', 'Severidade']],
         alteracoes: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['tipo_alteracao', 'Tipo'], ['campos_alterados', 'Campos']],
         fisicos: [['data_hora', 'Data'], ['nivel', 'Nível'], ['acao', 'Origem'], ['login_usuario', 'Usuário'], ['mensagem', 'Mensagem']],
+        alertas: [['ultima_ocorrencia', 'Última ocorrência'], ['situacao', 'Situação'], ['rotulo', 'Regra'], ['sistema', 'Sistema'], ['login', 'Pessoa'], ['rota', 'Rota'], ['ocorrencias', 'Vezes'], ['ip', 'IP'], ['acoes', '']],
         sessoes: [['criada_em', 'Início'], ['usuario', 'Pessoa'], ['sistema', 'Sistema'], ['navegador', 'Navegador'], ['sistema_operacional', 'SO'], ['ip', 'IP'], ['situacao', 'Situação'], ['duracao_segundos', 'Duração'], ['acoes', '']]
     };
 
     function valorCelula(chave, item) {
         const valor = item[chave];
         if (chave === 'id_log') return valor == null ? '—' : `<span class="audit-id">#${escapar(valor)}</span>`;
+        if (estado.aba === 'alertas') {
+            if (chave === 'ultima_ocorrencia') return formatarData(valor);
+            if (chave === 'situacao') return `<span class="audit-status ${CLASSES_SITUACAO[valor] || 'neutral'}">${escapar(NOMES_SITUACAO[valor] || valor)}</span>`;
+            if (chave === 'ocorrencias') return `<span class="audit-id">${numero.format(valor || 0)}×</span>`;
+            if (chave === 'acoes') {
+                if (valor === undefined && item.situacao === 'RESOLVIDO') return '';
+                if (item.situacao === 'SILENCIADO') return '<button type="button" class="audit-linha-btn" data-silenciar="0"><i class="ph-bold ph-bell-ringing"></i> Reativar</button>';
+                if (item.situacao === 'ABERTO') {
+                    return [1, 8, 24].map(h => `<button type="button" class="audit-linha-btn" data-silenciar="${h}" title="Silenciar por ${h} h"><i class="ph-bold ph-bell-slash"></i> ${h} h</button>`).join('');
+                }
+                return '';
+            }
+        }
         if (chave === 'acoes') {
             if (item.atual) return '<span class="audit-voce">sua sessão</span>';
             return estado.podeRevogar && item.ativa
@@ -268,7 +330,13 @@
         itens.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = defs.map(([chave]) => `<td title="${escapar(item[chave])}">${valorCelula(chave, item)}</td>`).join('');
-            if (estado.aba === 'sessoes') {
+            if (estado.aba === 'alertas') {
+                tr.querySelectorAll('[data-silenciar]').forEach(botao => botao.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    silenciarAlerta(item, Number(botao.dataset.silenciar), botao);
+                }));
+                tr.addEventListener('click', () => mostrarNoDrawer(item));
+            } else if (estado.aba === 'sessoes') {
                 tr.querySelector('[data-ref]')?.addEventListener('click', (ev) => {
                     ev.stopPropagation(); // o botão não deve abrir a gaveta de detalhes
                     window.luftControle?.encerrarSessao(item.ref, item.usuario);
@@ -284,10 +352,41 @@
         });
     }
 
-    async function carregarLogs() {
+    async function silenciarAlerta(item, horas, botao) {
+        botao.disabled = true;
+        try {
+            const url = raiz.dataset.silenciarAlertaUrl.replace('999999', item.id_alerta);
+            const resposta = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': csrf() },
+                body: JSON.stringify({ horas })
+            });
+            const dados = await resposta.json().catch(() => ({}));
+            if (!resposta.ok || dados.status !== 'success') throw new Error(dados.message || `Falha HTTP ${resposta.status}`);
+            window.luftControle?.avisar(dados.message || 'Pronto.', 'ok');
+            await atualizar({ silencioso: true, fresco: true });
+        } catch (e) {
+            botao.disabled = false;
+            window.luftControle?.avisar(e.message || 'Não foi possível alterar o alerta.', 'erro');
+        }
+    }
+
+    function parametrosAlertas() {
+        const p = new URLSearchParams({ situacao: estado.situacao, pagina: estado.pagina, tamanho: estado.tamanho });
+        const termo = $('auditTermo').value.trim();
+        if (termo) p.set('termo', termo);
+        const sistema = $('auditSistema').value;
+        if (sistema && sistema !== 'todos') p.set('sistema_id', sistema);
+        return p;
+    }
+
+    async function carregarLogs(sinal) {
         let dados;
-        if (estado.aba === 'fisicos') {
-            dados = await obter(`${raiz.dataset.fisicosUrl}?${parametrosLocais()}`);
+        if (estado.aba === 'alertas') {
+            dados = await obter(`${raiz.dataset.alertasUrl}?${parametrosAlertas()}`, sinal);
+            aplicarAlertas(dados.contagens);
+        } else if (estado.aba === 'fisicos') {
+            dados = await obter(`${raiz.dataset.fisicosUrl}?${parametrosLocais()}`, sinal);
             atualizarFontes(dados.fontes, dados.fonte || estado.fonte);
             preencherArquivos(dados.arquivos || []);
             $('auditArquivo').disabled = false;
@@ -298,7 +397,7 @@
                 alteracoes: raiz.dataset.alteracoesUrl,
                 sessoes: raiz.dataset.sessoesUrl
             };
-            dados = await obter(`${urls[estado.aba]}?${parametros(true)}`);
+            dados = await obter(`${urls[estado.aba]}?${parametros(true)}`, sinal);
             estado.podeRevogar = !!dados.capacidades?.revogar_sessoes;
         }
         const itens = dados.itens || [];
@@ -309,26 +408,74 @@
         const paginas = Math.max(Math.ceil(estado.total / estado.tamanho), 1);
         $('auditTotalLinhas').textContent = `${numero.format(estado.total)} registros`;
         $('auditPaginaInfo').textContent = local ? 'Fonte local desta instância' : `Página ${estado.pagina} de ${paginas}`;
+        $('auditAlertaSituacoes').hidden = estado.aba !== 'alertas';
         $('auditPaginaAnterior').disabled = local || estado.pagina <= 1;
         $('auditProximaPagina').disabled = local || estado.pagina >= paginas;
         // Fonte, nível e arquivo só fazem sentido na aba que lê os arquivos de log do servidor.
         ['auditFonteContainer', 'auditNivelContainer', 'auditArquivoContainer'].forEach(id => { $(id).hidden = estado.aba !== 'fisicos'; });
-        if ($('auditBtnExportar')) $('auditBtnExportar').hidden = local || estado.aba === 'sessoes';
+        if ($('auditBtnExportar')) $('auditBtnExportar').hidden = local || ['sessoes', 'alertas'].includes(estado.aba);
     }
 
-    async function atualizar() {
-        carregando(true);
+    // Uma consulta nova cancela a anterior: quem muda três filtros seguidos só vê (e só paga) a última.
+    async function atualizar({ silencioso = false, fresco = false } = {}) {
+        estado.controle?.abort();
+        const controle = new AbortController();
+        estado.controle = controle;
+        const minha = ++estado.sequencia;
+        if (!silencioso) carregando(true);
         erro();
         try {
-            await Promise.all([carregarResumo(), carregarLogs()]);
+            await Promise.all([carregarResumo(controle.signal, fresco), carregarLogs(controle.signal)]);
+            if (minha !== estado.sequencia) return;
             raiz.dataset.auditoriaPronta = 'true'; // quem carregar depois (outros scripts) sabe que já houve a 1ª carga
             document.dispatchEvent(new CustomEvent('luft:auditoria:atualizada'));
         } catch (e) {
+            if (e.name === 'AbortError' || minha !== estado.sequencia) return;
             console.error(e);
             erro(e.message || 'Não foi possível consultar a auditoria.');
         } finally {
-            carregando(false);
+            if (minha === estado.sequencia) carregando(false);
         }
+    }
+
+    // ---- filtros que se aplicam sozinhos ----------------------------------------------------------
+    let adiar = null;
+    function aplicarDepois(espera = 350) {
+        clearTimeout(adiar);
+        adiar = setTimeout(() => { estado.pagina = 1; atualizar(); }, espera);
+    }
+
+    function contarExtras() {
+        const ativos = [...raiz.querySelectorAll('.audit-field-extra select')].filter(s => s.value).length;
+        const marca = $('auditMaisContagem');
+        marca.hidden = !ativos;
+        marca.textContent = ativos;
+        if (ativos) $('auditFiltros').classList.add('mais');
+        $('auditBtnMais').setAttribute('aria-expanded', $('auditFiltros').classList.contains('mais') ? 'true' : 'false');
+    }
+
+    function limparFiltros() {
+        $('auditPeriodo').value = '24';
+        ['auditInicio', 'auditFim', 'auditTermo'].forEach(id => { $(id).value = ''; });
+        ['auditSistema', 'auditUsuario', 'auditGrupo', 'auditResultado', 'auditSeveridade'].forEach(id => { $(id).selectedIndex = 0; });
+        document.querySelectorAll('.audit-custom-date').forEach(el => { el.hidden = true; });
+        window.luftDrill?.limpar?.();
+        contarExtras();
+        estado.pagina = 1;
+        atualizar();
+    }
+
+    // ---- tempo real: atualiza sozinho, sem spinner, só com a aba visível ----------------------------
+    let cronometro = null;
+    function tempoReal(ligado) {
+        clearInterval(cronometro);
+        cronometro = null;
+        try { localStorage.setItem('luftAuditoriaTempoReal', ligado ? '1' : '0'); } catch (e) { /* tudo bem */ }
+        if (!ligado) return;
+        cronometro = setInterval(() => {
+            if (document.hidden || $('auditDrawer').classList.contains('open')) return;
+            atualizar({ silencioso: true });
+        }, 30000);
     }
 
     function mostrarNoDrawer(dados) {
@@ -364,10 +511,26 @@
         $('auditDrawerBackdrop').hidden = true;
     }
 
-    $('auditPeriodo').addEventListener('change', () => document.querySelectorAll('.audit-custom-date').forEach(el => { el.hidden = $('auditPeriodo').value !== 'custom'; }));
-    $('auditBtnFiltrar').addEventListener('click', () => { estado.pagina = 1; atualizar(); });
-    $('auditBtnAtualizar').addEventListener('click', atualizar);
-    $('auditTermo').addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); estado.pagina = 1; atualizar(); } });
+    $('auditPeriodo').addEventListener('change', () => {
+        document.querySelectorAll('.audit-custom-date').forEach(el => { el.hidden = $('auditPeriodo').value !== 'custom'; });
+        if ($('auditPeriodo').value !== 'custom') aplicarDepois(0);
+    });
+    ['auditInicio', 'auditFim'].forEach(id => $(id).addEventListener('change', () => { if ($('auditInicio').value && $('auditFim').value) aplicarDepois(); }));
+    ['auditSistema', 'auditUsuario', 'auditGrupo', 'auditResultado', 'auditSeveridade'].forEach(id => $(id).addEventListener('change', () => { contarExtras(); aplicarDepois(0); }));
+    $('auditTermo').addEventListener('input', () => aplicarDepois(500));
+    $('auditBtnFiltrar').addEventListener('click', () => { clearTimeout(adiar); estado.pagina = 1; atualizar({ fresco: true }); });
+    $('auditBtnAtualizar').addEventListener('click', () => atualizar({ fresco: true }));
+    $('auditBtnLimpar').addEventListener('click', limparFiltros);
+    $('auditBtnMais').addEventListener('click', () => { $('auditFiltros').classList.toggle('mais'); contarExtras(); });
+    $('auditTempoReal').addEventListener('change', () => tempoReal($('auditTempoReal').checked));
+    raiz.querySelectorAll('#auditAlertaSituacoes [data-situacao]').forEach(botao => botao.addEventListener('click', () => {
+        estado.situacao = botao.dataset.situacao;
+        estado.pagina = 1;
+        raiz.querySelectorAll('#auditAlertaSituacoes [data-situacao]').forEach(x => x.classList.toggle('active', x === botao));
+        carregarLogs().catch(e => erro(e.message));
+    }));
+    $('auditTermo').addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); clearTimeout(adiar); estado.pagina = 1; atualizar(); } });
+    setInterval(mostrarFrescor, 5000);
     $('auditPaginaAnterior').addEventListener('click', () => { if (estado.pagina > 1) { estado.pagina--; carregarLogs(); } });
     $('auditProximaPagina').addEventListener('click', () => { estado.pagina++; carregarLogs(); });
     $('auditArquivo').addEventListener('change', () => { estado.arquivo = $('auditArquivo').value; carregarLogs().catch(e => erro(e.message)); });
@@ -399,5 +562,9 @@
         window.location.assign(`${raiz.dataset.exportarUrl}?${p}`);
     });
     document.addEventListener('keydown', ev => { if (ev.key === 'Escape') fecharDrawer(); });
+    try {
+        if (localStorage.getItem('luftAuditoriaTempoReal') === '1') { $('auditTempoReal').checked = true; tempoReal(true); }
+    } catch (e) { /* sem armazenamento: começa desligado */ }
+    contarExtras();
     atualizar();
 })();

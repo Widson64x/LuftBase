@@ -2,6 +2,19 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a122] - 2026-10-22
+
+### Adicionado
+
+- **Auditoria & Analise v2**: aba **Alertas** junto de Rotas HTTP/Sessoes/Eventos/Logs fisicos (situacao com contagens, busca, silenciar 1/8/24 h, reativar,
+  gaveta de detalhes), KPI "Alertas abertos" e insignias; chave **Tempo real** (30 s, so com a aba visivel); "Atualizado ha X s"; no Ao vivo, "expira em".
+- Filtros se aplicam sozinhos, barra compacta com **Mais filtros** e **Limpar**; uma consulta nova cancela a anterior.
+- API: `GET /auditoria/api/alertas` com `situacao/termo/pagina/tamanho/sistema_id`, `GET /opcoes`, `/resumo?opcoes=0` e contagem de alertas.
+
+### Alterado
+
+- Cache de 15 s (resumo e insights) e 60 s (listas de filtros) por aplicacao, janelas arredondadas a 15 s; Atualizar sempre recalcula (`?fresco=1`).
+
 ## [0.1.0a121] - 2026-10-22
 
 ### Corrigido

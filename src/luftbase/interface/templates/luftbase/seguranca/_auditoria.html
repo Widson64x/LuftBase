@@ -16,6 +16,8 @@
     data-registro-url="{{ url_for('Auditoria.api_detalhe', tipo='TIPO', identificador=999999) }}"
     data-exportar-url="{{ url_for('Auditoria.api_exportar') }}"
     data-fisicos-url="{{ url_for('Auditoria.api_fisicos') }}"
+    data-alertas-url="{{ url_for('Auditoria.api_alertas') }}"
+    data-silenciar-alerta-url="{{ url_for('Auditoria.api_silenciar_alerta', id_alerta=999999) }}"
     data-pode-ver-sensiveis="{{ 'true' if pode_ver_dados_sensiveis_auditoria else 'false' }}"
 >
     <header class="audit-header">
@@ -28,6 +30,9 @@
             <span class="audit-freshness" id="auditAtualizadoEm">
                 <i class="ph-bold ph-clock"></i> Aguardando consulta
             </span>
+            <label class="audit-live-toggle" title="Atualiza sozinho a cada 30 segundos enquanto esta aba estiver aberta">
+                <input type="checkbox" id="auditTempoReal"><span class="audit-switch" aria-hidden="true"></span> Tempo real
+            </label>
             {% if pode_exportar_auditoria %}
             <button class="btn btn-outline" id="auditBtnExportar" type="button">
                 <i class="ph-bold ph-download-simple"></i> Exportar CSV
@@ -39,7 +44,7 @@
         </div>
     </header>
 
-    <div class="audit-filters" aria-label="Filtros da auditoria">
+    <div class="audit-filters" id="auditFiltros" aria-label="Filtros da auditoria">
         <label class="audit-field audit-field-periodo">
             <span>Período</span>
             <select id="auditPeriodo">
@@ -58,19 +63,19 @@
             <span>Fim</span>
             <input id="auditFim" type="datetime-local">
         </label>
-        <label class="audit-field">
+        <label class="audit-field audit-field-sistema">
             <span>Sistema</span>
             <select id="auditSistema"><option value="todos">Todos</option></select>
         </label>
-        <label class="audit-field">
+        <label class="audit-field audit-field-extra">
             <span>Usuário</span>
             <select id="auditUsuario"><option value="">Todos</option></select>
         </label>
-        <label class="audit-field">
+        <label class="audit-field audit-field-extra">
             <span>Grupo</span>
             <select id="auditGrupo"><option value="">Todos</option></select>
         </label>
-        <label class="audit-field">
+        <label class="audit-field audit-field-extra">
             <span>Resultado</span>
             <select id="auditResultado">
                 <option value="">Todos</option>
@@ -81,7 +86,7 @@
                 <option value="negado">Acesso negado</option>
             </select>
         </label>
-        <label class="audit-field">
+        <label class="audit-field audit-field-extra">
             <span>Severidade</span>
             <select id="auditSeveridade">
                 <option value="">Todas</option>
@@ -98,9 +103,17 @@
                 <input id="auditTermo" maxlength="100" placeholder="Rota, login, IP, correlação..." type="search">
             </div>
         </label>
-        <button class="btn btn-primary audit-filter-action" id="auditBtnFiltrar" type="button">
-            <i class="ph-bold ph-funnel"></i> Aplicar
-        </button>
+        <div class="audit-filter-actions">
+            <button class="btn btn-outline audit-filter-action" id="auditBtnMais" type="button" aria-expanded="false">
+                <i class="ph-bold ph-sliders-horizontal"></i> Mais filtros <b class="audit-nav-badge" id="auditMaisContagem" hidden>0</b>
+            </button>
+            <button class="btn btn-outline audit-filter-action" id="auditBtnLimpar" type="button" title="Volta ao período de 24 horas e remove os filtros">
+                <i class="ph-bold ph-eraser"></i> Limpar
+            </button>
+            <button class="btn btn-primary audit-filter-action" id="auditBtnFiltrar" type="button" title="Os filtros já se aplicam sozinhos; use para forçar a consulta">
+                <i class="ph-bold ph-funnel"></i> Aplicar
+            </button>
+        </div>
     </div>
 
     <div class="audit-loading" id="auditLoading" hidden>
@@ -114,7 +127,7 @@
         <button type="button" data-visao="pessoas"><i class="ph-bold ph-users-three"></i> Pessoas &amp; sessões</button>
         <button type="button" data-visao="desempenho"><i class="ph-bold ph-gauge"></i> Desempenho</button>
         <button type="button" data-visao="seguranca"><i class="ph-bold ph-shield-check"></i> Segurança <b class="audit-nav-badge perigo" id="auditNavSeguranca" hidden>0</b></button>
-        <button type="button" data-visao="registros"><i class="ph-bold ph-list-magnifying-glass"></i> Registros</button>
+        <button type="button" data-visao="registros"><i class="ph-bold ph-list-magnifying-glass"></i> Registros <b class="audit-nav-badge perigo" id="auditNavAlertas" hidden title="Alertas abertos">0</b></button>
     </nav>
 
     <p class="audit-desde" id="auditDesdeNota" hidden></p>
@@ -141,6 +154,9 @@
         <article class="audit-kpi" data-tone="violet"><i class="ph-bold ph-timer"></i><div><small>Tempo médio</small><strong data-kpi="duracao_media_ms">—</strong><span>milissegundos</span></div></article>
         <article class="audit-kpi" data-tone="green"><i class="ph-bold ph-list-checks"></i><div><small>Eventos</small><strong data-kpi="detalhes">—</strong><span>ações e ocorrências</span></div></article>
         <article class="audit-kpi" data-tone="violet"><i class="ph-bold ph-arrows-left-right"></i><div><small>Detalhes</small><strong data-kpi="alteracoes">—</strong><span>retratos antes e depois</span></div></article>
+        {% if pode_ver_dados_sensiveis_auditoria %}
+        <article class="audit-kpi" data-tone="amber" id="auditKpiAlertas"><i class="ph-bold ph-bell-ringing"></i><div><small>Alertas abertos</small><strong data-kpi="alertas_abertos">—</strong><span data-kpi-suffix="alertas">avisando agora</span></div></article>
+        {% endif %}
         <article class="audit-kpi" data-tone="rose"><i class="ph-bold ph-siren"></i><div><small>Eventos críticos</small><strong data-kpi="detalhes_criticos">—</strong><span>alta ou crítica</span></div></article>
     </div>
 
@@ -291,6 +307,7 @@
                 <button data-log-tab="detalhes" type="button"><i class="ph-bold ph-list-magnifying-glass"></i> Eventos</button>
                 <button data-log-tab="alteracoes" type="button"><i class="ph-bold ph-arrows-left-right"></i> Detalhes da Alteração</button>
                 {% if pode_ver_dados_sensiveis_auditoria %}
+                <button data-log-tab="alertas" type="button"><i class="ph-bold ph-bell-ringing"></i> Alertas <b class="audit-nav-badge perigo" id="auditTabAlertas" hidden>0</b></button>
                 <button data-log-tab="fisicos" type="button"><i class="ph-bold ph-file-text"></i> Logs físicos</button>
                 {% endif %}
             </div>
@@ -298,6 +315,12 @@
                 <div class="audit-fonte" id="auditFonteContainer" role="group" aria-label="Origem do log" hidden>
                     <button type="button" class="active" data-fonte="luftbase" title="O que o LuftBase fez: login, e-mails, permissões, publicações, falhas..."><i class="ph-bold ph-stack"></i> LuftBase</button>
                     <button type="button" data-fonte="aplicacao" title="O que a própria aplicação registrou (application.log)"><i class="ph-bold ph-app-window"></i> Aplicação</button>
+                </div>
+                <div class="audit-fonte" id="auditAlertaSituacoes" role="group" aria-label="Situação do alerta" hidden>
+                    <button type="button" class="active" data-situacao="abertos" title="Estão avisando agora">Abertos <b>–</b></button>
+                    <button type="button" data-situacao="silenciados" title="Abertos, mas sem avisar até o fim do silêncio">Silenciados <b>–</b></button>
+                    <button type="button" data-situacao="resolvidos" title="Pararam de ocorrer">Resolvidos <b>–</b></button>
+                    <button type="button" data-situacao="todos">Todos <b>–</b></button>
                 </div>
                 <label class="audit-file-select" id="auditNivelContainer" hidden>
                     <span>Nível</span>
