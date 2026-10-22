@@ -19,7 +19,8 @@ a requisicao frequentemente ficava vazio, pois o acesso HTTP so era criado no
 - O FK composto proibe vinculo entre sistemas diferentes.
 - As tabelas usam cascata; detalhes sem HTTP continuam permitidos para tarefas internas.
 - Arquivo fisico rotativo e raiz temporaria por processo sao fontes locais separadas do
-  PostgreSQL.
+  PostgreSQL. (Atualizado na 0.1.0a118: a raiz temporaria foi removida; os logs fisicos sao o
+  `luftbase.log`, em mensagens, e o `application.log` da aplicacao. Ver o doc 12.)
 - Fontes locais e payloads antes/depois exigem permissao de dados sensiveis.
 - A revisao 0011 descarta os dados experimentais existentes por decisao explicita do piloto.
 

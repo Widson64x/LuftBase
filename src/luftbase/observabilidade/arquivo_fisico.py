@@ -1,34 +1,82 @@
-"""Gravacao estruturada de logs fisicos em arquivo .log com rotacao diaria."""
+"""Logs fisicos em arquivo (.log, rotacao diaria): o da plataforma (`luftbase.log`) e o da aplicacao.
+
+O `luftbase.log` e um diario de MENSAGENS do que o LuftBase fez (login, e-mails enviados, permissoes,
+publicacoes, falhas...), nao um registro de rotas: as rotas ficam na trilha de acessos HTTP do banco.
+Tudo que os modulos do LuftBase registram com `logging` (logger `luftbase.*`) entra aqui, com o usuario
+e o id de correlacao da requisicao quando existem. Excecoes aparecem resumidas (tipos e onde nasceram),
+nunca com a mensagem bruta, e segredos em texto livre sao mascarados.
+
+O log da aplicacao (`application.log`) e escrito pela propria aplicacao; aqui so e LIDO, em seus dois formatos.
+"""
 
 from __future__ import annotations
 
 import contextlib
+import copy
 import logging
 import os
 import re
 import shutil
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from luftbase.nucleo.tempo import FormatadorDeLog, de_timestamp
-from luftbase.observabilidade.sanitizacao import serializar_dados_seguro
+from luftbase.observabilidade.sanitizacao import mascarar_texto, resumir_excecao
 
 if TYPE_CHECKING:
-    from luftbase.observabilidade.modelos import EventoAcessoHttp, EventoDominio
+    from luftbase.observabilidade.modelos import EventoDominio
 
-_PADRAO_LINHA = re.compile(
+_PADRAO_LUFTBASE = re.compile(
     r"^\[(?P<data>[^]]+)] \[(?P<nivel>[^]]+)] \[(?P<correlacao>[^]]+)] "
     r"\[(?P<login>[^]]+)] \[(?P<acao>[^]]+)] - (?P<mensagem>.*)$"
 )
+# Formato do log das aplicacoes: "2026-10-21 15:49:37 | INFO     | Luft-Workspace.App | mensagem".
+_PADRAO_APLICACAO = re.compile(
+    r"^(?P<data>\d{4}-\d\d-\d\d \d\d:\d\d:\d\d)(?:[,.]\d+)? \| (?P<nivel>[A-Za-z]+)\s*\| "
+    r"(?P<origem>.*?)\s*\| (?P<mensagem>.*)$"
+)
 _MAXIMO_LEITURA_BYTES = 2 * 1024 * 1024
+_MAXIMO_MENSAGEM = 12_000
+NOME_LOG_LUFTBASE = "luftbase.log"
+NOME_LOG_APLICACAO = "application.log"
+
+# Marca o handler que captura o logger `luftbase`, para trocar (e nao duplicar) ao recriar a plataforma.
+_MARCA_CAPTURA = "_luftbase_captura_fisica"
+
+_ROTULOS_ORIGEM: tuple[tuple[str, str], ...] = (
+    ("luftbase.integracoes.email", "EMAIL"),
+    ("luftbase.email", "EMAIL"),
+    ("luftbase.autorizacao", "ACESSO"),
+    ("luftbase.identidade", "IDENTIDADE"),
+    ("luftbase.conteudo", "COMUNICADOS"),
+    ("luftbase.observabilidade.alertas", "ALERTAS"),
+    ("luftbase.observabilidade.avaliador", "ALERTAS"),
+    ("luftbase.observabilidade.retencao", "RETENCAO"),
+    ("luftbase.infraestrutura", "INFRAESTRUTURA"),
+    ("luftbase.servidor", "SERVIDOR"),
+    ("luftbase.plataforma", "PLATAFORMA"),
+    ("luftbase.web", "WEB"),
+    ("luftbase.cli", "CLI"),
+)
+
+
+def rotulo_de_origem(nome_logger: str) -> str:
+    """Nome curto da area do LuftBase que escreveu a mensagem (ex.: `EMAIL`, `ACESSO`)."""
+
+    for prefixo, rotulo in _ROTULOS_ORIGEM:
+        if nome_logger == prefixo or nome_logger.startswith(prefixo + "."):
+            return rotulo
+    partes = nome_logger.split(".")
+    return partes[1].upper() if len(partes) > 1 and partes[0] == "luftbase" else "LUFTBASE"
 
 
 @dataclass(frozen=True, slots=True)
 class RegistroLogFisico:
-    """Linha normalizada de um arquivo fisico local."""
+    """Entrada normalizada de um arquivo fisico local (uma mensagem, mesmo que ocupe varias linhas)."""
 
     arquivo: str
     data_hora: str | None
@@ -50,17 +98,62 @@ class RegistroLogFisico:
         }
 
 
+def _contexto_da_requisicao() -> tuple[str | None, str | None]:
+    """(id de correlacao, login) da requisicao em andamento; (None, None) fora dela."""
+
+    try:
+        from flask import g, has_request_context
+        from flask_login import current_user
+
+        if not has_request_context():
+            return None, None
+        correlacao = getattr(g, "luftbase_id_correlacao", None)
+        login = getattr(current_user._get_current_object(), "login", None)
+        return (str(correlacao) if correlacao else None), (str(login) if login else None)
+    except Exception:
+        return None, None
+
+
 class _FiltroContextoAuditoria(logging.Filter):
-    """Garante que atributos de contexto sempre existam para o formatter."""
+    """Garante que os atributos de contexto existam, preenchendo-os da requisicao quando da."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        if not hasattr(record, "correlacao"):
-            record.correlacao = "-"
-        if not hasattr(record, "login"):
-            record.login = "SISTEMA"
+        if not hasattr(record, "correlacao") or not hasattr(record, "login"):
+            correlacao, login = _contexto_da_requisicao()
+            if not hasattr(record, "correlacao"):
+                record.correlacao = correlacao or "-"
+            if not hasattr(record, "login"):
+                record.login = login or "SISTEMA"
         if not hasattr(record, "acao_recurso"):
-            record.acao_recurso = "GERAL"
+            record.acao_recurso = rotulo_de_origem(record.name)
         return True
+
+
+class FormatadorLogFisico(FormatadorDeLog):
+    """Uma linha por mensagem: segredos mascarados e excecoes resumidas (sem mensagem bruta)."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        copia = copy.copy(record)
+        texto = mascarar_texto(record.getMessage(), maximo=_MAXIMO_MENSAGEM)
+        if record.exc_info and record.exc_info[1] is not None:
+            resumo = resumir_excecao(record.exc_info[1])
+            tipos = [str(item).rsplit(".", 1)[-1] for item in _lista(resumo.get("cadeia"))]
+            onde = "; ".join(str(item) for item in _lista(resumo.get("origem") or resumo.get("pilha"))[-3:])
+            texto += f" | erro: {tipos[0] if tipos else 'desconhecido'}"
+            if len(tipos) > 1:
+                texto += f" (causa: {' > '.join(tipos[1:])})"
+            if onde:
+                texto += f" | em: {onde}"
+        copia.msg = texto
+        copia.args = ()
+        copia.exc_info = None
+        copia.exc_text = None
+        copia.stack_info = None
+        return super().format(copia)
+
+
+def _lista(valor: object) -> list[object]:
+    return list(valor) if isinstance(valor, list | tuple) else []
 
 
 class HandlerRotativoResiliente(TimedRotatingFileHandler):
@@ -145,277 +238,95 @@ class HandlerRotativoResiliente(TimedRotatingFileHandler):
         self.rolloverAt = new_rollover_at
 
 
-class LoggerFisicoAuditoria:
-    """Gerencia escrita em disco no arquivo .log rotativo."""
+_NOMES_EVENTOS_TECNICOS = {
+    "erro_500": "Erro interno do servidor",
+    "falha_auditoria_http": "Nao foi possivel gravar a auditoria da requisicao",
+}
 
-    def __init__(
-        self,
-        diretorio_logs: str | Path = "Logs",
-        nome_arquivo: str = "app.log",
-        nivel: int = logging.INFO,
-    ) -> None:
-        self._diretorio = Path(diretorio_logs)
-        self._caminho_arquivo = self._diretorio / nome_arquivo
-        self._logger = logging.getLogger(f"luftbase.fisico.{nome_arquivo}")
-        self._logger.setLevel(nivel)
-        self._logger.propagate = False
 
-        self._configurar_handler()
+def _descrever_tecnico(evento: str, tipo_erro: str | None, dados: object | None) -> str:
+    """Frase legivel para um evento tecnico (o que falhou, onde e por que tipo de erro)."""
 
-    def _configurar_handler(self) -> None:
-        try:
-            self._diretorio.mkdir(parents=True, exist_ok=True)
-            handler = HandlerRotativoResiliente(
-                str(self._caminho_arquivo),
-                when="midnight",
-                interval=1,
-                backupCount=30,
-                encoding="utf-8",
-                delay=True,
-            )
-            formato = (
-                "[%(asctime)s] [%(levelname)s] [%(correlacao)s] [%(login)s] "
-                "[%(acao_recurso)s] - %(message)s"
-            )
-            formatter = FormatadorDeLog(formato, datefmt="%Y-%m-%d %H:%M:%S")
-            handler.setFormatter(formatter)
-            handler.addFilter(_FiltroContextoAuditoria())
+    texto = _NOMES_EVENTOS_TECNICOS.get(evento, evento.replace("_", " ").capitalize())
+    extras: list[str] = []
+    if isinstance(dados, Mapping):
+        rota = dados.get("rota")
+        if rota:
+            texto += f" em {dados.get('metodo') or ''} {rota}".replace("  ", " ")
+        if tipo_erro:
+            texto += f": {tipo_erro}"
+        cadeia = _lista(dados.get("cadeia"))
+        if len(cadeia) > 1:
+            extras.append("causa: " + " > ".join(str(item).rsplit(".", 1)[-1] for item in cadeia[1:]))
+        for chave, rotulo in (("origem", "origem"), ("pilha", "em")):
+            valores = _lista(dados.get(chave))
+            if valores:
+                extras.append(f"{rotulo}: " + "; ".join(str(item) for item in valores[-3:]))
+                break
+        for chave, valor in dados.items():
+            if chave not in {"rota", "metodo", "cadeia", "origem", "pilha"} and isinstance(
+                valor, str | int | float | bool
+            ):
+                extras.append(f"{chave}={valor}")
+    elif tipo_erro:
+        texto += f": {tipo_erro}"
+    return texto + (" | " + " | ".join(extras) if extras else "")
 
-            # Substitui handlers existentes da mesma instancia
-            self._logger.handlers.clear()
-            self._logger.addHandler(handler)
-        except Exception as erro:
-            logging.getLogger("luftbase").error(
-                "Nao foi possivel configurar log fisico em %s: %s",
-                self._caminho_arquivo,
-                erro,
-            )
 
-    def registrar_acesso(self, evento: EventoAcessoHttp) -> None:
-        """Registra acesso HTTP no arquivo de log fisico."""
+def listar_arquivos_log(diretorio: Path, nome_base: str) -> list[dict[str, object]]:
+    """Arquivos de um log (o atual e os rotacionados), do mais recente ao mais antigo.
 
-        try:
-            extra: dict[str, Any] = {
-                "correlacao": evento.id_correlacao or "-",
-                "login": evento.login_usuario or "ANONIMO",
-                "acao_recurso": f"HTTP_{evento.metodo}",
+    So devolve arquivos que comecam com `nome_base` dentro de `diretorio`: nenhum caminho livre.
+    """
+
+    try:
+        arquivos = [c for c in diretorio.glob(f"{nome_base}*") if c.is_file()]
+        arquivos.sort(key=lambda item: item.stat().st_mtime, reverse=True)
+        return [
+            {
+                "nome": arquivo.name,
+                "tamanho_bytes": arquivo.stat().st_size,
+                "modificado_em": de_timestamp(arquivo.stat().st_mtime).isoformat(timespec="seconds"),
+                "atual": arquivo.name == nome_base,
             }
-            msg = (
-                f"{evento.rota} - Status: {evento.status_http} ({evento.duracao_ms}ms) "
-                f"IP: {evento.ip_origem or '-'}"
-            )
-            self._logger.info(msg, extra=extra)
-        except Exception:
-            pass
+            for arquivo in arquivos
+        ]
+    except OSError:
+        return []
 
-    def registrar_evento(self, evento: EventoDominio) -> None:
-        """Registra evento de dominio no arquivo de log fisico."""
 
-        try:
-            extra: dict[str, Any] = {
-                "correlacao": evento.id_correlacao or "-",
-                "login": evento.login_usuario or "SISTEMA",
-                "acao_recurso": f"{evento.acao}/{evento.recurso}",
-            }
-            contexto = serializar_dados_seguro(
-                {
-                    "descricao": evento.descricao,
-                    "recurso_id": evento.id_recurso,
-                    "severidade": evento.severidade.value,
-                    "dados_anteriores": evento.dados_anteriores,
-                    "dados_novos": evento.dados_novos,
-                    "tipo_erro": "registrado" if evento.traceback else None,
-                }
-            )
-            msg = contexto
-            severidade = evento.severidade.value.upper()
-            if severidade in {"ALTA", "CRITICA"}:
-                self._logger.error(msg, extra=extra)
-            else:
-                self._logger.info(msg, extra=extra)
-        except Exception:
-            pass
+def ler_log(
+    diretorio: Path,
+    nome_base: str,
+    *,
+    arquivo: str | None = None,
+    limite: int = 200,
+    nivel: str | None = None,
+    termo: str | None = None,
+) -> list[RegistroLogFisico]:
+    """Le o final de um arquivo conhecido (mais novos primeiro), com limites de linhas e bytes."""
 
-    def info(
-        self,
-        mensagem: str,
-        *,
-        correlacao: str | None = None,
-        login: str | None = None,
-        acao: str | None = None,
-        recurso: str | None = None,
-    ) -> None:
-        """Registra mensagem informativa."""
-
-        try:
-            extra: dict[str, Any] = {
-                "correlacao": correlacao or "-",
-                "login": login or "SISTEMA",
-                "acao_recurso": f"{acao or 'INFO'}/{recurso or 'SISTEMA'}",
-            }
-            self._logger.info(mensagem, extra=extra)
-        except Exception:
-            pass
-
-    def aviso(
-        self,
-        mensagem: str,
-        *,
-        correlacao: str | None = None,
-        login: str | None = None,
-        acao: str | None = None,
-        recurso: str | None = None,
-    ) -> None:
-        """Registra mensagem de aviso."""
-
-        try:
-            extra: dict[str, Any] = {
-                "correlacao": correlacao or "-",
-                "login": login or "SISTEMA",
-                "acao_recurso": f"{acao or 'AVISO'}/{recurso or 'SISTEMA'}",
-            }
-            self._logger.warning(mensagem, extra=extra)
-        except Exception:
-            pass
-
-    def erro(
-        self,
-        mensagem: str,
-        erro: BaseException | None = None,
-        *,
-        correlacao: str | None = None,
-        login: str | None = None,
-        acao: str | None = None,
-        recurso: str | None = None,
-    ) -> None:
-        """Registra mensagem de erro."""
-
-        try:
-            extra: dict[str, Any] = {
-                "correlacao": correlacao or "-",
-                "login": login or "SISTEMA",
-                "acao_recurso": f"{acao or 'ERRO'}/{recurso or 'SISTEMA'}",
-            }
-            msg = f"{mensagem} | Erro: {type(erro).__name__}: {erro}" if erro else mensagem
-            self._logger.error(msg, extra=extra)
-        except Exception:
-            pass
-
-    def debug(
-        self,
-        mensagem: str,
-        *,
-        correlacao: str | None = None,
-        login: str | None = None,
-        acao: str | None = None,
-        recurso: str | None = None,
-    ) -> None:
-        """Registra mensagem de debug."""
-
-        try:
-            extra: dict[str, Any] = {
-                "correlacao": correlacao or "-",
-                "login": login or "SISTEMA",
-                "acao_recurso": f"{acao or 'DEBUG'}/{recurso or 'SISTEMA'}",
-            }
-            self._logger.debug(mensagem, extra=extra)
-        except Exception:
-            pass
-
-    def registrar_tecnico(
-        self,
-        nivel: str,
-        evento: str,
-        *,
-        id_correlacao: str | None = None,
-        dados: object | None = None,
-        tipo_erro: str | None = None,
-    ) -> None:
-        """Registra diagnostico tecnico amplo, mas sempre sanitizado."""
-
-        extra: dict[str, Any] = {
-            "correlacao": id_correlacao or "-",
-            "login": "SISTEMA",
-            "acao_recurso": "TECNICO/SISTEMA",
-        }
-        mensagem = serializar_dados_seguro(
-            {"evento": evento, "tipo_erro": tipo_erro, "dados": dados}
-        )
-        try:
-            metodo = getattr(self._logger, nivel.lower(), self._logger.info)
-            metodo(mensagem, extra=extra)
-        except Exception:
-            pass
-
-    def listar_arquivos(self) -> list[dict[str, object]]:
-        """Lista somente arquivos pertencentes a este logger, sem aceitar caminhos livres."""
-
-        try:
-            arquivos = [
-                caminho
-                for caminho in self._diretorio.glob(f"{self._caminho_arquivo.name}*")
-                if caminho.is_file()
-            ]
-            arquivos.sort(key=lambda item: item.stat().st_mtime, reverse=True)
-            return [
-                {
-                    "nome": arquivo.name,
-                    "tamanho_bytes": arquivo.stat().st_size,
-                    "modificado_em": de_timestamp(arquivo.stat().st_mtime).isoformat(
-                        timespec="seconds"
-                    ),
-                    "atual": arquivo == self._caminho_arquivo,
-                }
-                for arquivo in arquivos
-            ]
-        except OSError:
-            return []
-
-    def ler_recentes(
-        self,
-        *,
-        arquivo: str | None = None,
-        limite: int = 200,
-        nivel: str | None = None,
-        termo: str | None = None,
-    ) -> list[RegistroLogFisico]:
-        """Le o final de um arquivo conhecido com limites de linhas e bytes."""
-
-        arquivos = {item["nome"] for item in self.listar_arquivos()}
-        nome = arquivo or self._caminho_arquivo.name
-        if nome not in arquivos or Path(nome).name != nome:
-            return []
-        caminho = self._diretorio / nome
-        linhas = _ler_final_arquivo(caminho, max(min(limite, 500), 1) * 5)
-        registros = [_interpretar_linha(nome, linha) for linha in reversed(linhas)]
-        if nivel:
-            nivel_normalizado = nivel.strip().upper()
-            registros = [item for item in registros if item.nivel == nivel_normalizado]
-        if termo:
-            termo_normalizado = termo.strip().casefold()
-            registros = [
-                item
-                for item in registros
-                if termo_normalizado
-                in " ".join(
-                    filter(
-                        None,
-                        (
-                            item.mensagem,
-                            item.login_usuario,
-                            item.acao,
-                            item.id_correlacao,
-                        ),
-                    )
-                ).casefold()
-            ]
-        return registros[: max(min(limite, 500), 1)]
-
-    @property
-    def caminho_arquivo(self) -> Path:
-        """Devolve o caminho do arquivo de log em disco."""
-
-        return self._caminho_arquivo
+    conhecidos = {str(item["nome"]) for item in listar_arquivos_log(diretorio, nome_base)}
+    nome = arquivo or nome_base
+    if nome not in conhecidos or Path(nome).name != nome:
+        return []
+    limite = max(min(limite, 500), 1)
+    linhas = _ler_final_arquivo(diretorio / nome, limite * 5)
+    registros = list(reversed(_agrupar(nome, linhas)))
+    if nivel:
+        nivel_normalizado = nivel.strip().upper()
+        registros = [item for item in registros if item.nivel.upper() == nivel_normalizado]
+    if termo:
+        termo_normalizado = termo.strip().casefold()
+        registros = [
+            item
+            for item in registros
+            if termo_normalizado
+            in " ".join(
+                filter(None, (item.mensagem, item.login_usuario, item.acao, item.id_correlacao))
+            ).casefold()
+        ]
+    return registros[:limite]
 
 
 def _ler_final_arquivo(caminho: Path, maximo_linhas: int) -> list[str]:
@@ -434,25 +345,279 @@ def _ler_final_arquivo(caminho: Path, maximo_linhas: int) -> list[str]:
         return []
 
 
-def _interpretar_linha(nome_arquivo: str, linha: str) -> RegistroLogFisico:
-    correspondencia = _PADRAO_LINHA.match(linha)
-    if correspondencia is None:
+def _interpretar_linha(nome_arquivo: str, linha: str) -> RegistroLogFisico | None:
+    """Reconhece uma linha de cabecalho em um dos dois formatos; None se for continuacao."""
+
+    correspondencia = _PADRAO_LUFTBASE.match(linha)
+    if correspondencia is not None:
+        grupos = correspondencia.groupdict()
         return RegistroLogFisico(
             arquivo=nome_arquivo,
-            data_hora=None,
-            nivel="RAW",
+            data_hora=grupos["data"],
+            nivel=grupos["nivel"],
+            id_correlacao=None if grupos["correlacao"] == "-" else grupos["correlacao"],
+            login_usuario=None if grupos["login"] == "-" else grupos["login"],
+            acao=None if grupos["acao"] == "-" else grupos["acao"],
+            mensagem=grupos["mensagem"][:_MAXIMO_MENSAGEM],
+        )
+    correspondencia = _PADRAO_APLICACAO.match(linha)
+    if correspondencia is not None:
+        grupos = correspondencia.groupdict()
+        return RegistroLogFisico(
+            arquivo=nome_arquivo,
+            data_hora=grupos["data"],
+            nivel=grupos["nivel"].upper(),
             id_correlacao=None,
             login_usuario=None,
-            acao=None,
-            mensagem=linha[:12_000],
+            acao=grupos["origem"] or None,
+            mensagem=grupos["mensagem"][:_MAXIMO_MENSAGEM],
         )
-    grupos = correspondencia.groupdict()
-    return RegistroLogFisico(
-        arquivo=nome_arquivo,
-        data_hora=grupos["data"],
-        nivel=grupos["nivel"],
-        id_correlacao=None if grupos["correlacao"] == "-" else grupos["correlacao"],
-        login_usuario=None if grupos["login"] == "-" else grupos["login"],
-        acao=None if grupos["acao"] == "-" else grupos["acao"],
-        mensagem=grupos["mensagem"][:12_000],
-    )
+    return None
+
+
+def _agrupar(nome_arquivo: str, linhas: list[str]) -> list[RegistroLogFisico]:
+    """Junta as linhas de continuacao (pilhas de erro) na mensagem anterior, em ordem cronologica."""
+
+    registros: list[RegistroLogFisico] = []
+    for linha in linhas:
+        if not linha.strip():
+            continue
+        novo = _interpretar_linha(nome_arquivo, linha)
+        if novo is not None:
+            registros.append(novo)
+        elif registros:
+            anterior = registros[-1]
+            registros[-1] = RegistroLogFisico(
+                arquivo=anterior.arquivo,
+                data_hora=anterior.data_hora,
+                nivel=anterior.nivel,
+                id_correlacao=anterior.id_correlacao,
+                login_usuario=anterior.login_usuario,
+                acao=anterior.acao,
+                mensagem=f"{anterior.mensagem}\n{linha}"[:_MAXIMO_MENSAGEM],
+            )
+        else:
+            registros.append(
+                RegistroLogFisico(nome_arquivo, None, "RAW", None, None, None, linha[:_MAXIMO_MENSAGEM])
+            )
+    return registros
+
+
+class LoggerFisicoAuditoria:
+    """Gerencia a escrita em disco do log rotativo da plataforma."""
+
+    def __init__(
+        self,
+        diretorio_logs: str | Path = "Logs",
+        nome_arquivo: str = "app.log",
+        nivel: int = logging.INFO,
+    ) -> None:
+        self._diretorio = Path(diretorio_logs)
+        self._caminho_arquivo = self._diretorio / nome_arquivo
+        self._logger = logging.getLogger(f"luftbase.fisico.{nome_arquivo}")
+        self._logger.setLevel(nivel)
+        self._logger.propagate = False
+        self._handler: logging.Handler | None = None
+
+        self._configurar_handler()
+
+    def _configurar_handler(self) -> None:
+        try:
+            self._diretorio.mkdir(parents=True, exist_ok=True)
+            handler = HandlerRotativoResiliente(
+                str(self._caminho_arquivo),
+                when="midnight",
+                interval=1,
+                backupCount=30,
+                encoding="utf-8",
+                delay=True,
+            )
+            formato = (
+                "[%(asctime)s] [%(levelname)s] [%(correlacao)s] [%(login)s] "
+                "[%(acao_recurso)s] - %(message)s"
+            )
+            handler.setFormatter(FormatadorLogFisico(formato, datefmt="%Y-%m-%d %H:%M:%S"))
+            handler.addFilter(_FiltroContextoAuditoria())
+
+            # Substitui handlers existentes da mesma instancia
+            self._logger.handlers.clear()
+            self._logger.addHandler(handler)
+            self._handler = handler
+        except Exception as erro:
+            logging.getLogger("luftbase").error(
+                "Nao foi possivel configurar log fisico em %s: %s",
+                self._caminho_arquivo,
+                erro,
+            )
+
+    def capturar_plataforma(self, nome_logger: str = "luftbase", nivel: int = logging.INFO) -> None:
+        """Faz tudo que os modulos do LuftBase registram com `logging` cair neste arquivo.
+
+        Repetir a chamada (ex.: ao recriar a plataforma no mesmo processo) troca o handler anterior em
+        vez de duplicar as linhas.
+        """
+
+        if self._handler is None:
+            return
+        alvo = logging.getLogger(nome_logger)
+        for existente in list(alvo.handlers):
+            if getattr(existente, _MARCA_CAPTURA, False):
+                alvo.removeHandler(existente)
+        setattr(self._handler, _MARCA_CAPTURA, True)
+        alvo.addHandler(self._handler)
+        if alvo.level == logging.NOTSET or alvo.level > nivel:
+            alvo.setLevel(nivel)
+
+    def registrar_evento(self, evento: EventoDominio) -> None:
+        """Registra um evento de dominio como uma frase (a descricao que o servico informou)."""
+
+        try:
+            extra: dict[str, Any] = {
+                "correlacao": evento.id_correlacao or "-",
+                "login": evento.login_usuario or "SISTEMA",
+                "acao_recurso": f"{evento.acao}/{evento.recurso}",
+            }
+            mensagem = evento.descricao
+            if evento.id_recurso and str(evento.id_recurso) not in mensagem:
+                mensagem += f" (id {evento.id_recurso})"
+            if evento.traceback:
+                # So o tipo da excecao (ultima linha da pilha, antes dos dois pontos): a mensagem pode ter dados.
+                ultima = [linha for linha in evento.traceback.splitlines() if linha.strip()][-1]
+                mensagem += f" | erro: {ultima.split(':', 1)[0].rsplit('.', 1)[-1]}"
+            if evento.severidade.value.upper() in {"ALTA", "CRITICA"}:
+                self._logger.error(mensagem, extra=extra)
+            else:
+                self._logger.info(mensagem, extra=extra)
+        except Exception:
+            pass
+
+    def info(
+        self,
+        mensagem: str,
+        *,
+        correlacao: str | None = None,
+        login: str | None = None,
+        acao: str | None = None,
+        recurso: str | None = None,
+    ) -> None:
+        """Registra mensagem informativa."""
+
+        self._escrever(logging.INFO, mensagem, correlacao, login, acao or "INFO", recurso)
+
+    def aviso(
+        self,
+        mensagem: str,
+        *,
+        correlacao: str | None = None,
+        login: str | None = None,
+        acao: str | None = None,
+        recurso: str | None = None,
+    ) -> None:
+        """Registra mensagem de aviso."""
+
+        self._escrever(logging.WARNING, mensagem, correlacao, login, acao or "AVISO", recurso)
+
+    def erro(
+        self,
+        mensagem: str,
+        erro: BaseException | None = None,
+        *,
+        correlacao: str | None = None,
+        login: str | None = None,
+        acao: str | None = None,
+        recurso: str | None = None,
+    ) -> None:
+        """Registra mensagem de erro (da excecao, somente o tipo: a mensagem bruta pode ter dados)."""
+
+        texto = f"{mensagem} | erro: {type(erro).__name__}" if erro else mensagem
+        self._escrever(logging.ERROR, texto, correlacao, login, acao or "ERRO", recurso)
+
+    def debug(
+        self,
+        mensagem: str,
+        *,
+        correlacao: str | None = None,
+        login: str | None = None,
+        acao: str | None = None,
+        recurso: str | None = None,
+    ) -> None:
+        """Registra mensagem de debug."""
+
+        self._escrever(logging.DEBUG, mensagem, correlacao, login, acao or "DEBUG", recurso)
+
+    def registrar_tecnico(
+        self,
+        nivel: str,
+        evento: str,
+        *,
+        id_correlacao: str | None = None,
+        dados: object | None = None,
+        tipo_erro: str | None = None,
+    ) -> None:
+        """Registra diagnostico tecnico como frase legivel, sempre sem valores sensiveis."""
+
+        extra: dict[str, Any] = {
+            "correlacao": id_correlacao or "-",
+            "login": "SISTEMA",
+            "acao_recurso": "TECNICO/SISTEMA",
+        }
+        try:
+            metodo = getattr(self._logger, nivel.lower(), self._logger.info)
+            metodo(_descrever_tecnico(evento, tipo_erro, dados), extra=extra)
+        except Exception:
+            pass
+
+    def _escrever(
+        self,
+        nivel: int,
+        mensagem: str,
+        correlacao: str | None,
+        login: str | None,
+        acao: str,
+        recurso: str | None,
+    ) -> None:
+        try:
+            extra: dict[str, Any] = {
+                "correlacao": correlacao or "-",
+                "login": login or "SISTEMA",
+                "acao_recurso": f"{acao}/{recurso or 'SISTEMA'}",
+            }
+            self._logger.log(nivel, mensagem, extra=extra)
+        except Exception:
+            pass
+
+    def listar_arquivos(self) -> list[dict[str, object]]:
+        """Lista somente arquivos pertencentes a este logger, sem aceitar caminhos livres."""
+
+        return listar_arquivos_log(self._diretorio, self._caminho_arquivo.name)
+
+    def ler_recentes(
+        self,
+        *,
+        arquivo: str | None = None,
+        limite: int = 200,
+        nivel: str | None = None,
+        termo: str | None = None,
+    ) -> list[RegistroLogFisico]:
+        """Le o final de um arquivo conhecido com limites de linhas e bytes."""
+
+        return ler_log(
+            self._diretorio,
+            self._caminho_arquivo.name,
+            arquivo=arquivo,
+            limite=limite,
+            nivel=nivel,
+            termo=termo,
+        )
+
+    @property
+    def diretorio(self) -> Path:
+        """Pasta onde ficam os logs fisicos."""
+
+        return self._diretorio
+
+    @property
+    def caminho_arquivo(self) -> Path:
+        """Devolve o caminho do arquivo de log em disco."""
+
+        return self._caminho_arquivo

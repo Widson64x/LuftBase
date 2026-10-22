@@ -539,3 +539,52 @@ def test_rota_so_mostra_o_lembrete_quando_nao_ha_outro_aviso() -> None:
     codigo = Path(seguranca.__file__).read_text(encoding="utf-8")
     assert "_lembrete_acesso_base(antes_acesso)" in codigo
     assert 'acao == "Permitir" and not permissao_de_acesso and not aviso' in codigo
+
+
+# ---------------------------------------------------------------- log do que foi feito (luftbase.log)
+
+
+def _mensagens_info(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.name == "luftbase.autorizacao.aviso_acesso"]
+
+
+def test_log_do_aviso_diz_o_grupo_quantas_pessoas_e_quem_ganhou_acesso(
+    ambiente: Bancos, caplog: pytest.LogCaptureFixture
+) -> None:
+    from luftbase.persistencia.diretorio import GrupoDiretorio
+
+    with ambiente.diretorio.unidade_trabalho() as s:
+        s.add(GrupoDiretorio(id_grupo=7, sigla="TI", descricao="GRUPO TI"))
+    antes = capturar_acesso(ambiente, tipo="Grupo", id_alvo=7, id_sistema=3)  # type: ignore[arg-type]
+
+    _regra_grupo(ambiente, 7, 10)
+    with caplog.at_level("INFO", logger="luftbase.autorizacao.aviso_acesso"):
+        _avisar(ambiente, EmailFalso(), antes)
+
+    (mensagem,) = _mensagens_info(caplog)
+    assert "Acesso liberado ao sistema 'Luft-Workspace' para o grupo \"GRUPO TI\" (3 pessoa(s))" in mensagem
+    assert "3 pessoa(s) ganharam acesso (ana, bia, caio)" in mensagem
+    assert "3 notificacao(oes), 2 e-mail(s) enviado(s)" in mensagem
+    assert "1 sem e-mail cadastrado" in mensagem  # o Caio
+
+
+def test_log_do_aviso_para_um_usuario_e_quando_ninguem_ganhou_acesso(
+    ambiente: Bancos, caplog: pytest.LogCaptureFixture
+) -> None:
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+
+    # So outra permissao: ninguem ganha o acesso base, e o log explica isso em vez de ficar em silencio
+    _regra_usuario(ambiente, 1, 11)
+    with caplog.at_level("INFO", logger="luftbase.autorizacao.aviso_acesso"):
+        _avisar(ambiente, EmailFalso(), antes)
+
+    (mensagem,) = _mensagens_info(caplog)
+    assert "para o usuario ana: ninguem ganhou acesso novo" in mensagem
+
+    caplog.clear()
+    _regra_usuario(ambiente, 1, 10)
+    antes2 = capturar_acesso(ambiente, tipo="Usuario", id_alvo=2, id_sistema=3)  # type: ignore[arg-type]
+    _regra_usuario(ambiente, 2, 10)
+    with caplog.at_level("INFO", logger="luftbase.autorizacao.aviso_acesso"):
+        _avisar(ambiente, EmailFalso(), antes2)
+    assert "para o usuario bia: 1 pessoa(s) ganharam acesso (bia)" in _mensagens_info(caplog)[0]

@@ -31,7 +31,7 @@ from luftbase.persistencia.core.seguranca import (
     Sistema,
 )
 from luftbase.persistencia.core.usuario import Usuario
-from luftbase.persistencia.diretorio import UsuarioDiretorio
+from luftbase.persistencia.diretorio import GrupoDiretorio, UsuarioDiretorio
 
 if TYPE_CHECKING:
     from luftbase.infraestrutura.banco.catalogo import CatalogoBancos
@@ -65,6 +65,7 @@ class CapturaAcesso:
     id_sistema: int
     pessoas: tuple[Pessoa, ...] = ()
     tem_acesso: dict[int, bool] = field(default_factory=dict)
+    alvo: str = ""  # texto para o log: 'o grupo "X" (12 pessoas)' ou 'o usuario fulano'
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +113,25 @@ class ResultadoAviso:
         if self.ignoradas:
             partes.append(f"{self.ignoradas} pessoa(s) acima do limite não foram avisadas.")
         return " ".join(partes)
+
+
+def _descrever_alvo(
+    bancos: CatalogoBancos, tipo: str, id_alvo: int, pessoas: tuple[Pessoa, ...]
+) -> str:
+    """Texto curto para o log: o usuario (login) ou o grupo (nome e quantas pessoas tem). Nunca levanta."""
+
+    if tipo == "Usuario":
+        login = pessoas[0].login if pessoas else ""
+        return f"o usuario {login or '#' + str(id_alvo)}"
+    nome = ""
+    try:
+        with bancos.diretorio.leitura() as sessao:
+            grupo = sessao.get(GrupoDiretorio, id_alvo)
+            if grupo is not None:
+                nome = (grupo.descricao or grupo.sigla or "").strip()
+    except Exception:
+        nome = ""
+    return f'o grupo "{nome or "#" + str(id_alvo)}" ({len(pessoas)} pessoa(s))'
 
 
 def _pessoas_do_alvo(bancos: CatalogoBancos, tipo: str, id_alvo: int) -> tuple[Pessoa, ...]:
@@ -279,7 +299,12 @@ def capturar_acesso(
 
     try:
         pessoas = _pessoas_do_alvo(bancos, tipo, id_alvo)
-        return CapturaAcesso(id_sistema, pessoas, _acesso_base(bancos, pessoas, id_sistema))
+        return CapturaAcesso(
+            id_sistema,
+            pessoas,
+            _acesso_base(bancos, pessoas, id_sistema),
+            _descrever_alvo(bancos, tipo, id_alvo, pessoas),
+        )
     except Exception:
         logger.exception("Aviso de acesso: falha ao capturar o acesso anterior")
         return CapturaAcesso(id_sistema)
@@ -334,6 +359,11 @@ def _avisar(
     garantir_usuario: Callable[[int], bool],
 ) -> ResultadoAviso:
     if not antes.pessoas:
+        logger.info(
+            "Acesso ao sistema #%s concedido para %s: nao ha pessoas para avisar.",
+            antes.id_sistema,
+            antes.alvo or "o alvo da regra",
+        )
         return ResultadoAviso()
     depois = _acesso_base(bancos, antes.pessoas, antes.id_sistema)
     novos = [
@@ -342,6 +372,11 @@ def _avisar(
         if depois.get(p.id_usuario) and not antes.tem_acesso.get(p.id_usuario)
     ]
     if not novos:
+        logger.info(
+            "Regra de acesso ao sistema #%s gravada para %s: ninguem ganhou acesso novo (nada a avisar).",
+            antes.id_sistema,
+            antes.alvo or f"{len(antes.pessoas)} pessoa(s)",
+        )
         return ResultadoAviso()
 
     ignoradas = max(len(novos) - LIMITE_AVISOS_POR_OPERACAO, 0)
@@ -440,6 +475,20 @@ def _avisar(
                 falhas += 1
                 logger.warning("Aviso de acesso: e-mail nao entregue (%s)", resultado.erro)
 
+    logger.info(
+        "Acesso liberado ao sistema '%s' para %s: %s pessoa(s) ganharam acesso (%s) -> %s notificacao(oes), "
+        "%s e-mail(s) enviado(s)%s%s%s%s.",
+        nome_sistema,
+        antes.alvo or "o alvo da regra",
+        len(novos),
+        _listar_logins(novos),
+        notificacoes,
+        enviados,
+        f", {sem_email} sem e-mail cadastrado" if sem_email else "",
+        ", e-mail nao configurado neste ambiente" if not email.configurado else "",
+        " (modo teste: e-mails desviados para os destinatarios de teste)" if email.modo_teste and enviados else "",
+        f", {falhas} falha(s)" if falhas else "",
+    )
     return ResultadoAviso(
         com_acesso_novo=len(novos),
         notificacoes=notificacoes,
@@ -450,6 +499,14 @@ def _avisar(
         email_nao_configurado=not email.configurado,
         modo_teste=bool(email.modo_teste),
     )
+
+
+def _listar_logins(pessoas: list[Pessoa], limite: int = 8) -> str:
+    """Logins das primeiras pessoas, para o log (o resto vira '+N')."""
+
+    logins = [p.login or f"#{p.id_usuario}" for p in pessoas[:limite]]
+    resto = len(pessoas) - limite
+    return ", ".join(logins) + (f" +{resto}" if resto > 0 else "")
 
 
 __all__ = [

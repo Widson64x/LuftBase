@@ -84,23 +84,16 @@ def test_evento_de_dominio_exige_sistema_valido() -> None:
         servico.registrar_evento(EventoDominio("CRIAR", "ITEM", "Criou item"))
 
 
-def test_servico_auditoria_quatro_camadas_grava_em_todas(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_servico_auditoria_grava_no_banco_e_conta_o_que_aconteceu_no_log(tmp_path) -> None:  # type: ignore[no-untyped-def]
     from luftbase.observabilidade.arquivo_fisico import LoggerFisicoAuditoria
-    from luftbase.observabilidade.buffer_temp import BufferLogsTemporarios
 
     banco = BancoFalso()
     repositorio = RepositorioAuditoria(banco)  # type: ignore[arg-type]
     logger_fisico = LoggerFisicoAuditoria(diretorio_logs=tmp_path, nome_arquivo="teste.log")
-    buffer_temp = BufferLogsTemporarios(capacidade_maxima=50)
 
-    servico = ServicoAuditoria(
-        1,
-        repositorio,
-        logger_fisico=logger_fisico,
-        buffer_temp=buffer_temp,
-    )
+    servico = ServicoAuditoria(1, repositorio, logger_fisico=logger_fisico)
 
-    # 1. Teste de Acesso
+    # 1. Acesso HTTP: vai so para o banco (a tela "Rotas HTTP"); o log fisico nao e um registro de rotas
     id_acesso = servico.registrar_acesso(
         EventoAcessoHttp(
             rota="/home",
@@ -118,7 +111,7 @@ def test_servico_auditoria_quatro_camadas_grava_em_todas(tmp_path) -> None:  # t
     )
     assert id_acesso == 99
 
-    # 2. Teste de Evento
+    # 2. Evento de dominio: banco + uma frase no log fisico, com usuario e correlacao
     id_evento = servico.registrar_evento(
         EventoDominio(
             acao="EDITAR",
@@ -134,31 +127,23 @@ def test_servico_auditoria_quatro_camadas_grava_em_todas(tmp_path) -> None:  # t
     )
     assert id_evento == 99
 
-    # 3. Validar Buffer Temporario (Logs Temp)
-    logs_temp = servico.obter_logs_temporarios()
-    assert len(logs_temp) == 2
-    assert logs_temp[0].acao == "EDITAR"
-    assert logs_temp[0].login_usuario == "widson.araujo"
-    assert logs_temp[0].codigo_grupo == 6
-    assert logs_temp[0].nome_grupo == "DBA"
-    assert logs_temp[1].acao == "HTTP_GET"
-    assert servico.obter_logs_temporarios(codigo_usuario=2280) == logs_temp
-    assert servico.obter_logs_temporarios(codigo_grupo=6) == logs_temp
-    assert servico.obter_logs_temporarios(codigo_grupo=99) == []
-
-    # 4. Validar Arquivo Fisico (.log)
     arquivo_log = tmp_path / "teste.log"
     assert arquivo_log.exists()
     conteudo_log = arquivo_log.read_text(encoding="utf-8")
-    assert "/home" in conteudo_log
-    assert "widson.araujo" in conteudo_log
-    assert "Alterou permissao do usuario" in conteudo_log
+    assert "/home" not in conteudo_log
+    linha = conteudo_log.splitlines()[0]
+    assert "[corr-abc] [widson.araujo] [EDITAR/USUARIO] - Alterou permissao do usuario" in linha
 
-    # 5. Métodos de conveniência
+    # 3. Metodos de conveniencia: sem salvar_banco a linha so vai ao arquivo; com ele, sai pelo evento (uma vez so)
     servico.info("Mensagem info de teste", login_usuario="widson.araujo")
     servico.aviso("Mensagem aviso de teste")
-    servico.erro("Mensagem de erro de teste", ValueError("falha simulada"))
-    assert servico.buffer_temp.contagem() == 6  # type: ignore[union-attr]
+    servico.erro("Mensagem de erro de teste", ValueError("falha com senha=segredo"))
+    conteudo_log = arquivo_log.read_text(encoding="utf-8")
+    assert conteudo_log.count("Mensagem info de teste") == 1
+    assert conteudo_log.count("Mensagem aviso de teste") == 1
+    assert conteudo_log.count("Mensagem de erro de teste | erro: ValueError") == 1
+    assert "falha com senha" not in conteudo_log  # a mensagem bruta da excecao nunca vai para o arquivo
+    assert len(servico.obter_logs_fisicos(limite=10)) == 4
 
 
 def test_handler_rotativo_resiliente_tolera_bloqueio_windows(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -203,23 +188,6 @@ def test_handler_rotativo_resiliente_tolera_bloqueio_windows(tmp_path, monkeypat
     logger.info("Linha posterior ao rollover")
     assert "Linha posterior ao rollover" in arquivo.read_text(encoding="utf-8")
     handler.close()
-
-
-def test_raiz_temporaria_grava_arquivo_sanitizado_por_processo(tmp_path) -> None:  # type: ignore[no-untyped-def]
-    from luftbase.observabilidade.buffer_temp import BufferLogsTemporarios
-
-    buffer = BufferLogsTemporarios(capacidade_maxima=50, diretorio_arquivos=tmp_path)
-    buffer.adicionar(
-        "INFO",
-        "Alteracao recebida",
-        detalhes={"senha": "segredo-que-nao-pode-vazar", "campo": "status"},
-    )
-
-    assert buffer.caminho_arquivo is not None
-    assert buffer.caminho_arquivo.exists()
-    conteudo = buffer.caminho_arquivo.read_text(encoding="utf-8")
-    assert "segredo-que-nao-pode-vazar" not in conteudo
-    assert "[REDACTED]" in conteudo
 
 
 def test_leitura_de_log_fisico_e_limitada_a_arquivos_conhecidos(tmp_path) -> None:  # type: ignore[no-untyped-def]

@@ -630,6 +630,12 @@ def _enviar(
                 contexto={"itens": itens, "gerado_em": f"{agora:%d/%m/%Y %H:%M:%S}"},
             )
         if getattr(resultado, "sucesso", False):
+            logger.info(
+                "Alerta tecnico enviado por e-mail para %s destinatario(s): %s alerta(s) no e-mail ('%s').",
+                len(destinatarios),
+                len(itens),
+                assunto,
+            )
             return True
         erros.append(f"E-mail de alerta nao entregue: {getattr(resultado, 'erro', None)}")
     except Exception as erro:

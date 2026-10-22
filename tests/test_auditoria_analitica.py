@@ -212,14 +212,16 @@ def test_fontes_estruturadas_e_brutas_possuem_autorizacoes_distintas(monkeypatch
     estado.autorizacao.possui = lambda *_: True
     assert cliente.get("/configuracoes/api/auditoria/detalhes").status_code == 200
     assert cliente.get("/configuracoes/api/auditoria/alteracoes").status_code == 200
-    assert cliente.get("/configuracoes/api/auditoria/temporarios").status_code == 200
     assert cliente.get("/configuracoes/api/auditoria/fisicos").status_code == 200
+    assert cliente.get("/configuracoes/api/auditoria/fisicos?fonte=aplicacao").status_code == 200
+    assert cliente.get("/configuracoes/api/auditoria/fisicos?fonte=inexistente").status_code == 400
+    # A raiz temporaria deixou de existir: a rota some, nao responde com dados.
+    assert cliente.get("/configuracoes/api/auditoria/temporarios").status_code == 404
 
     estado.autorizacao.possui = lambda _usuario, chave, *_: (
         chave == PermissaoLuftBase.AUDITORIA_VISUALIZAR
     )
     assert cliente.get("/configuracoes/api/auditoria/detalhes").status_code == 200
-    assert cliente.get("/configuracoes/api/auditoria/temporarios").status_code == 403
     assert cliente.get("/configuracoes/api/auditoria/fisicos").status_code == 403
 
 

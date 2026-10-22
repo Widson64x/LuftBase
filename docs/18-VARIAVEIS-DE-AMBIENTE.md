@@ -58,7 +58,7 @@ chegar ao Vault e para identificar o sistema.
 | `LUFT_PROXY_CONFIAVEL` | `127.0.0.1` | IP do nginx autorizado a informar o IP real; `desligado` desativa. |
 | `LUFT_FUSO_HORARIO` | `America/Sao_Paulo` | Fuso unico do processo, dos logs e das conexoes PostgreSQL. |
 | `LUFT_URL_WORKSPACE` | `/` | Para onde a "casinha" do caminho de navegacao leva. |
-| `LUFT_LOG_DIR` | `Logs` | Pasta dos logs fisicos (`luftbase.log`, `temp/`). |
+| `LUFT_LOG_DIR` | `Logs` | Pasta dos logs fisicos (`luftbase.log`, escrito pelo LuftBase, e `application.log`, escrito pela aplicacao). |
 
 ## Bancos de negocio
 

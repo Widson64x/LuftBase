@@ -1,21 +1,29 @@
-"""Casos de uso que integram a trilha estruturada e o diagnostico local.
+"""Casos de uso que integram a trilha estruturada e os logs fisicos.
 
-tb_logacesso > tb_logdetalhe > tb_logs, alem de arquivo fisico e raiz temporaria.
+tb_logacesso > tb_logdetalhe > tb_logs, alem dos arquivos de log (o da plataforma e o da aplicacao).
 """
 
 from __future__ import annotations
 
 import traceback
+from pathlib import Path
 from typing import Protocol
 
 from luftbase.nucleo.excecoes import ErroAuditoria
-from luftbase.observabilidade.arquivo_fisico import LoggerFisicoAuditoria
-from luftbase.observabilidade.buffer_temp import BufferLogsTemporarios, RegistroLogTemp
+from luftbase.observabilidade.arquivo_fisico import (
+    NOME_LOG_APLICACAO,
+    LoggerFisicoAuditoria,
+    ler_log,
+    listar_arquivos_log,
+)
 from luftbase.observabilidade.modelos import (
     EventoAcessoHttp,
     EventoDominio,
     SeveridadeAuditoria,
 )
+
+# Fontes de log fisico que o painel sabe mostrar: id -> rotulo.
+FONTES_LOGS_FISICOS: dict[str, str] = {"luftbase": "LuftBase", "aplicacao": "Aplicação"}
 
 
 class PersistenciaAuditoria(Protocol):
@@ -29,7 +37,7 @@ class PersistenciaAuditoria(Protocol):
 
 
 class ServicoAuditoria:
-    """Orquestra as tabelas encadeadas e as duas fontes locais de diagnostico."""
+    """Orquestra as tabelas encadeadas e os logs fisicos locais."""
 
     def __init__(
         self,
@@ -37,12 +45,12 @@ class ServicoAuditoria:
         repositorio: PersistenciaAuditoria,
         *,
         logger_fisico: LoggerFisicoAuditoria | None = None,
-        buffer_temp: BufferLogsTemporarios | None = None,
+        arquivo_log_aplicacao: str = NOME_LOG_APLICACAO,
     ) -> None:
         self._id_sistema = id_sistema
         self._repositorio = repositorio
         self._logger_fisico = logger_fisico
-        self._buffer_temp = buffer_temp
+        self._arquivo_log_aplicacao = arquivo_log_aplicacao
 
     @property
     def habilitada(self) -> bool:
@@ -51,51 +59,18 @@ class ServicoAuditoria:
         return self._id_sistema is not None and self._id_sistema >= 0
 
     @property
-    def buffer_temp(self) -> BufferLogsTemporarios | None:
-        """Acesso direto ao buffer de logs temporarios."""
-
-        return self._buffer_temp
-
-    @property
     def logger_fisico(self) -> LoggerFisicoAuditoria | None:
         """Acesso direto ao logger fisico de auditoria."""
 
         return self._logger_fisico
 
     def registrar_acesso(self, evento: EventoAcessoHttp) -> int | None:
-        """Registra requisicao HTTP nas camadas: tb_logacesso, log fisico e logs temp."""
+        """Registra a requisicao HTTP em tb_logacesso.
 
-        # 1. Log Fisico .log
-        if self._logger_fisico is not None:
-            self._logger_fisico.registrar_acesso(evento)
+        As rotas ficam so no banco (tela "Rotas HTTP"): o arquivo de log fisico guarda mensagens do que
+        o LuftBase fez, nao uma linha por requisicao.
+        """
 
-        # 2. Logs Temp (Buffer em memoria)
-        if self._buffer_temp is not None:
-            if evento.status_http >= 500:
-                nivel = "ERROR"
-            elif evento.status_http >= 400:
-                nivel = "WARNING"
-            else:
-                nivel = "INFO"
-            msg = f"{evento.metodo} {evento.rota} ({evento.status_http}) - {evento.duracao_ms}ms"
-            self._buffer_temp.adicionar(
-                nivel,
-                msg,
-                id_correlacao=evento.id_correlacao,
-                codigo_usuario=evento.codigo_usuario,
-                login_usuario=evento.login_usuario,
-                codigo_grupo=evento.codigo_grupo,
-                nome_grupo=evento.nome_grupo,
-                acao=f"HTTP_{evento.metodo}",
-                recurso="ROTA",
-                detalhes={
-                    "ip": evento.ip_origem,
-                    "user_agent": evento.user_agent,
-                    "status": evento.status_http,
-                },
-            )
-
-        # 3. tb_logs (Banco PostgreSQL)
         if not self.habilitada:
             return None
         return self._repositorio.registrar_acesso(self._id_sistema, evento)
@@ -154,38 +129,13 @@ class ServicoAuditoria:
         )
 
     def registrar_evento(self, evento: EventoDominio) -> int:
-        """Registra evento detalhado nas camadas: tb_logevento, log fisico e logs temp."""
+        """Registra o evento no banco (tb_logevento) e como mensagem no log fisico."""
 
         evento = self._enriquecer_evento(evento)
 
-        # 1. Log Fisico .log
         if self._logger_fisico is not None:
             self._logger_fisico.registrar_evento(evento)
 
-        # 2. Logs Temp (Buffer em memoria)
-        if self._buffer_temp is not None:
-            nivel_temp = (
-                "ERROR"
-                if evento.severidade in {SeveridadeAuditoria.ALTA, SeveridadeAuditoria.CRITICA}
-                else "INFO"
-            )
-            self._buffer_temp.adicionar(
-                nivel_temp,
-                evento.descricao,
-                id_correlacao=evento.id_correlacao,
-                codigo_usuario=evento.codigo_usuario,
-                login_usuario=evento.login_usuario,
-                codigo_grupo=evento.codigo_grupo,
-                nome_grupo=evento.nome_grupo,
-                acao=evento.acao,
-                recurso=evento.recurso,
-                detalhes={
-                    "id_recurso": evento.id_recurso,
-                    "severidade": evento.severidade.value,
-                },
-            )
-
-        # 3. tb_logevento e tb_logdetalhe (Banco PostgreSQL)
         if not self.habilitada:
             raise ErroAuditoria("A aplicacao nao possui sistema valido para auditoria.")
         return self._repositorio.registrar_evento(self._id_sistema, evento)
@@ -214,7 +164,8 @@ class ServicoAuditoria:
         return self.registrar_evento(evento)
 
     # -------------------------------------------------------------------------
-    # METODOS DE CONVENIENCIA (LOG FISICO + LOGS TEMP + TB_LOGDETALHE OPCIONAL)
+    # METODOS DE CONVENIENCIA (LOG FISICO + TB_LOGDETALHE OPCIONAL)
+    # Com `salvar_banco` a mensagem sai pelo evento (que tambem vai ao log fisico), sem duplicar a linha.
     # -------------------------------------------------------------------------
 
     def info(
@@ -233,26 +184,6 @@ class ServicoAuditoria:
     ) -> int | None:
         """Registra mensagem de nivel informativo."""
 
-        if self._logger_fisico is not None:
-            self._logger_fisico.info(
-                mensagem,
-                correlacao=id_correlacao,
-                login=login_usuario,
-                acao=acao,
-                recurso=recurso,
-            )
-        if self._buffer_temp is not None:
-            self._buffer_temp.adicionar(
-                "INFO",
-                mensagem,
-                id_correlacao=id_correlacao,
-                codigo_usuario=codigo_usuario,
-                login_usuario=login_usuario,
-                codigo_grupo=codigo_grupo,
-                nome_grupo=nome_grupo,
-                acao=acao,
-                recurso=recurso,
-            )
         if salvar_banco and self.habilitada:
             return self.registrar_evento(
                 EventoDominio(
@@ -267,6 +198,14 @@ class ServicoAuditoria:
                     nome_grupo=nome_grupo,
                     id_correlacao=id_correlacao,
                 )
+            )
+        if self._logger_fisico is not None:
+            self._logger_fisico.info(
+                mensagem,
+                correlacao=id_correlacao,
+                login=login_usuario,
+                acao=acao,
+                recurso=recurso,
             )
         return None
 
@@ -286,26 +225,6 @@ class ServicoAuditoria:
     ) -> int | None:
         """Registra mensagem de nivel aviso/warning."""
 
-        if self._logger_fisico is not None:
-            self._logger_fisico.aviso(
-                mensagem,
-                correlacao=id_correlacao,
-                login=login_usuario,
-                acao=acao,
-                recurso=recurso,
-            )
-        if self._buffer_temp is not None:
-            self._buffer_temp.adicionar(
-                "WARNING",
-                mensagem,
-                id_correlacao=id_correlacao,
-                codigo_usuario=codigo_usuario,
-                login_usuario=login_usuario,
-                codigo_grupo=codigo_grupo,
-                nome_grupo=nome_grupo,
-                acao=acao,
-                recurso=recurso,
-            )
         if salvar_banco and self.habilitada:
             return self.registrar_evento(
                 EventoDominio(
@@ -320,6 +239,14 @@ class ServicoAuditoria:
                     nome_grupo=nome_grupo,
                     id_correlacao=id_correlacao,
                 )
+            )
+        if self._logger_fisico is not None:
+            self._logger_fisico.aviso(
+                mensagem,
+                correlacao=id_correlacao,
+                login=login_usuario,
+                acao=acao,
+                recurso=recurso,
             )
         return None
 
@@ -341,28 +268,6 @@ class ServicoAuditoria:
         """Registra erro tecnico ou de negocio em todas as camadas cabiveis."""
 
         trace = "".join(traceback.format_exception(erro)) if erro else None
-        if self._logger_fisico is not None:
-            self._logger_fisico.erro(
-                mensagem,
-                erro=erro,
-                correlacao=id_correlacao,
-                login=login_usuario,
-                acao=acao,
-                recurso=recurso,
-            )
-        if self._buffer_temp is not None:
-            self._buffer_temp.adicionar(
-                "ERROR",
-                f"{mensagem} ({type(erro).__name__})" if erro else mensagem,
-                id_correlacao=id_correlacao,
-                codigo_usuario=codigo_usuario,
-                login_usuario=login_usuario,
-                codigo_grupo=codigo_grupo,
-                nome_grupo=nome_grupo,
-                acao=acao,
-                recurso=recurso,
-                detalhes={"traceback": trace} if trace else None,
-            )
         if salvar_banco and self.habilitada:
             return self.registrar_evento(
                 EventoDominio(
@@ -379,6 +284,15 @@ class ServicoAuditoria:
                     traceback=trace,
                 )
             )
+        if self._logger_fisico is not None:
+            self._logger_fisico.erro(
+                mensagem,
+                erro=erro,
+                correlacao=id_correlacao,
+                login=login_usuario,
+                acao=acao,
+                recurso=recurso,
+            )
         return None
 
     def debug(
@@ -390,7 +304,7 @@ class ServicoAuditoria:
         id_correlacao: str | None = None,
         login_usuario: str | None = None,
     ) -> None:
-        """Registra mensagem de depuracao exclusiva no arquivo fisico e logs temp."""
+        """Registra mensagem de depuracao exclusiva no arquivo fisico."""
 
         if self._logger_fisico is not None:
             self._logger_fisico.debug(
@@ -400,75 +314,68 @@ class ServicoAuditoria:
                 acao=acao,
                 recurso=recurso,
             )
-        if self._buffer_temp is not None:
-            self._buffer_temp.adicionar(
-                "DEBUG",
-                mensagem,
-                id_correlacao=id_correlacao,
-                login_usuario=login_usuario,
-                acao=acao,
-                recurso=recurso,
-            )
 
-    def obter_logs_temporarios(
-        self,
-        *,
-        limite: int = 100,
-        nivel: str | None = None,
-        termo: str | None = None,
-        codigo_usuario: int | None = None,
-        codigo_grupo: int | None = None,
-    ) -> list[RegistroLogTemp]:
-        """Consulta os logs temporarios em memoria."""
+    # -------------------------------------------------------------------------
+    # LEITURA DOS LOGS FISICOS (tela "Logs fisicos")
+    # -------------------------------------------------------------------------
 
-        if self._buffer_temp is None:
-            return []
-        return self._buffer_temp.listar(
-            limite=limite,
-            nivel=nivel,
-            termo=termo,
-            codigo_usuario=codigo_usuario,
-            codigo_grupo=codigo_grupo,
+    def _arquivo_da_fonte(self, fonte: str) -> tuple[Path, str] | None:
+        """(pasta, nome do arquivo atual) de uma fonte conhecida; None se a fonte nao existe."""
+
+        if self._logger_fisico is None or fonte not in FONTES_LOGS_FISICOS:
+            return None
+        nome = (
+            self._logger_fisico.caminho_arquivo.name
+            if fonte == "luftbase"
+            else self._arquivo_log_aplicacao
         )
+        return self._logger_fisico.diretorio, nome
 
-    def limpar_logs_temporarios(self) -> None:
-        """Limpa os logs temporarios em memoria."""
+    def listar_fontes_logs(self) -> list[dict[str, object]]:
+        """As fontes de log fisico (LuftBase e Aplicacao) e se cada uma tem arquivo."""
 
-        if self._buffer_temp is not None:
-            self._buffer_temp.limpar()
+        fontes: list[dict[str, object]] = []
+        for identificador, rotulo in FONTES_LOGS_FISICOS.items():
+            local = self._arquivo_da_fonte(identificador)
+            arquivos = listar_arquivos_log(local[0], local[1]) if local else []
+            fontes.append(
+                {
+                    "id": identificador,
+                    "nome": rotulo,
+                    "arquivo": local[1] if local else None,
+                    "disponivel": bool(arquivos),
+                }
+            )
+        return fontes
 
-    def listar_arquivos_fisicos(self) -> list[dict[str, object]]:
-        """Lista os arquivos rotativos pertencentes a esta aplicacao."""
+    def listar_arquivos_fisicos(self, fonte: str = "luftbase") -> list[dict[str, object]]:
+        """Lista os arquivos (o atual e os rotacionados) de uma fonte de log."""
 
-        if self._logger_fisico is None:
-            return []
-        return self._logger_fisico.listar_arquivos()
+        local = self._arquivo_da_fonte(fonte)
+        return listar_arquivos_log(local[0], local[1]) if local else []
 
     def obter_logs_fisicos(
         self,
         *,
+        fonte: str = "luftbase",
         arquivo: str | None = None,
         limite: int = 200,
         nivel: str | None = None,
         termo: str | None = None,
     ) -> list[dict[str, str | None]]:
-        """Le de forma limitada as linhas recentes de um arquivo fisico conhecido."""
+        """Le de forma limitada as mensagens recentes de um arquivo de log conhecido."""
 
-        if self._logger_fisico is None:
+        local = self._arquivo_da_fonte(fonte)
+        if local is None:
             return []
         return [
             item.como_dict()
-            for item in self._logger_fisico.ler_recentes(
+            for item in ler_log(
+                local[0],
+                local[1],
                 arquivo=arquivo,
                 limite=limite,
                 nivel=nivel,
                 termo=termo,
             )
         ]
-
-    def nome_arquivo_temporario(self) -> str | None:
-        """Informa apenas o nome seguro do arquivo raiz do processo atual."""
-
-        if self._buffer_temp is None or self._buffer_temp.caminho_arquivo is None:
-            return None
-        return self._buffer_temp.caminho_arquivo.name

@@ -184,18 +184,18 @@ def test_auditoria_habilitada_para_sistema_zero() -> None:
 # =========================================================================
 
 
-def test_logs_temp_exige_autenticacao_e_permissao() -> None:
+def test_logs_fisicos_exigem_autenticacao_e_permissao() -> None:
     app, estado = _criar_app(sistema_id=0)
     cliente = app.test_client()
 
     # A API web redireciona usuarios anonimos para o login corporativo.
-    resp = cliente.get("/configuracoes/api/auditoria/temporarios")
+    resp = cliente.get("/configuracoes/api/auditoria/fisicos")
     assert resp.status_code == 302
 
     # 403 sem a permissao de visualizacao da auditoria.
     _autenticar(cliente)
     estado.autorizacao.possui = lambda _u, _c, *_: False
-    resp = cliente.get("/configuracoes/api/auditoria/temporarios")
+    resp = cliente.get("/configuracoes/api/auditoria/fisicos")
     assert resp.status_code == 403
 
     # A fonte bruta exige visualizacao da auditoria e dos dados sensiveis.
@@ -206,7 +206,7 @@ def test_logs_temp_exige_autenticacao_e_permissao() -> None:
             PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR,
         }
     )
-    resp = cliente.get("/configuracoes/api/auditoria/temporarios")
+    resp = cliente.get("/configuracoes/api/auditoria/fisicos")
     assert resp.status_code == 200
     assert resp.get_json()["status"] == "success"
 

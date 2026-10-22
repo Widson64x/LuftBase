@@ -15,7 +15,6 @@
     data-alteracoes-url="{{ url_for('Auditoria.api_alteracoes') }}"
     data-registro-url="{{ url_for('Auditoria.api_detalhe', tipo='TIPO', identificador=999999) }}"
     data-exportar-url="{{ url_for('Auditoria.api_exportar') }}"
-    data-temporarios-url="{{ url_for('Auditoria.api_temporarios') }}"
     data-fisicos-url="{{ url_for('Auditoria.api_fisicos') }}"
     data-pode-ver-sensiveis="{{ 'true' if pode_ver_dados_sensiveis_auditoria else 'false' }}"
 >
@@ -292,11 +291,23 @@
                 <button data-log-tab="detalhes" type="button"><i class="ph-bold ph-list-magnifying-glass"></i> Eventos</button>
                 <button data-log-tab="alteracoes" type="button"><i class="ph-bold ph-arrows-left-right"></i> Detalhes da Alteração</button>
                 {% if pode_ver_dados_sensiveis_auditoria %}
-                <button data-log-tab="temporarios" type="button"><i class="ph-bold ph-lightning"></i> Raiz temporária</button>
-                <button data-log-tab="fisicos" type="button"><i class="ph-bold ph-file-text"></i> Arquivos físicos</button>
+                <button data-log-tab="fisicos" type="button"><i class="ph-bold ph-file-text"></i> Logs físicos</button>
                 {% endif %}
             </div>
             <div class="audit-log-meta">
+                <div class="audit-fonte" id="auditFonteContainer" role="group" aria-label="Origem do log" hidden>
+                    <button type="button" class="active" data-fonte="luftbase" title="O que o LuftBase fez: login, e-mails, permissões, publicações, falhas..."><i class="ph-bold ph-stack"></i> LuftBase</button>
+                    <button type="button" data-fonte="aplicacao" title="O que a própria aplicação registrou (application.log)"><i class="ph-bold ph-app-window"></i> Aplicação</button>
+                </div>
+                <label class="audit-file-select" id="auditNivelContainer" hidden>
+                    <span>Nível</span>
+                    <select id="auditNivelLog">
+                        <option value="">Todos</option>
+                        <option value="ERROR">Erros</option>
+                        <option value="WARNING">Avisos</option>
+                        <option value="INFO">Informações</option>
+                    </select>
+                </label>
                 <label class="audit-file-select" id="auditArquivoContainer" hidden>
                     <span>Arquivo</span>
                     <select id="auditArquivo"></select>

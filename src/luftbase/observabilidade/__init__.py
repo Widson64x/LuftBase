@@ -1,5 +1,4 @@
 from luftbase.observabilidade.arquivo_fisico import LoggerFisicoAuditoria
-from luftbase.observabilidade.buffer_temp import BufferLogsTemporarios, RegistroLogTemp
 from luftbase.observabilidade.modelos import (
     EventoAcessoHttp,
     EventoDominio,
@@ -15,11 +14,9 @@ from luftbase.observabilidade.web import (
 )
 
 __all__ = [
-    "BufferLogsTemporarios",
     "EventoAcessoHttp",
     "EventoDominio",
     "LoggerFisicoAuditoria",
-    "RegistroLogTemp",
     "SeveridadeAuditoria",
     "ignorar_auditoria",
     "ignorar_auditoria_requisicao",

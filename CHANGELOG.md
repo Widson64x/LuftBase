@@ -2,6 +2,28 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a118] - 2026-10-22
+
+### Alterado
+
+- **Logs fisicos reformulados**: as abas *Raiz temporaria* e *Arquivos fisicos* viraram **uma so, "Logs fisicos"**, com o seletor *LuftBase | Aplicacao*, filtro de nivel e de arquivo. A gaveta de detalhes mostra a mensagem inteira. A rota `GET .../auditoria/temporarios` foi **removida**; `.../fisicos` aceita `fonte`, `nivel`, `termo` e `arquivo`.
+- **`luftbase.log` agora e um diario de mensagens, nao de rotas**: as linhas `GET /x 200` sairam (ficam em *Rotas HTTP*). Entram as mensagens de todos os modulos do LuftBase (`logging` em `luftbase.*`), com o **usuario e o id de correlacao** da requisicao e a area de origem (`[EMAIL]`, `[ACESSO]`...); os eventos de auditoria saem como a frase da descricao; os erros 500 saem legiveis (`Erro interno do servidor em GET /x: ProgrammingError | causa: ... | origem: ...`).
+- **Seguranca do arquivo**: excecoes aparecem so como tipos e local (sem mensagem bruta nem pilha); segredos em texto livre (`senha=`, `token:`, `://u:s@`, tokens do Vault) sao mascarados.
+- O painel le tambem o **`application.log`** da aplicacao (formato `data | NIVEL | origem | mensagem`) e junta as linhas de pilha de erro na mensagem anterior.
+
+### Adicionado
+
+- **Mais logs do que o LuftBase faz**: subida da plataforma (versao, sistema, ambiente, sessoes, e-mail); **e-mails** enviados ou recusados (assunto e destinatarios mascarados); **aviso de acesso liberado** (alvo: usuario ou *grupo com N pessoas*, quem ganhou acesso, notificacoes e e-mails, sem e-mail, modo teste); notificacoes criadas (para quem); publicacoes publicadas (quantas notificacoes); alertas tecnicos enviados.
+- `mascarar_texto` e `resumir_excecao` em `observabilidade/sanitizacao.py`; `mascarar_endereco` e `resumir_enderecos` em `integracoes/email/enderecos.py`.
+
+### Removido
+
+- **Raiz temporaria**: `BufferLogsTemporarios`, `RegistroLogTemp`, os arquivos `Logs/temp/*.temp.log` e a escrita de rotas no arquivo. Os arquivos `temp/` antigos podem ser apagados.
+
+### Corrigido
+
+- Mensagens de conveniencia da auditoria (`info`, `aviso`, `erro` com `salvar_banco`) saiam **duas vezes** no arquivo; agora uma so.
+
 ## [0.1.0a117] - 2026-10-21
 
 ### Alterado

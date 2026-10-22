@@ -31,7 +31,7 @@ A secao escolhida fica lembrada no navegador. Os **filtros do topo** valem para 
    terminam, pessoas mais ativas e IPs mais frequentes.
 4. **Desempenho** — telas mais lentas e rotas com falhas.
 5. **Seguranca** — tentativas sem permissao (com a permissao que faltou) e eventos de severidade alta ou critica.
-6. **Registros** — tabelas de acessos, eventos, detalhes de alteracao, **sessoes**, raiz temporaria e arquivos fisicos.
+6. **Registros** — tabelas de acessos, eventos, detalhes de alteracao, **sessoes** e **logs fisicos** (o do LuftBase e o da aplicacao).
 
 ### Regras que o painel aplica (e por que)
 
@@ -131,13 +131,13 @@ desconectar nao **bloqueia** novo login.
 |---|---|
 | `OBSERVABILIDADE.AUDITORIA.VISUALIZAR` | ver a tela, o Ao vivo e as analises |
 | `OBSERVABILIDADE.AUDITORIA.EXPORTAR` | botao Exportar CSV (ate 5.000 linhas, sem payloads sensiveis) |
-| `OBSERVABILIDADE.DADOS_SENSIVEIS.VISUALIZAR` | abas de raiz temporaria e arquivos fisicos, e payloads |
+| `OBSERVABILIDADE.DADOS_SENSIVEIS.VISUALIZAR` | aba de logs fisicos e payloads |
 | `SEGURANCA.SESSOES.REVOGAR` | botoes de encerrar sessao |
 
 ## Rotas
 
 `GET /configuracoes/api/auditoria/`: `resumo`, `insights`, `tempo-real`, `acessos`, `detalhes`, `alteracoes`, `sessoes`,
-`temporarios`, `fisicos`, `detalhes/<tipo>/<id>`, `exportar`.
+`fisicos` (com `?fonte=luftbase|aplicacao`), `detalhes/<tipo>/<id>`, `exportar`.
 
-O seletor "Arquivo" so aparece nas abas **Arquivos fisicos** e **Raiz temporaria** (nesta ultima mostra apenas o arquivo do
-processo atual, sem opcao de troca).
+Os seletores de **fonte** (LuftBase | Aplicacao), **nivel** e **arquivo** so aparecem na aba **Logs fisicos**. Clicar em uma mensagem
+abre a gaveta com o texto inteiro (inclusive as linhas de uma pilha de erro). Detalhes em [doc 12](12-AUDITORIA-E-OBSERVABILIDADE.md#logs-fisicos).

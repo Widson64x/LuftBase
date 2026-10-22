@@ -24,6 +24,7 @@ from luftbase.observabilidade.analise import (
 from luftbase.observabilidade.controle_sessoes import ServicoControleSessoes
 from luftbase.observabilidade.filtros import NAVEGADORES
 from luftbase.observabilidade.insights import ServicoInsights
+from luftbase.observabilidade.servico import FONTES_LOGS_FISICOS
 from luftbase.observabilidade.tempo_real import ServicoTempoReal
 from luftbase.plataforma import obter_luftbase
 from luftbase.web.escopo import sistema_aplicacao_atual
@@ -430,48 +431,24 @@ def api_alteracoes():  # type: ignore[no-untyped-def]
     )
 
 
-@AuditoriaBp.get("/temporarios")
-@login_required
-@exigir_permissao(PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR)
-@exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
-def api_temporarios():  # type: ignore[no-untyped-def]
-    """Mostra a raiz temporaria do processo atual."""
-
-    servico = obter_luftbase().auditoria
-    limite = min(max(request.args.get("limite", 100, type=int) or 100, 1), 500)
-    logs = [
-        item.como_dict()
-        for item in servico.obter_logs_temporarios(
-            limite=limite,
-            nivel=request.args.get("nivel"),
-            termo=request.args.get("termo", "")[:100] or None,
-            codigo_usuario=_inteiro_opcional("usuario_id"),
-            codigo_grupo=_inteiro_opcional("grupo_id"),
-        )
-    ]
-    return jsonify(
-        {
-            "status": "success",
-            "data": {
-                "total": len(logs),
-                "itens": logs,
-                "arquivo_raiz": servico.nome_arquivo_temporario(),
-                "escopo": "processo_local",
-            },
-        }
-    )
-
-
 @AuditoriaBp.get("/fisicos")
 @login_required
 @exigir_permissao(PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR)
 @exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
 def api_fisicos():  # type: ignore[no-untyped-def]
-    """Le arquivos fisicos conhecidos sem aceitar caminhos arbitrarios."""
+    """Le os logs fisicos (LuftBase e Aplicacao), sem aceitar caminhos arbitrarios.
+
+    Parametros: `fonte` (`luftbase`, padrao, ou `aplicacao`), `arquivo` (um dos listados em `arquivos`),
+    `nivel`, `termo` e `limite`.
+    """
 
     servico = obter_luftbase().auditoria
+    fonte = request.args.get("fonte", "luftbase").strip().lower()
+    if fonte not in FONTES_LOGS_FISICOS:
+        abort(400, description="Fonte de log desconhecida.")
     limite = min(max(request.args.get("limite", 200, type=int) or 200, 1), 500)
     logs = servico.obter_logs_fisicos(
+        fonte=fonte,
         arquivo=request.args.get("arquivo", "").strip()[:255] or None,
         limite=limite,
         nivel=request.args.get("nivel", "").strip()[:20] or None,
@@ -483,7 +460,9 @@ def api_fisicos():  # type: ignore[no-untyped-def]
             "data": {
                 "total": len(logs),
                 "itens": logs,
-                "arquivos": servico.listar_arquivos_fisicos(),
+                "fonte": fonte,
+                "fontes": servico.listar_fontes_logs(),
+                "arquivos": servico.listar_arquivos_fisicos(fonte),
                 "escopo": "aplicacao_local",
             },
         }

@@ -16,9 +16,9 @@ tb_logacesso                 uma requisicao e sua resposta HTTP
 └── tb_logdetalhe            acao, erro ou ocorrencia daquela requisicao
     └── tb_logs              retrato imutavel dos dados antes e depois
 
-DIAGNOSTICO LOCAL (filesystem do processo)
-Logs/luftbase.log            log fisico rotativo, sanitizado e abrangente
-Logs/temp/*.temp.log         raiz temporaria JSONL de cada processo
+LOGS FISICOS (filesystem do processo)
+Logs/luftbase.log            o que o LuftBase fez, em mensagens (rotacao diaria, 30 dias)
+Logs/application.log         o que a propria aplicacao registrou (escrito por ela; o painel so le)
 ```
 
 As tres tabelas possuem finalidades diferentes e nunca repetem o mesmo payload. A identidade
@@ -72,19 +72,57 @@ retrato como `CRIACAO`, `ALTERACAO`, `EXCLUSAO` ou `SUBSTITUICAO`.
 Nao existem listeners globais do SQLAlchemy: leituras, rollbacks e manutencoes internas do
 ORM nao viram auditoria por acidente.
 
-## Logs fisicos e raiz temporaria
+## Logs fisicos
 
-O arquivo fisico possui rotacao diaria e retencao local de 30 arquivos. A leitura do painel
-aceita somente nomes descobertos dentro do diretorio configurado, limita cada consulta a 500
-linhas e le no maximo os 2 MiB finais; caminhos arbitrarios sao rejeitados.
+Dois arquivos, duas perguntas: **"o que o LuftBase fez?"** (`luftbase.log`) e **"o que a aplicacao registrou?"**
+(`application.log`). Na tela sao uma unica aba, **Logs fisicos**, com o seletor *LuftBase | Aplicacao*, o filtro de nivel
+(erros, avisos, informacoes) e o arquivo (o atual e os rotacionados). A raiz temporaria (memoria + `Logs/temp/`) **deixou de existir**
+na 0.1.0a118; as rotas HTTP continuam na aba *Rotas HTTP* (`tb_logacesso`), nao no arquivo.
 
-A raiz temporaria mantem os ultimos mil registros em memoria e escreve o mesmo fluxo
-sanitizado em `Logs/temp/luftbase-{pid}.temp.log`. Cada processo tem seu arquivo. Arquivos
-temporarios inativos com mais de dois dias sao removidos na inicializacao. Essa fonte serve
-para diagnostico imediato, nao como historico autoritativo.
+### `luftbase.log`: um diario de mensagens
 
-Erros internos do LuftBase tambem chegam a essas duas fontes por `LoggerTecnico`. Mensagens
-de excecao, senha, token, cookie e cabecalho de autorizacao nunca sao gravados em claro.
+Cada mensagem ocupa uma linha, no formato `[data] [NIVEL] [correlacao] [login] [origem] - mensagem`:
+
+```text
+[2026-10-22 09:14:03] [INFO] [-] [SISTEMA] [PLATAFORMA] - LuftBase 0.1.0a118 iniciado para 'Luft-Workspace' (sistema 0), ambiente homologacao. Sessoes: PostgreSQL. E-mail: configurado. Logs em Logs.
+[2026-10-22 09:22:05] [INFO] [9d40..] [widson.araujo] [ACESSO] - Acesso liberado ao sistema 'Luft-Control' para o grupo "GRUPO TI" (12 pessoa(s)): 3 pessoa(s) ganharam acesso (ana.lima, bruno.reis, carla.dias) -> 3 notificacao(oes), 3 e-mail(s) enviado(s).
+[2026-10-22 09:22:06] [INFO] [9d40..] [widson.araujo] [EMAIL_ENVIADO/EMAIL] - E-mail 'Seu acesso ao Luft-Control foi liberado' enviado para 3 destinatario(s): a***@luftlogistics.com, b***@luftlogistics.com, c***@luftlogistics.com.
+[2026-10-22 09:41:52] [ERROR] [9d40..] [SISTEMA] [TECNICO/SISTEMA] - Erro interno do servidor em GET /publicacoes/painel: ProgrammingError | causa: UndefinedColumn | origem: cursor.py:117 execute
+```
+
+- **O que entra**: tudo que os modulos do LuftBase registram com `logging` (loggers `luftbase.*`), mais os eventos de dominio da auditoria
+  (login, logout, permissoes, publicacoes, manutencao, e-mails...) escritos como a frase que o servico informou, e os erros tecnicos
+  (500) em linguagem legivel. O **usuario** e o **id de correlacao** vem da requisicao em andamento; fora dela o login e `SISTEMA`.
+- **Origem** (`[EMAIL]`, `[ACESSO]`, `[IDENTIDADE]`, `[COMUNICADOS]`, `[ALERTAS]`, `[PLATAFORMA]`...): a area do LuftBase que escreveu; nos eventos
+  de auditoria e `ACAO/RECURSO`. O mapa esta em `arquivo_fisico.rotulo_de_origem`.
+- **O que registra de proposito** (alem do que ja existia): a subida da plataforma (versao, sistema, ambiente, sessoes, e-mail), cada
+  **e-mail enviado ou recusado** (assunto e destinatarios mascarados `f***@dominio`), o **aviso de acesso liberado** (alvo: usuario ou
+  *grupo com N pessoas*, quem ganhou acesso, notificacoes e e-mails), notificacoes criadas (para quem), publicacoes publicadas
+  (quantas notificacoes geraram) e alertas tecnicos enviados.
+- **O que nao entra**: linhas de rota (`GET /x 200`). Elas ficam so em `tb_logacesso`.
+
+### Seguranca do arquivo
+
+- **Excecoes** aparecem resumidas: `Falha ao gravar | erro: ValueError (causa: ConnectionError) | em: arquivo.py:95 funcao`. A mensagem
+  bruta e a pilha completa **nunca** vao para o arquivo (mensagens de banco costumam carregar dados e credenciais).
+- **Segredos em texto livre** (`senha=...`, `token: ...`, `://usuario:senha@host`, tokens do Vault) sao mascarados como `[REDACTED]`;
+  cada mensagem e uma linha so, com no maximo 12.000 caracteres.
+- A leitura aceita somente nomes descobertos na pasta de logs (o atual e os rotacionados), limita cada consulta a 500 mensagens e le no
+  maximo os 2 MiB finais; caminhos arbitrarios sao rejeitados.
+
+### `application.log`: o log da aplicacao
+
+E escrito pela propria aplicacao (no Workspace, `App/Services/LogService.py`, formato `2026-10-21 15:49:37 | INFO | Origem | mensagem`) e
+so **lido** pelo painel, que entende esse formato e o do LuftBase e **junta as linhas de continuacao** (pilhas de erro) na mensagem
+anterior (aparece como `+N linha(s)`; a gaveta de detalhes mostra tudo). O nome padrao e `application.log` na pasta `LUFT_LOG_DIR`; para outro
+nome use `app.config["LUFT_LOG_APLICACAO"]`. Se o arquivo ainda nao existe, o botao *Aplicacao* fica desligado.
+
+### Como registrar em codigo
+
+Em qualquer modulo do LuftBase: `logger = logging.getLogger(__name__)` e `logger.info("Fiz X para %s", alvo)`; a mensagem ja cai em
+`luftbase.log`, com usuario e correlacao. Descreva **quem** e **quantos** (ex.: "grupo X com 12 pessoas"), nunca valores sensiveis
+(senha, token, corpo de requisicao). Para uma acao de negocio que tambem precisa ficar no banco, use
+`registrar_alteracao_auditoria(...)`: a descricao vira a linha do arquivo.
 
 ## Painel analitico
 
@@ -93,7 +131,7 @@ Gerais. Ela apresenta:
 
 - KPIs, serie temporal e rankings de rotas, usuarios, grupos e sistemas;
 - filtros com periodo maximo de 90 dias;
-- abas Acessos HTTP, Detalhes, Alteracoes, Raiz temporaria e Arquivos fisicos;
+- abas Rotas HTTP, Sessoes, Eventos, Detalhes da Alteracao e Logs fisicos (LuftBase e Aplicacao);
 - drawer que percorre toda a cadeia e mostra antes/depois quando autorizado;
 - exportacao CSV das tres fontes estruturadas, com no maximo cinco mil linhas e protecao
   contra formulas de planilha.
@@ -112,7 +150,7 @@ OBSERVABILIDADE.GERENCIAR
 ```
 
 Visualizacao comum nao revela parametros, traceback, estados anterior/novo nem fontes
-locais. Raiz temporaria e arquivos fisicos exigem simultaneamente as permissoes de auditoria
+locais. Os logs fisicos exigem simultaneamente as permissoes de auditoria
 e dados sensiveis. A exportacao nunca inclui os estados anterior/novo.
 
 ## Contrato HTTP interno
@@ -123,8 +161,7 @@ GET /configuracoes/api/auditoria/acessos
 GET /configuracoes/api/auditoria/detalhes
 GET /configuracoes/api/auditoria/alteracoes
 GET /configuracoes/api/auditoria/detalhes/{acesso|detalhe|alteracao}/{id}
-GET /configuracoes/api/auditoria/temporarios
-GET /configuracoes/api/auditoria/fisicos?arquivo={nome}
+GET /configuracoes/api/auditoria/fisicos?fonte={luftbase|aplicacao}&arquivo={nome}&nivel={ERROR|WARNING|INFO}&termo={texto}
 GET /configuracoes/api/auditoria/exportar?tipo={acesso|detalhe|alteracao}
 ```
 

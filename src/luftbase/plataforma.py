@@ -7,7 +7,6 @@ import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import timedelta
-from pathlib import Path
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
@@ -55,6 +54,7 @@ from luftbase.infraestrutura.fabrica import (
 )
 from luftbase.integracoes.diagnostico import IntegracaoAplicacao
 from luftbase.integracoes.email import ResultadoEnvio, ServicoEmail
+from luftbase.integracoes.email.enderecos import resumir_enderecos
 from luftbase.interface.busca import ProvedorBusca
 from luftbase.interface.parametros import ParametroAplicacao
 from luftbase.interface.repositorio import RepositorioPreferenciasTema
@@ -62,8 +62,11 @@ from luftbase.interface.servico import ServicoTemas, criar_registro_padrao
 from luftbase.interface.web import registrar_interface_web
 from luftbase.nucleo.excecoes import ErroInicializacao
 from luftbase.nucleo.tempo import aplicar_fuso_do_processo
-from luftbase.observabilidade.arquivo_fisico import LoggerFisicoAuditoria
-from luftbase.observabilidade.buffer_temp import BufferLogsTemporarios
+from luftbase.observabilidade.arquivo_fisico import (
+    NOME_LOG_APLICACAO,
+    NOME_LOG_LUFTBASE,
+    LoggerFisicoAuditoria,
+)
 from luftbase.observabilidade.metricas import RegistroMetricas
 from luftbase.observabilidade.modelos import EventoDominio, SeveridadeAuditoria
 from luftbase.observabilidade.repositorio import RepositorioAuditoria
@@ -150,6 +153,13 @@ class PlataformaLuft:
         if self.chave_extensao in app.extensions:
             raise ErroInicializacao("O LuftBase ja foi inicializado nesta aplicacao.")
 
+        # O log fisico nasce antes de tudo para guardar tambem a subida (Vault, bancos, sessoes).
+        logger_fisico = LoggerFisicoAuditoria(
+            diretorio_logs=str(app.config.get("LUFT_LOG_DIR", "Logs")),
+            nome_arquivo=NOME_LOG_LUFTBASE,
+        )
+        logger_fisico.capturar_plataforma()
+
         configuracao_resolvida = configuracao or ConfiguracaoLuftBase.de_ambiente(app.config)
         caminhos = resolver_caminhos_vault(
             ambiente=configuracao_resolvida.aplicacao.ambiente,
@@ -196,25 +206,14 @@ class PlataformaLuft:
             RepositorioPreferenciasTema(infraestrutura.bancos.core),
             criar_registro_padrao(),
         )
-        dir_logs = str(app.config.get("LUFT_LOG_DIR", "Logs"))
-        logger_fisico = LoggerFisicoAuditoria(diretorio_logs=dir_logs, nome_arquivo="luftbase.log")
-        buffer_temp = BufferLogsTemporarios(
-            capacidade_maxima=1000,
-            diretorio_arquivos=Path(dir_logs) / "temp",
-        )
-
         auditoria = ServicoAuditoria(
             configuracao_enriquecida.aplicacao.sistema_id,
             RepositorioAuditoria(infraestrutura.bancos.core),
             logger_fisico=logger_fisico,
-            buffer_temp=buffer_temp,
+            arquivo_log_aplicacao=str(app.config.get("LUFT_LOG_APLICACAO", NOME_LOG_APLICACAO)),
         )
         metricas = RegistroMetricas()
-        logger_tecnico = LoggerTecnico(
-            app.logger,
-            logger_fisico=logger_fisico,
-            buffer_temp=buffer_temp,
-        )
+        logger_tecnico = LoggerTecnico(app.logger, logger_fisico=logger_fisico)
         observabilidade = IntegracaoObservabilidadeFlask(auditoria, metricas, logger_tecnico)
         gerenciador_login = self._instalar_identidade(
             app,
@@ -227,7 +226,7 @@ class PlataformaLuft:
         email = self._criar_email(configuracao_enriquecida, infraestrutura, auditoria)
         for modelo in estruturas.verificar():
             if not modelo.existe:
-                logging.getLogger("luftbase").warning(
+                logging.getLogger("luftbase.plataforma").warning(
                     "Tabela ausente: modelo=%s tabela=%s politica=%s. "
                     "Use 'flask estrutura verificar' e uma migracao ou criacao explicita.",
                     modelo.nome,
@@ -505,7 +504,36 @@ class PlataformaLuft:
         from luftbase.cli import registrar_comandos
 
         registrar_comandos(app)
+        self._registrar_subida(estado, logger_fisico)
         return estado
+
+    @staticmethod
+    def _registrar_subida(estado: EstadoPlataforma, logger_fisico: LoggerFisicoAuditoria) -> None:
+        """Uma frase no log fisico com o que subiu: sistema, ambiente, onde ficam as sessoes e o e-mail."""
+
+        from luftbase._versao import __version__
+
+        aplicacao = estado.configuracao.aplicacao
+        sessoes = (
+            "PostgreSQL"
+            if isinstance(estado.infraestrutura.armazenamento_sessoes, ArmazenamentoSessoesPostgreSQL)
+            else type(estado.infraestrutura.armazenamento_sessoes).__name__.replace("ArmazenamentoSessoes", "")
+            or "memoria"
+        )
+        if not estado.email.configurado:
+            email = "nao configurado"
+        else:
+            email = "configurado" + (" (modo teste: vai so para os destinatarios de teste)" if estado.email.modo_teste else "")
+        logging.getLogger("luftbase.plataforma").info(
+            "LuftBase %s iniciado para '%s' (sistema %s), ambiente %s. Sessoes: %s. E-mail: %s. Logs em %s.",
+            __version__,
+            aplicacao.nome,
+            aplicacao.sistema_id,
+            aplicacao.ambiente.value,
+            sessoes,
+            email,
+            logger_fisico.diretorio,
+        )
 
     @staticmethod
     def _criar_autorizacao(
@@ -599,9 +627,17 @@ class PlataformaLuft:
 
             acao = "EMAIL_ENVIADO" if resultado.sucesso else "EMAIL_FALHA"
             descricao = (
-                f"E-mail '{resultado.assunto}' para {len(resultado.destinatarios)} destinatario(s)"
-                + (" em modo teste" if resultado.redirecionado else "")
-                + ("." if resultado.sucesso else f": {resultado.erro}")
+                f"E-mail '{resultado.assunto}' "
+                + ("enviado" if resultado.sucesso else "NAO enviado")
+                + f" para {len(resultado.destinatarios)} destinatario(s): "
+                + resumir_enderecos(resultado.destinatarios)
+                + (
+                    f" (modo teste: desviado de {len(resultado.destinatarios_originais)} destinatario(s) original(is))"
+                    if resultado.redirecionado
+                    else ""
+                )
+                + (f". Recusados: {resumir_enderecos(resultado.recusados)}" if resultado.recusados else "")
+                + ("." if resultado.sucesso else f". Motivo: {resultado.erro}")
             )
             severidade = (
                 SeveridadeAuditoria.BAIXA if resultado.sucesso else SeveridadeAuditoria.MEDIA

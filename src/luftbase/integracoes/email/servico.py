@@ -107,6 +107,13 @@ def _descrever_falha(erro: BaseException) -> str:
     return "Falha inesperada ao enviar o e-mail."
 
 
+def _assuntos(envios: Sequence[EnvioPreparado], limite: int = 3) -> str:
+    """Assuntos das primeiras mensagens, para o log de falha de conexao."""
+
+    assuntos = [f"'{envio.assunto}'" for envio in envios[:limite]]
+    return ", ".join(assuntos) + (f" +{len(envios) - limite}" if len(envios) > limite else "")
+
+
 class ServicoEmail:
     """Monta, redireciona em modo teste, envia em lote e audita mensagens."""
 
@@ -313,12 +320,15 @@ class ServicoEmail:
                         smtplib.SMTPSenderRefused,
                         smtplib.SMTPDataError,
                     ) as erro:
-                        self._registrar_falha_tecnica(erro)
+                        self._registrar_falha_tecnica(erro, f"'{envio.assunto}'")
                         resultados.append(self._resultado(envio, erro=_descrever_falha(erro)))
                         continue
                     resultados.append(self._resultado(envio, recusados=tuple(sorted(recusados))))
         except Exception as erro:
-            self._registrar_falha_tecnica(erro)
+            pendentes = envios[len(resultados) :]
+            self._registrar_falha_tecnica(
+                erro, f"{len(pendentes)} mensagem(ns) pendente(s): {_assuntos(pendentes)}"
+            )
             motivo = _descrever_falha(erro)
             resultados.extend(
                 self._resultado(envio, erro=motivo) for envio in envios[len(resultados) :]
@@ -391,10 +401,15 @@ class ServicoEmail:
         )
 
     @staticmethod
-    def _registrar_falha_tecnica(erro: BaseException) -> None:
+    def _registrar_falha_tecnica(erro: BaseException, contexto: str = "") -> None:
         # Somente o tipo e o codigo: a resposta bruta do servidor pode ecoar dados da conta.
         codigo = getattr(erro, "smtp_code", None)
-        _logger.warning("Falha no envio de e-mail: tipo=%s codigo=%s", type(erro).__name__, codigo)
+        _logger.warning(
+            "Falha no envio de e-mail%s: tipo=%s codigo=%s",
+            f" ({contexto})" if contexto else "",
+            type(erro).__name__,
+            codigo,
+        )
 
     def _auditar(self, resultado: ResultadoEnvio) -> None:
         if self._auditor is None:

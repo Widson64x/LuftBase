@@ -12,12 +12,13 @@
         rankings: {},
         ranking: 'rotas',
         total: 0,
-        arquivo: ''
+        arquivo: '',
+        fonte: 'luftbase'
     };
     const $ = (id) => document.getElementById(id);
     const numero = new Intl.NumberFormat('pt-BR');
     const dataHora = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' });
-    const abasLocais = new Set(['temporarios', 'fisicos']);
+    const abasLocais = new Set(['fisicos']);
 
     function escapar(valor) {
         const el = document.createElement('span');
@@ -59,12 +60,12 @@
     window.luftAuditoriaAba = (nome) => raiz.querySelector(`[data-log-tab="${nome}"]`)?.click();
 
     function parametrosLocais() {
-        const p = new URLSearchParams({ limite: '200' });
+        const p = new URLSearchParams({ limite: '200', fonte: estado.fonte });
         const termo = $('auditTermo').value.trim();
         if (termo) p.set('termo', termo);
-        if ($('auditUsuario').value) p.set('usuario_id', $('auditUsuario').value);
-        if ($('auditGrupo').value) p.set('grupo_id', $('auditGrupo').value);
-        if (estado.arquivo && estado.aba === 'fisicos') p.set('arquivo', estado.arquivo);
+        const nivel = $('auditNivelLog')?.value;
+        if (nivel) p.set('nivel', nivel);
+        if (estado.arquivo) p.set('arquivo', estado.arquivo);
         return p;
     }
 
@@ -97,15 +98,14 @@
         if ([...select.options].some(op => op.value === atual)) select.value = atual;
     }
 
-    // A raiz temporária é um único arquivo (o do processo atual): mostra qual é, sem opção de troca.
-    function mostrarArquivoTemporario(nome) {
-        const select = $('auditArquivo');
-        select.replaceChildren();
-        const op = document.createElement('option');
-        op.value = nome || '';
-        op.textContent = nome ? `${nome} (processo atual)` : 'Somente em memória';
-        select.appendChild(op);
-        select.disabled = true;
+    // Mostra qual das duas fontes de log (LuftBase ou Aplicação) está ativa e desliga a que não tem arquivo.
+    function atualizarFontes(fontes, ativa) {
+        raiz.querySelectorAll('[data-fonte]').forEach(botao => {
+            const fonte = (fontes || []).find(item => item.id === botao.dataset.fonte);
+            botao.classList.toggle('active', botao.dataset.fonte === ativa);
+            botao.disabled = fonte ? !fonte.disponivel && botao.dataset.fonte !== ativa : false;
+            botao.title = fonte && !fonte.disponivel ? `Ainda não há ${fonte.arquivo || 'arquivo'} nesta instância.` : botao.title;
+        });
     }
 
     function preencherArquivos(arquivos) {
@@ -215,8 +215,7 @@
         acessos: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['grupo', 'Grupo'], ['metodo', 'Método'], ['rota', 'Rota'], ['status', 'Status'], ['duracao_ms', 'Duração']],
         detalhes: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['grupo', 'Grupo'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['descricao', 'Descrição'], ['severidade', 'Severidade']],
         alteracoes: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['tipo_alteracao', 'Tipo'], ['campos_alterados', 'Campos']],
-        temporarios: [['data_hora', 'Data'], ['nivel', 'Nível'], ['login_usuario', 'Usuário'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['mensagem', 'Mensagem']],
-        fisicos: [['data_hora', 'Data'], ['arquivo', 'Arquivo'], ['nivel', 'Nível'], ['login_usuario', 'Usuário'], ['acao', 'Ação'], ['mensagem', 'Mensagem']],
+        fisicos: [['data_hora', 'Data'], ['nivel', 'Nível'], ['acao', 'Origem'], ['login_usuario', 'Usuário'], ['mensagem', 'Mensagem']],
         sessoes: [['criada_em', 'Início'], ['usuario', 'Pessoa'], ['sistema', 'Sistema'], ['navegador', 'Navegador'], ['sistema_operacional', 'SO'], ['ip', 'IP'], ['situacao', 'Situação'], ['duracao_segundos', 'Duração'], ['acoes', '']]
     };
 
@@ -235,6 +234,17 @@
             const nomes = window.luftDrill?.MOTIVOS || {};
             const classe = valor === 'Em andamento' ? 'ok' : valor === 'Expirou' ? 'warning' : 'neutral';
             return `<span class="audit-status ${classe}">${escapar(nomes[valor] || valor)}</span>`;
+        }
+        if (estado.aba === 'fisicos' && chave === 'nivel') {
+            const nivel = String(valor || '').toUpperCase();
+            const classe = ['ERROR', 'CRITICAL'].includes(nivel) ? 'error' : ['WARNING', 'WARN'].includes(nivel) ? 'warning' : nivel === 'INFO' ? 'ok' : 'neutral';
+            return `<span class="audit-status ${classe}">${escapar(nivel)}</span>`;
+        }
+        if (estado.aba === 'fisicos' && chave === 'acao') return valor ? `<span class="audit-origem">${escapar(valor)}</span>` : '—';
+        if (estado.aba === 'fisicos' && chave === 'mensagem') {
+            const linhas = String(valor || '').split('\n');
+            const extra = linhas.length > 1 ? `<small>+${linhas.length - 1} linha(s)</small>` : '';
+            return `<span class="audit-msg">${escapar(linhas[0])}${extra}</span>`;
         }
         if (chave === 'metodo') return `<span class="audit-method">${escapar(valor)}</span>`;
         if (chave === 'status') {
@@ -264,7 +274,9 @@
                     window.luftControle?.encerrarSessao(item.ref, item.usuario);
                 });
                 tr.addEventListener('click', () => mostrarNoDrawer(item));
-            } else if (!abasLocais.has(estado.aba)) {
+            } else if (abasLocais.has(estado.aba)) {
+                tr.addEventListener('click', () => mostrarNoDrawer(item)); // a mensagem inteira (inclusive várias linhas)
+            } else {
                 const tipo = estado.aba === 'acessos' ? 'acesso' : estado.aba === 'detalhes' ? 'detalhe' : 'alteracao';
                 tr.addEventListener('click', () => abrirDetalhe(tipo, item.id));
             }
@@ -274,11 +286,9 @@
 
     async function carregarLogs() {
         let dados;
-        if (estado.aba === 'temporarios') {
-            dados = await obter(`${raiz.dataset.temporariosUrl}?${parametrosLocais()}`);
-            mostrarArquivoTemporario(dados.arquivo_raiz);
-        } else if (estado.aba === 'fisicos') {
+        if (estado.aba === 'fisicos') {
             dados = await obter(`${raiz.dataset.fisicosUrl}?${parametrosLocais()}`);
+            atualizarFontes(dados.fontes, dados.fonte || estado.fonte);
             preencherArquivos(dados.arquivos || []);
             $('auditArquivo').disabled = false;
         } else {
@@ -301,8 +311,8 @@
         $('auditPaginaInfo').textContent = local ? 'Fonte local desta instância' : `Página ${estado.pagina} de ${paginas}`;
         $('auditPaginaAnterior').disabled = local || estado.pagina <= 1;
         $('auditProximaPagina').disabled = local || estado.pagina >= paginas;
-        // O seletor só faz sentido nas duas abas que leem arquivos do servidor.
-        $('auditArquivoContainer').hidden = !(estado.aba === 'fisicos' || estado.aba === 'temporarios');
+        // Fonte, nível e arquivo só fazem sentido na aba que lê os arquivos de log do servidor.
+        ['auditFonteContainer', 'auditNivelContainer', 'auditArquivoContainer'].forEach(id => { $(id).hidden = estado.aba !== 'fisicos'; });
         if ($('auditBtnExportar')) $('auditBtnExportar').hidden = local || estado.aba === 'sessoes';
     }
 
@@ -361,6 +371,13 @@
     $('auditPaginaAnterior').addEventListener('click', () => { if (estado.pagina > 1) { estado.pagina--; carregarLogs(); } });
     $('auditProximaPagina').addEventListener('click', () => { estado.pagina++; carregarLogs(); });
     $('auditArquivo').addEventListener('change', () => { estado.arquivo = $('auditArquivo').value; carregarLogs().catch(e => erro(e.message)); });
+    $('auditNivelLog').addEventListener('change', () => { carregarLogs().catch(e => erro(e.message)); });
+    raiz.querySelectorAll('[data-fonte]').forEach(botao => botao.addEventListener('click', () => {
+        if (botao.disabled || estado.fonte === botao.dataset.fonte) return;
+        estado.fonte = botao.dataset.fonte;
+        estado.arquivo = ''; // cada fonte tem os seus arquivos
+        carregarLogs().catch(e => erro(e.message));
+    }));
     $('auditDrawerFechar').addEventListener('click', fecharDrawer);
     $('auditDrawerBackdrop').addEventListener('click', fecharDrawer);
     raiz.querySelectorAll('[data-ranking]').forEach(btn => btn.addEventListener('click', () => {

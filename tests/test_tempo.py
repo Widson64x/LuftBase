@@ -144,7 +144,6 @@ def test_nao_sobrou_datetime_now_sem_fuso_nos_pontos_que_gravam() -> None:
     raiz = Path(tempo.__file__).resolve().parent.parent
     for relativo in (
         "identidade/armazenamento_postgresql.py",
-        "observabilidade/buffer_temp.py",
         "integracoes/email/servico.py",
         "conteudo/repositorios.py",
     ):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Protocol
 
@@ -20,6 +21,18 @@ from luftbase.conteudo.repositorios import ResultadoPublicacao
 from luftbase.conteudo.sinalizacao import SinalizadorConteudoRedis
 from luftbase.nucleo.excecoes import ErroConteudo
 from luftbase.persistencia.core.publicacoes import Publicacao
+
+logger = logging.getLogger(__name__)
+
+
+def _destino(dados: NovaNotificacao) -> str:
+    """Para quem vai uma notificacao, em palavras (usuario, grupo ou todos)."""
+
+    if dados.id_usuario_destino is not None:
+        return f"o usuario #{dados.id_usuario_destino}"
+    if dados.id_grupo_destino is not None:
+        return f"o grupo #{dados.id_grupo_destino}"
+    return "todos os usuarios"
 
 
 class PortaNotificacoes(Protocol):
@@ -205,6 +218,13 @@ class ServicoNotificacoes:
 
         id_notificacao = self._repositorio.criar(self._id_sistema, dados)
         self._sinalizador.publicar("notificacoes", self._id_sistema, id_notificacao)
+        logger.info(
+            "Notificacao #%s criada para %s: '%s' (%s).",
+            id_notificacao,
+            _destino(dados),
+            dados.titulo,
+            dados.categoria.value,
+        )
         return id_notificacao
 
     def listar_para_usuario(
@@ -335,7 +355,13 @@ class ServicoPublicacoes:
             raise ErroConteudo("id_publicacao deve ser positivo.")
         resultado = self._repositorio.publicar(self._id_sistema, id_publicacao)
         if not resultado.alterada:
+            logger.info("Publicacao #%s ja estava publicada ou agendada: nada a fazer.", id_publicacao)
             return False
+        logger.info(
+            "Publicacao #%s publicada: %s notificacao(oes) gerada(s).",
+            id_publicacao,
+            len(resultado.ids_notificacoes),
+        )
         self._sinalizador.publicar(
             "publicacoes",
             self._id_sistema,

@@ -1,6 +1,10 @@
 # Handoff
 
-## Ultima continuidade (2026-10-21, versao 0.1.0a113 (a113: editor rico de comunicados, estilo e-mail, e telas de publicacao renovadas))
+## Ultima continuidade (2026-10-22, versao 0.1.0a118: logs fisicos reformulados)
+
+**Entregue na a118**: aba unica **Logs fisicos** (LuftBase e Aplicacao) no lugar de Raiz temporaria e Arquivos fisicos; `luftbase.log` virou diario de mensagens (sem linhas de rota) com usuario e correlacao, excecoes resumidas e segredos mascarados; logs novos de subida, e-mail, aviso de acesso (grupo com N pessoas), notificacoes, publicacoes e alertas. Detalhes no [doc 12](docs/12-AUDITORIA-E-OBSERVABILIDADE.md#logs-fisicos).
+
+### Continuidade anterior (2026-10-21, versao 0.1.0a113 (a113: editor rico de comunicados, estilo e-mail, e telas de publicacao renovadas))
 
 **Entregue na a113**: editor visual de comunicados e notas (formatacao, imagens, tabelas, destaques), caixa de entrada e leitura estilo e-mail, painel com indicadores, correcao da edicao de rascunho (PUT) e itens do changelog na leitura. Migracao `20261021_0018`. Detalhes no [doc 21](docs/21-CONTEUDO-RICO-E-NOTAS-DE-ATUALIZACAO.md) e no [CHANGELOG](CHANGELOG.md).
 

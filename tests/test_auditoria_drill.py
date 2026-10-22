@@ -333,5 +333,5 @@ def test_seletor_de_arquivo_so_aparece_nas_abas_de_arquivos() -> None:
 
     # `hidden` perdia para `display: flex`: o seletor ficava visível em todas as abas
     assert ".audit-file-select[hidden] { display: none; }" in css
-    assert "!(estado.aba === 'fisicos' || estado.aba === 'temporarios')" in js
-    assert "mostrarArquivoTemporario(dados.arquivo_raiz)" in js
+    assert "$(id).hidden = estado.aba !== 'fisicos'" in js
+    assert "temporarios" not in js and "mostrarArquivoTemporario" not in js
