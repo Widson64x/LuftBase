@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
@@ -52,6 +53,10 @@ def _inteiro_nao_negativo(valor: object, nome: str) -> int:
     if resultado < 0:
         raise ErroConfiguracao(f"{nome} nao pode ser negativo.")
     return resultado
+
+
+# Quem entra tem a sessao garantida por, no minimo, este tempo sem atividade (valores menores sobem para ele).
+TTL_MINIMO_SESSAO_MINUTOS = 30
 
 
 def _inteiro_intervalo(valor: object, nome: str, minimo: int, maximo: int) -> int:
@@ -172,7 +177,7 @@ class ConfiguracaoSessao:
     same_site: Literal["Lax", "Strict", "None"] = "Lax"
     ttl_minutos: int = 60
     # Validade (sem atividade) da sessao de quem marcou "Lembrar acesso" no login.
-    ttl_lembrar_dias: int = 30
+    ttl_lembrar_dias: int = 1
     cookie_seguro: bool = False
     # Excecao explicita ao cookie Secure em producao, para ambientes servidos por HTTP
     # (ex.: homologacao sem TLS). So informa a decisao; quem decide e cookie_seguro.
@@ -396,8 +401,17 @@ class ConfiguracaoLuftBase:
             1,
             10_080,
         )
+        if ttl_minutos < TTL_MINIMO_SESSAO_MINUTOS:
+            # Um valor antigo e curto (ex.: 15) nao derruba a aplicacao: sobe para o piso e avisa no log.
+            logging.getLogger("luftbase.configuracao").warning(
+                "LUFT_SESSAO_TTL_MINUTOS=%s e menor que o minimo de %s minutos: a sessao vai durar %s minutos sem atividade.",
+                ttl_minutos,
+                TTL_MINIMO_SESSAO_MINUTOS,
+                TTL_MINIMO_SESSAO_MINUTOS,
+            )
+            ttl_minutos = TTL_MINIMO_SESSAO_MINUTOS
         ttl_lembrar_dias = _inteiro_intervalo(
-            _primeiro_valor(dados, "LUFT_SESSAO_LEMBRAR_DIAS") or 30,
+            _primeiro_valor(dados, "LUFT_SESSAO_LEMBRAR_DIAS") or 1,
             "LUFT_SESSAO_LEMBRAR_DIAS",
             1,
             365,

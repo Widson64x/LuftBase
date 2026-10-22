@@ -65,13 +65,20 @@ Todas as aplicacoes da Luft guardam a sessao no **mesmo banco** (`core.tb_sessao
 |---|---|
 | `ATIVA` | recem criada ou renovada por atividade |
 | `FINALIZADA` | a pessoa saiu (logout) ou o identificador foi rotacionado |
-| `EXPIRADA` | passou do prazo sem atividade (detectado na proxima leitura) |
+| `EXPIRADA` | passou do prazo sem atividade; encerrada em ate 1 minuto por uma varredura (nao depende de a pessoa voltar) |
 | `REVOGADA` | um administrador (ou "desconectar outras sessoes") encerrou |
 
 - **Lembrar acesso**: o checkbox da tela de login marca a sessao (`iniciar_sessao_usuario(usuario, lembrar=True)`) e ela passa a
-  valer `LUFT_SESSAO_LEMBRAR_DIAS` (padrao **30** dias sem atividade, 1 a 365) em vez do prazo comum. O cookie e persistente pelo mesmo prazo.
-- **Validade**: `LUFT_SESSAO_TTL_MINUTOS` (padrao **60** minutos sem atividade; aceita de 1 a 10080). Cada requisicao
+  valer `LUFT_SESSAO_LEMBRAR_DIAS` (padrao **1** dia sem atividade, 1 a 365) em vez do prazo comum. O cookie e persistente pelo mesmo prazo.
+- **Validade**: `LUFT_SESSAO_TTL_MINUTOS` (padrao **60** minutos sem atividade; **minimo 30**, maximo 10080). Um valor menor que 30 (ex.: um `.env`
+  antigo com 15) nao derruba a aplicacao: sobe para 30 e o `luftbase.log` avisa. O painel tambem recusa gravar menos de 30. Cada requisicao
   autenticada renova `ultima_atividade` e `expira_em`.
+- **Varredura das vencidas**: a expiracao antes so era percebida quando alguem usava o cookie; quem fechava o navegador deixava a linha `ATIVA` para
+  sempre ("ocioso ha 38 h" ainda online). Agora `ArmazenamentoSessoesPostgreSQL.expirar_vencidas` roda, no maximo uma vez por minuto por processo
+  (ao gravar uma sessao e ao listar quem esta online), e marca como `EXPIRADA` (`TIMEOUT_INATIVIDADE`, `encerrada_em` = o instante em que venceu) toda
+  sessao `ATIVA` com `expira_em` no passado, apaga o payload dela, registra o evento `TIMEOUT` e tira a pessoa de "online" se nao tiver outra sessao viva.
+  O log mostra quem teve a sessao encerrada. Para o caso de alguem seguir "ativo" por dias, confira se `LUFT_SESSAO_TTL_MINUTOS` do servidor nao e muito alto
+  ou se a pessoa marcou "Lembrar acesso".
 - **Eventos**: cada mudanca gera uma linha em `core.tb_sessao_evento` com `tipo_evento` em
   `INICIO`, `RENOVACAO`, `LOGOUT`, `TIMEOUT` ou `REVOGACAO`, com IP e navegador.
 - **Visitantes**: a tela de login tambem precisa de uma sessao (guarda o token anti-CSRF). Essas sessoes tem

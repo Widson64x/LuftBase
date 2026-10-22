@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -25,8 +26,101 @@ logger = logging.getLogger("luftbase.sessoes")
 class ArmazenamentoSessoesPostgreSQL:
     """Implementa ArmazenamentoSessoes usando o banco core PostgreSQL."""
 
+    # De quanto em quanto tempo (no maximo) cada processo varre as sessoes vencidas.
+    _INTERVALO_VARREDURA_SEGUNDOS = 60.0
+
     def __init__(self, banco: BancoSQLAlchemy) -> None:
         self._banco = banco
+        self._proxima_varredura = 0.0
+
+    def expirar_vencidas(self, *, limite: int = 500) -> int:
+        """Encerra as sessoes `ATIVA` cujo prazo (`expira_em`) ja passou e devolve quantas foram.
+
+        A expiracao antes so acontecia quando alguem usava o cookie da sessao: quem fechava o navegador deixava a
+        linha `ATIVA` para sempre (aparecia como "online" e "ocioso ha 38 h"). Agora toda sessao vencida vira
+        `EXPIRADA` (motivo `TIMEOUT_INATIVIDADE`, encerrada no instante em que venceu) e a pessoa deixa de constar
+        como online se nao tiver outra sessao viva. Idempotente e segura entre processos: cada linha e
+        disputada com `UPDATE ... WHERE status = 'ATIVA'`, entao so quem a encerra registra o evento.
+        """
+
+        agora = agora_local()
+        encerradas: list[str] = []
+        try:
+            with self._banco.unidade_trabalho() as sessao_db:
+                vencidas = (
+                    sessao_db.execute(
+                        select(
+                            Sessao.id_sessao,
+                            Sessao.id_sistema,
+                            Sessao.codigo_usuario,
+                            Sessao.login_usuario,
+                            Sessao.ip_origem,
+                            Sessao.user_agent,
+                            Sessao.ultima_atividade,
+                            Sessao.expira_em,
+                        )
+                        .where(Sessao.status == "ATIVA", Sessao.expira_em < agora)
+                        .order_by(Sessao.expira_em)
+                        .limit(limite)
+                    )
+                    .all()
+                )
+                for v in vencidas:
+                    resultado = sessao_db.execute(
+                        update(Sessao)
+                        .where(Sessao.id_sessao == v.id_sessao, Sessao.status == "ATIVA")
+                        .values(
+                            status="EXPIRADA",
+                            encerrada_em=v.expira_em,
+                            motivo_encerramento="TIMEOUT_INATIVIDADE",
+                            dados_sessao=None,
+                        )
+                    )
+                    if not getattr(resultado, "rowcount", 0):
+                        continue  # outro processo ja a encerrou
+                    encerradas.append(v.login_usuario or f"#{v.codigo_usuario}")
+                    if v.codigo_usuario is None:
+                        continue
+                    minutos = max(int((v.expira_em - v.ultima_atividade).total_seconds() // 60), 0)
+                    sessao_db.add(
+                        EventoSessao(
+                            id_sessao=v.id_sessao,
+                            id_sistema=v.id_sistema,
+                            codigo_usuario=v.codigo_usuario,
+                            login_usuario=v.login_usuario,
+                            tipo_evento="TIMEOUT",
+                            ip_origem=v.ip_origem,
+                            user_agent=v.user_agent,
+                            data_hora=v.expira_em,
+                            detalhes=f"Sessao expirou por inatividade (prazo de {minutos} min sem acao na tela).",
+                        )
+                    )
+                sessao_db.flush()
+                for v in vencidas:
+                    if v.codigo_usuario is not None:
+                        self._atualizar_usuario_ao_encerrar(sessao_db, v.codigo_usuario, v.id_sessao, agora)
+                sessao_db.commit()
+        except Exception as erro:
+            logger.error("Erro ao expirar sessoes vencidas: %s", erro)
+            return 0
+        if encerradas:
+            unicas = sorted(set(encerradas))
+            logger.info(
+                "%s sessao(oes) vencida(s) por inatividade foram encerradas (%s%s).",
+                len(encerradas),
+                ", ".join(unicas[:8]),
+                f" +{len(unicas) - 8}" if len(unicas) > 8 else "",
+            )
+        return len(encerradas)
+
+    def _varrer_se_for_hora(self) -> None:
+        """Dispara `expirar_vencidas` no maximo uma vez por minuto neste processo."""
+
+        agora = time.monotonic()
+        if agora < self._proxima_varredura:
+            return
+        self._proxima_varredura = agora + self._INTERVALO_VARREDURA_SEGUNDOS
+        self.expirar_vencidas()
 
     @staticmethod
     def _eh_chave_sessao(chave: str) -> bool:
@@ -171,9 +265,11 @@ class ArmazenamentoSessoesPostgreSQL:
 
                 # Verificacao de expiracao por inatividade
                 if registro.expira_em < agora:
+                    minutos = max(int((registro.expira_em - registro.ultima_atividade).total_seconds() // 60), 0)
                     registro.status = "EXPIRADA"
-                    registro.encerrada_em = agora
+                    registro.encerrada_em = registro.expira_em
                     registro.motivo_encerramento = "TIMEOUT_INATIVIDADE"
+                    registro.dados_sessao = None
 
                     if registro.codigo_usuario is not None:
                         evento = EventoSessao(
@@ -185,7 +281,7 @@ class ArmazenamentoSessoesPostgreSQL:
                             ip_origem=registro.ip_origem,
                             user_agent=registro.user_agent,
                             data_hora=agora,
-                            detalhes="Sessao expirada por inatividade (> 10 min sem acao na tela).",
+                            detalhes=f"Sessao expirou por inatividade (prazo de {minutos} min sem acao na tela).",
                         )
                         sessao_db.add(evento)
                         self._atualizar_usuario_ao_encerrar(
@@ -395,6 +491,7 @@ class ArmazenamentoSessoesPostgreSQL:
                 sessao_db.commit()
         except Exception as erro:
             logger.error("Erro ao salvar sessao PostgreSQL: %s", erro)
+        self._varrer_se_for_hora()
 
     def remover(self, chave: str) -> None:
         """Encerra a sessao marcando como FINALIZADA (logout voluntario ou rotacao)."""
@@ -460,6 +557,7 @@ class ArmazenamentoSessoesPostgreSQL:
     def listar_usuarios_online(self, id_sistema: int | None = None) -> list[dict[str, Any]]:
         """Devolve usuarios com sessao ativa e nao expirada."""
 
+        self._varrer_se_for_hora()
         agora = agora_local()
         consulta = select(Sessao).where(
             Sessao.status == "ATIVA",

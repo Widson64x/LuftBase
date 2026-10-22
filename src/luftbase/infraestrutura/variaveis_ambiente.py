@@ -73,12 +73,12 @@ PERMITIDAS: tuple[VariavelPermitida, ...] = (
     ),
     VariavelPermitida(
         "LUFT_SESSAO_TTL_MINUTOS",
-        "Minutos sem atividade até a sessão expirar (1 a 10080).",
-        _inteiro(1, 10_080),
+        "Minutos sem atividade até a sessão expirar (30 a 10080; menos de 30 não é aceito).",
+        _inteiro(30, 10_080),
     ),
     VariavelPermitida(
         "LUFT_SESSAO_LEMBRAR_DIAS",
-        "Dias sem atividade até expirar a sessão de quem marcou \"Lembrar acesso\" (1 a 365).",
+        "Dias sem atividade até expirar a sessão de quem marcou \"Lembrar acesso\" (1 a 365; padrão 1).",
         _inteiro(1, 365),
     ),
     VariavelPermitida(

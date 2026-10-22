@@ -30,7 +30,7 @@ class ArmazenamentoCompartilhado:
         return self.dados.get(chave)
 
     def salvar(self, chave: str, valor: bytes, ttl_segundos: int) -> None:
-        assert ttl_segundos in {3_600, 2_592_000}
+        assert ttl_segundos in {3_600, 86_400}  # 60 min; "lembrar acesso" = 1 dia
         self.dados[chave] = valor
 
     def remover(self, chave: str) -> None:

@@ -2,6 +2,18 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a121] - 2026-10-22
+
+### Corrigido
+
+- **Sessao "ativa" por quase 2 dias sem uso**: a expiracao so acontecia quando alguem usava o cookie, entao quem fechava o navegador deixava a sessao `ATIVA` indefinidamente (aparecia em "Ao vivo" como ocioso ha 38 h). Agora uma **varredura** (no maximo 1 vez por minuto por processo, ao gravar uma sessao e ao listar quem esta online) encerra toda sessao vencida: `EXPIRADA`, motivo `TIMEOUT_INATIVIDADE`, `encerrada_em` = quando venceu, payload apagado, evento `TIMEOUT` e a pessoa sai de "online". O `luftbase.log` registra quem teve a sessao encerrada.
+- O evento `TIMEOUT` dizia "> 10 min sem acao" qualquer que fosse o prazo; agora informa o prazo real.
+
+### Alterado
+
+- **Piso de 30 minutos** para `LUFT_SESSAO_TTL_MINUTOS`: valores menores (ex.: 15) sobem para 30 com um aviso no log (a aplicacao nao deixa de subir) e o painel recusa gravar menos que isso. Quem entra tem a sessao garantida por, no minimo, 30 minutos sem atividade.
+- **"Lembrar acesso" passa de 30 dias para 1 dia** sem atividade (`LUFT_SESSAO_LEMBRAR_DIAS`, padrao 1). Quem precisar de mais, define a variavel.
+
 ## [0.1.0a120] - 2026-10-22
 
 ### Corrigido
