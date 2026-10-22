@@ -2,6 +2,12 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a120] - 2026-10-22
+
+### Corrigido
+
+- **Logs fisicos cortavam a mensagem e a tabela nao rolava na horizontal**: a mensagem tinha largura fixa maior que a coluna e a celula escondia o excesso. Agora a mensagem ocupa o espaco que sobra (ate 2 linhas, sem corte) e a tabela tem largura minima de 980 px, entao em telas estreitas rola na horizontal (a barra fica a vista, dentro da area de altura limitada da 0.1.0a119).
+
 ## [0.1.0a119] - 2026-10-22
 
 ### Corrigido
