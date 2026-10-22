@@ -916,14 +916,33 @@
 <!-- ==========================================================================
      MODAL: NOVA PERMISSÃO (INTELIGENTE E GUIADA)
      ========================================================================== -->
-<dialog id="dlgAvisoAcesso" style="border:1px solid var(--luft-border);border-radius:14px;padding:22px;max-width:440px;background:var(--luft-bg-panel);color:var(--luft-text-main)">
-    <h4 style="margin:0 0 8px">Enviar e-mail de acesso liberado?</h4>
-    <p id="dlgAvisoAcessoTexto" style="margin:0 0 6px"></p>
-    <p id="dlgAvisoAcessoDetalhe" class="text-xs text-muted" style="margin:0 0 16px"></p>
-    <div class="d-flex gap-2" style="justify-content:flex-end;flex-wrap:wrap">
-        <button type="button" class="btn btn-sm btn-outline" data-escolha="cancelar">Cancelar</button>
-        <button type="button" class="btn btn-sm btn-outline" data-escolha="nao">Salvar sem e-mail</button>
-        <button type="button" class="btn btn-sm btn-primary" data-escolha="enviar"><i class="ph-bold ph-paper-plane-tilt"></i> Salvar e enviar e-mail</button>
+<style>
+    /* Dialogo no centro da tela: o reset global zera a margem automatica do <dialog>, entao o centro e explicito. */
+    #dlgAvisoAcesso { position: fixed; inset: 0; margin: auto; width: min(560px, calc(100vw - 32px)); height: fit-content; max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--luft-border); border-radius: 16px; background: var(--luft-bg-panel); color: var(--luft-text-main); box-shadow: 0 24px 64px rgba(15, 23, 42, .35); overflow: hidden; }
+    #dlgAvisoAcesso::backdrop { background: rgba(15, 23, 42, .55); backdrop-filter: blur(2px); }
+    #dlgAvisoAcesso[open] { animation: dlgAvisoEntrada .16s ease-out; }
+    @keyframes dlgAvisoEntrada { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+    #dlgAvisoAcesso .dlg-aviso-topo { display: flex; align-items: center; gap: 14px; padding: 22px 24px 6px; }
+    #dlgAvisoAcesso .dlg-aviso-icone { display: grid; flex: 0 0 44px; height: 44px; place-items: center; border-radius: 12px; font-size: 1.4rem; color: var(--luft-primary-600, #2563eb); background: color-mix(in srgb, var(--luft-primary-500, #2563eb) 14%, transparent); }
+    #dlgAvisoAcesso h4 { margin: 0; font-size: 1.1rem; }
+    #dlgAvisoAcesso .dlg-aviso-corpo { padding: 8px 24px 4px; }
+    #dlgAvisoAcesso .dlg-aviso-corpo p { margin: 0 0 8px; line-height: 1.5; }
+    #dlgAvisoAcesso .dlg-aviso-detalhe { color: var(--luft-text-muted); font-size: .82rem; }
+    #dlgAvisoAcesso .dlg-aviso-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 16px 24px 22px; }
+</style>
+<dialog id="dlgAvisoAcesso" aria-labelledby="dlgAvisoAcessoTitulo">
+    <div class="dlg-aviso-topo">
+        <span class="dlg-aviso-icone"><i class="ph-bold ph-paper-plane-tilt"></i></span>
+        <h4 id="dlgAvisoAcessoTitulo">Enviar e-mail de acesso liberado?</h4>
+    </div>
+    <div class="dlg-aviso-corpo">
+        <p id="dlgAvisoAcessoTexto"></p>
+        <p id="dlgAvisoAcessoDetalhe" class="dlg-aviso-detalhe"></p>
+    </div>
+    <div class="dlg-aviso-acoes">
+        <button type="button" class="btn btn-outline" data-escolha="cancelar">Cancelar</button>
+        <button type="button" class="btn btn-outline" data-escolha="nao">Salvar sem e-mail</button>
+        <button type="button" class="btn btn-primary" data-escolha="enviar"><i class="ph-bold ph-paper-plane-tilt"></i> Salvar e enviar e-mail</button>
     </div>
 </dialog>
 

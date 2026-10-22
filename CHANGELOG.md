@@ -2,6 +2,13 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a126] - 2026-10-22
+
+### Corrigido
+
+- O dialogo "Enviar e-mail de acesso liberado?" aparecia espremido no canto superior esquerdo, sem fundo: o reset de margens da pagina anulava o centro automatico do `<dialog>`.
+  Agora ele abre no meio da tela, com fundo escurecido, icone, titulo e botoes legiveis.
+
 ## [0.1.0a125] - 2026-10-22
 
 ### Adicionado
