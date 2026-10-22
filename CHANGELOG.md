@@ -2,6 +2,12 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a119] - 2026-10-22
+
+### Corrigido
+
+- **Tabelas da Auditoria sem barra de rolagem horizontal a vista**: a area da tabela crescia com o numero de linhas e a barra ficava no fim da lista, fora da tela. Agora a area tem altura maxima (68% da tela), com rolagem nos dois sentidos e cabecalho fixo. A mensagem dos logs fisicos ficou um pouco mais estreita, para caberem mais colunas.
+
 ## [0.1.0a118] - 2026-10-22
 
 ### Alterado

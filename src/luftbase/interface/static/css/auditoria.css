@@ -60,13 +60,13 @@
 .audit-fonte button { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 8px; padding: 6px 12px; color: var(--luft-text-muted); background: transparent; font-weight: 700; font-size: .76rem; cursor: pointer; }
 .audit-fonte button.active { color: var(--luft-primary-700); background: var(--luft-bg-panel); box-shadow: 0 1px 4px rgba(15, 23, 42, .1); }
 .audit-fonte button:disabled { opacity: .45; cursor: not-allowed; }
-.audit-msg { display: -webkit-box; width: clamp(320px, 42vw, 760px); overflow: hidden; white-space: normal; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.audit-msg { display: -webkit-box; width: clamp(280px, 32vw, 600px); overflow: hidden; white-space: normal; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .audit-msg small { margin-left: 6px; color: var(--luft-text-muted); font-weight: 700; }
 .audit-origem { display: inline-flex; padding: 3px 8px; border-radius: 6px; color: var(--luft-text-muted); background: var(--luft-bg-app); font-size: .66rem; font-weight: 800; letter-spacing: .03em; }
 .audit-detail-row dd { white-space: pre-wrap; overflow-wrap: anywhere; }
 .audit-file-select { display: flex; align-items: center; gap: 7px; color: var(--luft-text-muted); font-size: .7rem; font-weight: 800; text-transform: uppercase; }
 .audit-file-select select { min-width: 180px; max-width: 290px; min-height: 34px; border: 1px solid var(--luft-border); border-radius: 8px; padding: 0 9px; color: var(--luft-text-main); background: var(--luft-bg-app); }
-.audit-table-wrap { overflow: auto; min-height: 330px; }
+.audit-table-wrap { overflow: auto; min-height: 330px; max-height: 68vh; }
 .audit-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
 .audit-table th { position: sticky; top: 0; z-index: 1; padding: 11px 14px; color: var(--luft-text-muted); background: var(--luft-bg-app); border-bottom: 1px solid var(--luft-border); text-align: left; white-space: nowrap; font-size: .67rem; letter-spacing: .04em; text-transform: uppercase; }
 .audit-table td { max-width: 310px; padding: 12px 14px; color: var(--luft-text-main); border-bottom: 1px solid var(--luft-border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
