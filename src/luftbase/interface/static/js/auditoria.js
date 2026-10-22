@@ -15,6 +15,7 @@
         arquivo: '',
         fonte: 'luftbase',
         situacao: 'abertos',
+        situacaoFila: 'pendentes',
         chaveOpcoes: null,
         controle: null,
         sequencia: 0,
@@ -27,6 +28,8 @@
     const csrf = () => document.querySelector('meta[name="luft-csrf-token"]')?.getAttribute('content') || '';
     const NOMES_SITUACAO = { ABERTO: 'Aberto', SILENCIADO: 'Silenciado', RESOLVIDO: 'Resolvido' };
     const CLASSES_SITUACAO = { ABERTO: 'error', SILENCIADO: 'warning', RESOLVIDO: 'ok' };
+    const NOMES_FILA = { PENDENTE: 'Na fila', ENVIANDO: 'Enviando', ENVIADO: 'Enviado', FALHOU: 'Falhou', CANCELADO: 'Cancelado' };
+    const CLASSES_FILA = { PENDENTE: 'warning', ENVIANDO: 'warning', ENVIADO: 'ok', FALHOU: 'error', CANCELADO: 'neutral' };
 
     function escapar(valor) {
         const el = document.createElement('span');
@@ -230,6 +233,20 @@
         });
     }
 
+    function aplicarFila(contagens) {
+        const aba = $('auditAbaFila');
+        if (!aba) return;
+        aba.hidden = !contagens; // sem permissao ou tabela ainda nao migrada: a aba nem aparece
+        const marca = $('auditTabFila');
+        const alerta = contagens ? (contagens.falhas || 0) : 0;
+        marca.hidden = !alerta;
+        marca.textContent = numero.format(alerta);
+        raiz.querySelectorAll('#auditFilaSituacoes [data-situacao-fila]').forEach(botao => {
+            const total = contagens?.[botao.dataset.situacaoFila];
+            botao.querySelector('b').textContent = total == null ? '–' : numero.format(total);
+        });
+    }
+
     async function carregarResumo(sinal, fresco) {
         const p = parametros();
         const chave = chaveDasOpcoes();
@@ -239,6 +256,7 @@
         const dados = await obter(`${raiz.dataset.resumoUrl}?${p}`, sinal);
         renderizarKpis(dados.indicadores);
         aplicarAlertas(dados.alertas);
+        aplicarFila(dados.fila_email);
         renderizarSerie(dados.serie || []);
         estado.rankings = dados.rankings || {};
         renderizarRanking();
@@ -264,6 +282,7 @@
         detalhes: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['grupo', 'Grupo'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['descricao', 'Descrição'], ['severidade', 'Severidade']],
         alteracoes: [['id_log', 'ID Log'], ['data_hora', 'Data'], ['sistema', 'Sistema'], ['usuario', 'Usuário'], ['acao', 'Ação'], ['recurso', 'Recurso'], ['tipo_alteracao', 'Tipo'], ['campos_alterados', 'Campos']],
         fisicos: [['data_hora', 'Data'], ['nivel', 'Nível'], ['acao', 'Origem'], ['login_usuario', 'Usuário'], ['mensagem', 'Mensagem']],
+        fila: [['criado_em', 'Entrou na fila'], ['status', 'Situação'], ['resumo_destinatarios', 'Para'], ['assunto', 'Assunto'], ['origem', 'Origem'], ['tentativas', 'Tentativas'], ['ultimo_erro', 'Último erro'], ['acoes', '']],
         alertas: [['ultima_ocorrencia', 'Última ocorrência'], ['situacao', 'Situação'], ['rotulo', 'Regra'], ['sistema', 'Sistema'], ['login', 'Pessoa'], ['rota', 'Rota'], ['ocorrencias', 'Vezes'], ['ip', 'IP'], ['acoes', '']],
         sessoes: [['criada_em', 'Início'], ['usuario', 'Pessoa'], ['sistema', 'Sistema'], ['navegador', 'Navegador'], ['sistema_operacional', 'SO'], ['ip', 'IP'], ['situacao', 'Situação'], ['duracao_segundos', 'Duração'], ['acoes', '']]
     };
@@ -271,6 +290,16 @@
     function valorCelula(chave, item) {
         const valor = item[chave];
         if (chave === 'id_log') return valor == null ? '—' : `<span class="audit-id">#${escapar(valor)}</span>`;
+        if (estado.aba === 'fila') {
+            if (chave === 'criado_em') return formatarData(valor);
+            if (chave === 'status') return `<span class="audit-status ${CLASSES_FILA[valor] || 'neutral'}">${escapar(NOMES_FILA[valor] || valor)}</span>`;
+            if (chave === 'tentativas') return `<span class="audit-id">${numero.format(valor || 0)}/${numero.format(item.maximo_tentativas || 0)}</span>`;
+            if (chave === 'acoes') {
+                if (item.status === 'PENDENTE') return '<button type="button" class="audit-linha-btn perigo" data-fila-acao="cancelar"><i class="ph-bold ph-x-circle"></i> Cancelar</button>';
+                if (item.status === 'FALHOU' || item.status === 'CANCELADO') return '<button type="button" class="audit-linha-btn" data-fila-acao="reenviar"><i class="ph-bold ph-arrow-clockwise"></i> Reenviar</button>';
+                return '';
+            }
+        }
         if (estado.aba === 'alertas') {
             if (chave === 'ultima_ocorrencia') return formatarData(valor);
             if (chave === 'situacao') return `<span class="audit-status ${CLASSES_SITUACAO[valor] || 'neutral'}">${escapar(NOMES_SITUACAO[valor] || valor)}</span>`;
@@ -330,7 +359,13 @@
         itens.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = defs.map(([chave]) => `<td title="${escapar(item[chave])}">${valorCelula(chave, item)}</td>`).join('');
-            if (estado.aba === 'alertas') {
+            if (estado.aba === 'fila') {
+                tr.querySelectorAll('[data-fila-acao]').forEach(botao => botao.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    acaoFila(item, botao.dataset.filaAcao, botao);
+                }));
+                tr.addEventListener('click', () => mostrarNoDrawer(item));
+            } else if (estado.aba === 'alertas') {
                 tr.querySelectorAll('[data-silenciar]').forEach(botao => botao.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     silenciarAlerta(item, Number(botao.dataset.silenciar), botao);
@@ -380,9 +415,37 @@
         return p;
     }
 
+    async function acaoFila(item, acao, botao) {
+        botao.disabled = true;
+        try {
+            const url = raiz.dataset.acaoFilaEmailUrl.replace('999999', item.id_email).replace('ACAO', acao);
+            const resposta = await fetch(url, {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'X-CSRF-Token': csrf() }
+            });
+            const dados = await resposta.json().catch(() => ({}));
+            if (!resposta.ok || dados.status !== 'success') throw new Error(dados.message || `Falha HTTP ${resposta.status}`);
+            window.luftControle?.avisar(dados.message || 'Pronto.', 'ok');
+            await atualizar({ silencioso: true, fresco: true });
+        } catch (e) {
+            botao.disabled = false;
+            window.luftControle?.avisar(e.message || 'Não foi possível alterar o e-mail.', 'erro');
+        }
+    }
+
+    function parametrosFila() {
+        const p = new URLSearchParams({ situacao: estado.situacaoFila, pagina: estado.pagina, tamanho: estado.tamanho });
+        const termo = $('auditTermo').value.trim();
+        if (termo) p.set('termo', termo);
+        return p;
+    }
+
     async function carregarLogs(sinal) {
         let dados;
-        if (estado.aba === 'alertas') {
+        if (estado.aba === 'fila') {
+            dados = await obter(`${raiz.dataset.filaEmailUrl}?${parametrosFila()}`, sinal);
+            aplicarFila(dados.contagens);
+        } else if (estado.aba === 'alertas') {
             dados = await obter(`${raiz.dataset.alertasUrl}?${parametrosAlertas()}`, sinal);
             aplicarAlertas(dados.contagens);
         } else if (estado.aba === 'fisicos') {
@@ -409,11 +472,12 @@
         $('auditTotalLinhas').textContent = `${numero.format(estado.total)} registros`;
         $('auditPaginaInfo').textContent = local ? 'Fonte local desta instância' : `Página ${estado.pagina} de ${paginas}`;
         $('auditAlertaSituacoes').hidden = estado.aba !== 'alertas';
+        $('auditFilaSituacoes').hidden = estado.aba !== 'fila';
         $('auditPaginaAnterior').disabled = local || estado.pagina <= 1;
         $('auditProximaPagina').disabled = local || estado.pagina >= paginas;
         // Fonte, nível e arquivo só fazem sentido na aba que lê os arquivos de log do servidor.
         ['auditFonteContainer', 'auditNivelContainer', 'auditArquivoContainer'].forEach(id => { $(id).hidden = estado.aba !== 'fisicos'; });
-        if ($('auditBtnExportar')) $('auditBtnExportar').hidden = local || ['sessoes', 'alertas'].includes(estado.aba);
+        if ($('auditBtnExportar')) $('auditBtnExportar').hidden = local || ['sessoes', 'alertas', 'fila'].includes(estado.aba);
     }
 
     // Uma consulta nova cancela a anterior: quem muda três filtros seguidos só vê (e só paga) a última.
@@ -527,6 +591,12 @@
         estado.situacao = botao.dataset.situacao;
         estado.pagina = 1;
         raiz.querySelectorAll('#auditAlertaSituacoes [data-situacao]').forEach(x => x.classList.toggle('active', x === botao));
+        carregarLogs().catch(e => erro(e.message));
+    }));
+    raiz.querySelectorAll('#auditFilaSituacoes [data-situacao-fila]').forEach(botao => botao.addEventListener('click', () => {
+        estado.situacaoFila = botao.dataset.situacaoFila;
+        estado.pagina = 1;
+        raiz.querySelectorAll('#auditFilaSituacoes [data-situacao-fila]').forEach(x => x.classList.toggle('active', x === botao));
         carregarLogs().catch(e => erro(e.message));
     }));
     $('auditTermo').addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); clearTimeout(adiar); estado.pagina = 1; atualizar(); } });

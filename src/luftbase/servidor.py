@@ -261,6 +261,13 @@ def _iniciar_alertas(app: Flask) -> None:
     if estado is not None:
         iniciar_se_ativo(estado.bancos, estado.email)
 
+    from luftbase.integracoes.email.fila_em_segundo_plano import (
+        iniciar_se_ativo as iniciar_fila_email,
+    )
+
+    if estado is not None:
+        iniciar_fila_email(estado.bancos, estado.email)
+
 
 def executar(
     alvo: str | Flask | Callable[[], Flask],

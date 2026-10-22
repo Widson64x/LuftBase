@@ -54,6 +54,7 @@ from luftbase.infraestrutura.fabrica import (
 )
 from luftbase.integracoes.diagnostico import IntegracaoAplicacao
 from luftbase.integracoes.email import ResultadoEnvio, ServicoEmail
+from luftbase.integracoes.email.fila import FilaEmail
 from luftbase.integracoes.email.enderecos import resumir_enderecos
 from luftbase.interface.busca import ProvedorBusca
 from luftbase.interface.parametros import ParametroAplicacao
@@ -110,6 +111,12 @@ class EstadoPlataforma:
         """Atalho para as fronteiras diretorio, core e aplicacao."""
 
         return self.infraestrutura.bancos
+
+    @property
+    def fila_email(self) -> FilaEmail:
+        """Fila de e-mails: grava e volta na hora; o envio acontece em segundo plano."""
+
+        return FilaEmail(self.bancos.core, self.email)
 
     @property
     def usuarios_core(self) -> RepositorioUsuariosPostgreSQL:

@@ -17,6 +17,8 @@
     data-exportar-url="{{ url_for('Auditoria.api_exportar') }}"
     data-fisicos-url="{{ url_for('Auditoria.api_fisicos') }}"
     data-alertas-url="{{ url_for('Auditoria.api_alertas') }}"
+    data-fila-email-url="{{ url_for('Auditoria.api_fila_email') }}"
+    data-acao-fila-email-url="{{ url_for('Auditoria.api_acao_fila_email', id_email=999999, acao='ACAO') }}"
     data-silenciar-alerta-url="{{ url_for('Auditoria.api_silenciar_alerta', id_alerta=999999) }}"
     data-pode-ver-sensiveis="{{ 'true' if pode_ver_dados_sensiveis_auditoria else 'false' }}"
 >
@@ -308,6 +310,7 @@
                 <button data-log-tab="alteracoes" type="button"><i class="ph-bold ph-arrows-left-right"></i> Detalhes da Alteração</button>
                 {% if pode_ver_dados_sensiveis_auditoria %}
                 <button data-log-tab="alertas" type="button"><i class="ph-bold ph-bell-ringing"></i> Alertas <b class="audit-nav-badge perigo" id="auditTabAlertas" hidden>0</b></button>
+                <button data-log-tab="fila" type="button" id="auditAbaFila" hidden><i class="ph-bold ph-paper-plane-tilt"></i> Fila de e-mails <b class="audit-nav-badge perigo" id="auditTabFila" hidden>0</b></button>
                 <button data-log-tab="fisicos" type="button"><i class="ph-bold ph-file-text"></i> Logs físicos</button>
                 {% endif %}
             </div>
@@ -321,6 +324,12 @@
                     <button type="button" data-situacao="silenciados" title="Abertos, mas sem avisar até o fim do silêncio">Silenciados <b>–</b></button>
                     <button type="button" data-situacao="resolvidos" title="Pararam de ocorrer">Resolvidos <b>–</b></button>
                     <button type="button" data-situacao="todos">Todos <b>–</b></button>
+                </div>
+                <div class="audit-fonte" id="auditFilaSituacoes" role="group" aria-label="Situação do e-mail" hidden>
+                    <button type="button" class="active" data-situacao-fila="pendentes" title="Aguardando envio ou em nova tentativa">Pendentes <b>–</b></button>
+                    <button type="button" data-situacao-fila="enviados">Enviados <b>–</b></button>
+                    <button type="button" data-situacao-fila="falhas" title="Esgotaram as tentativas ou foram cancelados">Falhas <b>–</b></button>
+                    <button type="button" data-situacao-fila="todos">Todos <b>–</b></button>
                 </div>
                 <label class="audit-file-select" id="auditNivelContainer" hidden>
                     <span>Nível</span>

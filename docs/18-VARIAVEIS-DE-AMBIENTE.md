@@ -83,6 +83,9 @@ A conta SMTP, o modo teste e os destinatarios de teste ficam no Vault (`luft/<am
 | `LUFT_AUDITORIA_DADOS_DESDE` | vazio | Instante ISO 8601 (ex.: `2026-10-06T17:00`) antes do qual a Auditoria ignora os dados ([doc 15](15-AUDITORIA-ANALITICA-E-CONTROLE-DE-SESSOES.md)). |
 | `LUFT_BASE_REPOSITORIO` | `Widson64x/LuftBase` | Repositorio consultado pelo verificador de versao. |
 | `LUFT_GITHUB_TOKEN` | vazio | Token opcional para o verificador de versao (o repositorio e publico). |
+| `LUFT_EMAIL_FILA_ATIVO` | `true` | `false` desliga a entrega da fila de e-mails neste servidor (pode ficar ligada em varios: a reserva com `SKIP LOCKED` impede envio duplicado). [Doc 13](13-NOTIFICACOES-E-PUBLICACOES.md#fila-de-e-mails). |
+| `LUFT_EMAIL_FILA_INTERVALO_SEGUNDOS` | `10` | De quanto em quanto tempo a fila e verificada (minimo 2). |
+| `LUFT_EMAIL_FILA_RETENCAO_DIAS` | `30` | Dias que os e-mails **enviados** ficam na fila antes de serem apagados (falhas ficam 90). |
 | `LUFT_ALERTAS_ATIVO` | `false` | `true` liga o avaliador de alertas em segundo plano. Ligue **so no Workspace** ([doc 12](12-AUDITORIA-E-OBSERVABILIDADE.md#alertas-para-o-desenvolvedor)). |
 | `LUFT_ALERTAS_INTERVALO_SEGUNDOS` | `60` | Intervalo do avaliador (minimo 15). |
 | `LUFT_RETENCAO_ACESSO_DIAS` | `180` | Quanto tempo `tb_logs` (acesso HTTP) fica no banco ([doc 12](12-AUDITORIA-E-OBSERVABILIDADE.md#retencao-dos-logs)). |

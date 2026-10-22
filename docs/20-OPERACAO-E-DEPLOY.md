@@ -135,6 +135,7 @@ Algumas versoes do LuftBase trazem mudancas no `core` que precisam estar no banc
 | 0.1.0a109 | `20261015_0016` | colunas `integra_luftbase`, `tipo_acesso`, `url_download` em `tb_sistema` | `tools/sql/20261015_tb_sistema_tipo_de_integracao.sql` ou `bootstrap --atualizar` |
 | 0.1.0a109 | `20261015_0017` | novas categorias de sistema (CHECK de `categoria`) | `tools/sql/20261015_tb_sistema_categorias.sql` ou `bootstrap --atualizar` |
 | 0.1.0a113 | `20261021_0018` | `tb_publicacao.formato_conteudo` e tabela `tb_publicacaoimagem` (editor rico) | `tools/sql/20261021_publicacao_conteudo_rico.sql` ou `bootstrap --atualizar` |
+| 0.1.0a125 | `20261022_0019` | tabela `tb_email_fila` (fila de e-mails) | `bootstrap --atualizar`. **Sem a tabela o aviso de acesso liberado envia direto, como antes** (e a aba da fila some) |
 
 **O comando que mantem o banco em dia** e `FLASK bootstrap --atualizar --ambiente <ambiente>`: ele pede o **usuario de migracao** (o dono das tabelas do
 `core`, ex.: `luft_web_owner`), aplica todas as migracoes pendentes e sincroniza o catalogo. `FLASK banco pendencias` mostra o que falta.

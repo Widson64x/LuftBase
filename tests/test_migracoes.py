@@ -14,8 +14,9 @@ def test_historico_possui_baseline_e_evolucao() -> None:
     scripts = ScriptDirectory.from_config(configuracao)
 
     assert scripts.get_base() == "20260915_0001"
-    assert scripts.get_current_head() == "20261021_0018"
+    assert scripts.get_current_head() == "20261022_0019"
     assert [revisao.revision for revisao in scripts.walk_revisions()] == [
+        "20261022_0019",
         "20261021_0018",
         "20261015_0017",
         "20261015_0016",
@@ -49,7 +50,7 @@ def test_upgrade_offline_recria_o_core_hierarquico_completo() -> None:
     command.upgrade(configuracao, "head", sql=True)
 
     sql = saida.getvalue().lower()
-    assert sql.count("create table core.") == 32
+    assert sql.count("create table core.") == 33
     assert "create table core.alembic_version" in sql
     assert "create table core.tb_sistema" in sql
     assert "create table core.tb_modulo" in sql

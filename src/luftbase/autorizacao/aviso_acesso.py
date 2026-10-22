@@ -36,6 +36,7 @@ from luftbase.persistencia.diretorio import GrupoDiretorio, UsuarioDiretorio
 if TYPE_CHECKING:
     from luftbase.infraestrutura.banco.catalogo import CatalogoBancos
     from luftbase.integracoes.email import ServicoEmail
+    from luftbase.integracoes.email.fila import FilaEmail
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,7 @@ class ResultadoAviso:
     com_acesso_novo: int = 0
     notificacoes: int = 0
     emails_enviados: int = 0
+    emails_na_fila: int = 0
     sem_email: int = 0
     falhas: int = 0
     ignoradas: int = 0
@@ -87,6 +89,7 @@ class ResultadoAviso:
             "com_acesso_novo": self.com_acesso_novo,
             "notificacoes": self.notificacoes,
             "emails_enviados": self.emails_enviados,
+            "emails_na_fila": self.emails_na_fila,
             "sem_email": self.sem_email,
             "falhas": self.falhas,
             "ignoradas": self.ignoradas,
@@ -110,10 +113,16 @@ class ResultadoAviso:
             if self.ignoradas:
                 partes.append(f"{self.ignoradas} pessoa(s) acima do limite não foram avisadas.")
             return " ".join(partes)
-        partes = [
-            f"Acesso liberado a {self.com_acesso_novo} pessoa(s): "
-            f"{self.notificacoes} notificação(ões) e {self.emails_enviados} e-mail(s) enviado(s)."
-        ]
+        if self.emails_na_fila:
+            partes = [
+                f"Acesso liberado a {self.com_acesso_novo} pessoa(s): {self.notificacoes} notificação(ões) enviada(s) "
+                f"e {self.emails_na_fila} e-mail(s) na fila (saem em instantes, em segundo plano)."
+            ]
+        else:
+            partes = [
+                f"Acesso liberado a {self.com_acesso_novo} pessoa(s): "
+                f"{self.notificacoes} notificação(ões) e {self.emails_enviados} e-mail(s) enviado(s)."
+            ]
         if self.sem_email:
             partes.append(f"{self.sem_email} sem e-mail cadastrado no diretório (só a notificação).")
         if self.email_nao_configurado:
@@ -351,6 +360,7 @@ def avisar_acessos_liberados(
     liberado_por: str,
     garantir_usuario: Callable[[int], bool],
     enviar_email: bool = True,
+    fila: FilaEmail | None = None,
 ) -> ResultadoAviso:
     """Compara com a foto de antes e avisa (notificacao + e-mail) quem ganhou acesso. Nunca levanta.
 
@@ -366,6 +376,7 @@ def avisar_acessos_liberados(
             liberado_por=liberado_por,
             garantir_usuario=garantir_usuario,
             enviar_email=enviar_email,
+            fila=fila,
         )
     except Exception:
         logger.exception("Aviso de acesso liberado falhou; a permissao foi gravada normalmente")
@@ -381,6 +392,7 @@ def _avisar(
     liberado_por: str,
     garantir_usuario: Callable[[int], bool],
     enviar_email: bool = True,
+    fila: FilaEmail | None = None,
 ) -> ResultadoAviso:
     if not antes.pessoas:
         logger.info(
@@ -432,6 +444,7 @@ def _avisar(
     repositorio = RepositorioNotificacoes(bancos.core)
     notificacoes = sem_email = falhas = 0
     envios = []
+    pedidos: list[tuple[Pessoa, str, dict[str, object]]] = []
     ids_com_envio: list[Pessoa] = []
     for pessoa in novos:
         if pessoa.id_usuario in bloqueados:
@@ -473,43 +486,70 @@ def _avisar(
             continue
         if not email.configurado:
             continue
-        try:
-            envios.append(
-                email.preparar(
-                    pessoa.email,
-                    f"Seu acesso ao {nome_sistema} foi liberado",
-                    template=TEMPLATE_EMAIL,
-                    contexto={
-                        "nome": pessoa.nome.split(" ")[0] if pessoa.nome else "",
-                        "nome_sistema": nome_sistema,
-                        "url": url,
-                        "liberado_por": liberado_por,
-                    },
-                )
+        pedidos.append(
+            (
+                pessoa,
+                f"Seu acesso ao {nome_sistema} foi liberado",
+                {
+                    "nome": pessoa.nome.split(" ")[0] if pessoa.nome else "",
+                    "nome_sistema": nome_sistema,
+                    "url": url,
+                    "liberado_por": liberado_por,
+                },
             )
-            ids_com_envio.append(pessoa)
-        except Exception:
-            falhas += 1
-            logger.exception("Aviso de acesso: e-mail nao preparado para %s", pessoa.login)
+        )
 
-    enviados = 0
-    if envios:
-        for resultado in email.enviar_lote(envios):
-            if resultado.sucesso:
-                enviados += 1
-            else:
+    enviados = na_fila = 0
+    if pedidos and fila is not None:
+        # Entra na fila e a requisicao termina na hora; o servico de envio entrega em segundo plano.
+        try:
+            fila.enfileirar_varios(
+                [
+                    fila.montar(
+                        pessoa.email,
+                        assunto,
+                        template=TEMPLATE_EMAIL,
+                        contexto=contexto,
+                        origem="ACESSO_LIBERADO",
+                        id_sistema=antes.id_sistema,
+                        criado_por=liberado_por or None,
+                    )
+                    for pessoa, assunto, contexto in pedidos
+                ]
+            )
+            na_fila = len(pedidos)
+        except Exception:
+            # Sem a tabela (migracao pendente) ou banco indisponivel: nao perde o aviso, envia agora como antes.
+            logger.exception("Aviso de acesso: fila de e-mail indisponivel; enviando direto")
+            fila = None
+    if pedidos and fila is None:
+        for pessoa, assunto, contexto in pedidos:
+            try:
+                envios.append(
+                    email.preparar(pessoa.email, assunto, template=TEMPLATE_EMAIL, contexto=contexto)
+                )
+                ids_com_envio.append(pessoa)
+            except Exception:
                 falhas += 1
-                logger.warning("Aviso de acesso: e-mail nao entregue (%s)", resultado.erro)
+                logger.exception("Aviso de acesso: e-mail nao preparado para %s", pessoa.login)
+        if envios:
+            for resultado in email.enviar_lote(envios):
+                if resultado.sucesso:
+                    enviados += 1
+                else:
+                    falhas += 1
+                    logger.warning("Aviso de acesso: e-mail nao entregue (%s)", resultado.erro)
 
     logger.info(
         "Acesso liberado ao sistema '%s' para %s: %s pessoa(s) ganharam acesso (%s) -> %s notificacao(oes), "
-        "%s e-mail(s) enviado(s)%s%s%s%s.",
+        "%s e-mail(s) enviado(s)%s%s%s%s%s.",
         nome_sistema,
         antes.alvo or "o alvo da regra",
         len(novos),
         _listar_logins(novos),
         notificacoes,
         enviados,
+        f", {na_fila} na fila de envio" if na_fila else "",
         f", {sem_email} sem e-mail cadastrado" if sem_email else "",
         ", e-mail nao configurado neste ambiente" if not email.configurado else "",
         " (modo teste: e-mails desviados para os destinatarios de teste)" if email.modo_teste and enviados else "",
@@ -519,6 +559,7 @@ def _avisar(
         com_acesso_novo=len(novos),
         notificacoes=notificacoes,
         emails_enviados=enviados,
+        emails_na_fila=na_fila,
         sem_email=sem_email,
         falhas=falhas,
         ignoradas=ignoradas,

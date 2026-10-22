@@ -259,6 +259,7 @@ def api_resumo():  # type: ignore[no-untyped-def]
         },
         # Os alertas so aparecem para quem pode ver dados sensiveis (como a aba de alertas e os logs fisicos).
         "alertas": _contagem_alertas() if ver_sensiveis else None,
+        "fila_email": _contagem_fila_email() if ver_sensiveis else None,
     }
     # As listas de filtro (usuarios, grupos, sistemas) pesam: a tela as pede uma vez em /opcoes, nao a cada atualizacao.
     if request.args.get("opcoes", "1") not in {"0", "false"}:
@@ -283,6 +284,13 @@ def api_opcoes():  # type: ignore[no-untyped-def]
     """Listas dos filtros (sistemas, usuarios e grupos que apareceram no periodo)."""
 
     return jsonify({"status": "success", "data": _opcoes(_montar_filtro(), _servico())})
+
+
+def _contagem_fila_email() -> dict[str, int] | None:
+    try:
+        return obter_luftbase().fila_email.contar()
+    except Exception:  # tabela ainda nao migrada: a aba some, o resto da tela segue
+        return None
 
 
 def _contagem_alertas() -> dict[str, int] | None:
@@ -583,6 +591,52 @@ def api_alertas():  # type: ignore[no-untyped-def]
             deslocamento=pagina.deslocamento,
         )
     return jsonify(status="success", data={**dados, "alertas": dados["itens"], "situacao": situacao})
+
+
+@AuditoriaBp.get("/fila-email")
+@login_required
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR)
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
+def api_fila_email():  # type: ignore[no-untyped-def]
+    """Fila de e-mails por situacao (`pendentes`, `enviados`, `falhas`, `todos`), com busca e paginacao."""
+
+    from luftbase.integracoes.email.fila import SITUACOES
+
+    situacao = request.args.get("situacao", "").strip().lower() or "pendentes"
+    if situacao not in SITUACOES:
+        abort(400, description="Situacao da fila invalida.")
+    pagina = _montar_pagina()
+    dados = obter_luftbase().fila_email.consultar(
+        situacao=situacao,
+        termo=request.args.get("termo", "").strip()[:100] or None,
+        limite=pagina.tamanho,
+        deslocamento=pagina.deslocamento,
+    )
+    return jsonify(status="success", data={**dados, "situacao": situacao})
+
+
+@AuditoriaBp.post("/fila-email/<int:id_email>/<acao>")
+@login_required
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_DADOS_SENSIVEIS_VISUALIZAR)
+@exigir_permissao(PermissaoLuftBase.AUDITORIA_VISUALIZAR)
+def api_acao_fila_email(id_email: int, acao: str):  # type: ignore[no-untyped-def]
+    """`reenviar` (poe de volta um e-mail que falhou) ou `cancelar` (um pendente que nao deve mais sair)."""
+
+    validar_csrf_requisicao()
+    if acao not in {"reenviar", "cancelar"}:
+        abort(404)
+    fila = obter_luftbase().fila_email
+    feito = fila.reenviar(id_email) if acao == "reenviar" else fila.cancelar(id_email)
+    if not feito:
+        abort(409, description="O e-mail nao esta mais em uma situacao que permita isso.")
+    registrar_alteracao_auditoria(
+        recurso="EMAIL_FILA",
+        id_recurso=id_email,
+        acao="EMAIL_REENVIADO" if acao == "reenviar" else "EMAIL_CANCELADO",
+        descricao=f"E-mail {id_email} da fila {'recolocado para envio' if acao == 'reenviar' else 'cancelado'}.",
+        severidade=SeveridadeAuditoria.BAIXA,
+    )
+    return jsonify(status="success", message="E-mail recolocado na fila." if acao == "reenviar" else "E-mail cancelado.")
 
 
 @AuditoriaBp.post("/alertas/<int:id_alerta>/silenciar")

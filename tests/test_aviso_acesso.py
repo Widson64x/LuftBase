@@ -662,3 +662,56 @@ def test_permissao_mae_da_base_tambem_conta_como_acesso(ambiente: Bancos) -> Non
     with ambiente.core.leitura() as s:
         ids = _permissoes_que_dao_acesso(s, 3)
     assert ids == {10, 20}  # a base e a mae; RELATORIO.VER (11) nao mexe no acesso
+
+
+def test_com_fila_o_aviso_so_enfileira_e_nao_envia(ambiente: Bancos) -> None:
+    from luftbase.integracoes.email.fila import FilaEmail
+    from luftbase.persistencia.core.email_fila import EmailFila
+
+    email = EmailFalso()
+    fila = FilaEmail(ambiente.core, email)  # type: ignore[arg-type]
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+
+    _regra_usuario(ambiente, 1, 10)
+    resultado = avisar_acessos_liberados(
+        ambiente,  # type: ignore[arg-type]
+        email,  # type: ignore[arg-type]
+        antes,
+        url_base="https://luft.exemplo/",
+        liberado_por="widson.araujo",
+        garantir_usuario=lambda _id: True,
+        fila=fila,
+    )
+
+    assert resultado.com_acesso_novo == 1 and resultado.notificacoes == 1
+    assert resultado.emails_na_fila == 1 and resultado.emails_enviados == 0
+    assert email.preparados == []  # nada saiu na requisicao
+    assert "1 e-mail(s) na fila" in resultado.texto()
+    with ambiente.core.leitura() as s:
+        (linha,) = s.execute(select(EmailFila)).scalars().all()
+    assert linha.origem == "ACESSO_LIBERADO" and linha.status == "PENDENTE"
+    assert linha.template == "luftbase/email/acesso_liberado.html" and linha.criado_por == "widson.araujo"
+    assert fila.processar().enviados == 1 and email.preparados[0]["assunto"] == "Seu acesso ao Luft-Workspace foi liberado"
+
+
+def test_fila_indisponivel_envia_direto_como_antes(ambiente: Bancos) -> None:
+    from luftbase.integracoes.email.fila import FilaEmail
+
+    class FilaQuebrada(FilaEmail):
+        def enfileirar_varios(self, linhas):  # type: ignore[no-untyped-def]
+            raise RuntimeError("tabela ausente")
+
+    email = EmailFalso()
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+    _regra_usuario(ambiente, 1, 10)
+    resultado = avisar_acessos_liberados(
+        ambiente,  # type: ignore[arg-type]
+        email,  # type: ignore[arg-type]
+        antes,
+        url_base="https://luft.exemplo/",
+        liberado_por="widson.araujo",
+        garantir_usuario=lambda _id: True,
+        fila=FilaQuebrada(ambiente.core, email),  # type: ignore[arg-type]
+    )
+    assert resultado.emails_enviados == 1 and resultado.emails_na_fila == 0
+    assert len(email.preparados) == 1

@@ -16,8 +16,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from luftbase.autorizacao.aviso_acesso import (
-    CapturaAcesso,
     SUFIXO_ACESSO_BASE,
+    CapturaAcesso,
     avisar_acessos_liberados,
     capturar_acesso,
     quem_ganharia_acesso,
@@ -329,6 +329,7 @@ def _avisar_acesso_liberado(
         liberado_por=str(getattr(current_user, "login", "") or ""),
         garantir_usuario=garantir_usuario_no_core,
         enviar_email=enviar_email,
+        fila=getattr(estado, "fila_email", None),
     )
     if resultado.com_acesso_novo:
         registrar_alteracao_auditoria(

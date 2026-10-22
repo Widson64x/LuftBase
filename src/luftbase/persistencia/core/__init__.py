@@ -8,6 +8,7 @@ from luftbase.persistencia.core.auditoria import (
     LogDetalhe,
     LogEvento,
 )
+from luftbase.persistencia.core.email_fila import EmailFila
 from luftbase.persistencia.core.notificacoes import (
     Notificacao,
     NotificacaoLeitura,
@@ -36,6 +37,7 @@ from luftbase.persistencia.core.usuario import Usuario
 __all__ = [
     "Alerta",
     "AlertaControle",
+    "EmailFila",
     "EventoSessao",
     "Log",
     "LogAcesso",

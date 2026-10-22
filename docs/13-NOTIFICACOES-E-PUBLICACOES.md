@@ -128,6 +128,27 @@ conexao longa ou processo residente nesta fase.
 Nginx deve preservar `Last-Event-ID`, desabilitar buffering para essas rotas e manter
 `Cache-Control: no-cache`. O LuftBase tambem envia `X-Accel-Buffering: no`.
 
+## Fila de e-mails
+
+Enviar e-mail dentro da requisicao deixava a tela carregando (dar acesso a um grupo de 200 pessoas = 200 e-mails). Agora quem precisa enviar **grava na
+fila** (`core.tb_email_fila`, modelo `EmailFila`) e segue; um servico em segundo plano entrega.
+
+- **Enfileirar**: `estado.fila_email.enfileirar(para, assunto, template=..., contexto={...}, origem="MINHA_ORIGEM")` ou `enfileirar_varios([fila.montar(...), ...])`
+  (uma transacao, tudo ou nada). Guarda a *intencao* (template + contexto JSON, ou `html`/`texto`), nao a mensagem pronta: o modo teste, o remetente e o layout
+  valem como estao na hora da entrega. O contexto precisa ser JSON simples (texto, numeros, listas); **anexos e imagens embutidas nao sao suportados** na fila
+  (use `estado.email.enviar` direto). Erros de uso (sem destinatario, sem assunto, contexto nao serializavel) levantam `ErroEmail` ja ao enfileirar.
+- **Entregar**: a thread `EntregadorEmSegundoPlano` sobe junto com o servidor (`servidor.executar`), a cada `LUFT_EMAIL_FILA_INTERVALO_SEGUNDOS` (10) entrega lotes de
+  ate 50 por conexao SMTP. O lote e reservado com `FOR UPDATE SKIP LOCKED`, entao varios servidores podem entregar ao mesmo tempo sem duplicar; um lote
+  `ENVIANDO` parado ha mais de 10 min (processo morreu) volta para a fila. Desligue num servidor com `LUFT_EMAIL_FILA_ATIVO=false`. Sem nenhum servidor entregando,
+  agende `luftbase email processar`.
+- **Tentativas**: falha de entrega reagenda com espera de 1, 5 e 30 min; na 4a falha o e-mail fica `FALHOU` (e pode ser reenviado na tela). Endereco invalido ou template
+  ausente falha na hora, sem repetir. Sem e-mail configurado o lote volta para a fila sem gastar tentativa.
+- **Retencao**: enviados saem depois de `LUFT_EMAIL_FILA_RETENCAO_DIAS` (30); falhas e cancelados, depois de 90.
+- **Tela**: Auditoria > Registros > **Fila de e-mails** (so com dados sensiveis): pendentes, enviados, falhas e todos com contagem, busca, **Cancelar** (pendente) e **Reenviar**
+  (falha), ambos auditados. A insignia da aba mostra as falhas. `GET /auditoria/api/fila-email?situacao=` e `POST /auditoria/api/fila-email/<id>/{reenviar|cancelar}`.
+- **Quem ja usa**: o aviso de **acesso liberado** (o resumo diz "N e-mail(s) na fila"). Se a tabela ainda nao existir (migracao `20261022_0019` pendente) o aviso envia direto, como antes.
+  Alertas e comunicados continuam enviando direto por enquanto.
+
 ## Seguranca e operacao
 
 - o filtro de audiencia roda no banco antes da serializacao;

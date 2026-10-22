@@ -213,6 +213,8 @@ exibir senhas ou tokens**; com `--conectar` testa a conectividade.
 | `alertas avaliar` | roda **um** ciclo do avaliador de alertas (agende a cada minuto) |
 | `alertas listar [--todos] [--limite N]` | lista alertas abertos (ou todos) |
 | `email testar --para voce@empresa` | envia o e-mail de teste pelo segredo `integracoes/email` do ambiente |
+| `email fila [--situacao pendentes\|enviados\|falhas\|todos]` | mostra a fila de e-mails: contagens e os ultimos itens (sobe o app Flask) |
+| `email processar [--lote 50]` | entrega agora o que esta na fila (para agendar quando nenhum servidor roda o envio) |
 
 ## Catalogo, estrutura e temas
 

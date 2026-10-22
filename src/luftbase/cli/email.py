@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import click
+from flask.cli import with_appcontext
 
 from luftbase.configuracao.caminhos_vault import resolver_caminhos_vault
 from luftbase.configuracao.modelos import ConfiguracaoLuftBase
@@ -75,3 +76,41 @@ def email_testar(destinatarios: tuple[str, ...]) -> None:
     if resultado.recusados:
         click.echo(f"recusados={', '.join(resultado.recusados)}")
     click.echo("envio=ok")
+
+
+@email.command("fila")
+@click.option("--situacao", default="pendentes", show_default=True, type=click.Choice(["pendentes", "enviados", "falhas", "todos"]))
+@click.option("--limite", default=30, show_default=True, type=int)
+@with_appcontext
+def email_fila(situacao: str, limite: int) -> None:
+    """Mostra a fila de e-mails (quantos pendentes, enviados e com falha) e os ultimos itens."""
+
+    from luftbase.plataforma import obter_luftbase
+
+    fila = obter_luftbase().fila_email
+    dados = fila.consultar(situacao=situacao, limite=limite)
+    c = dados["contagens"]
+    click.echo(f"pendentes={c['pendentes']} enviados={c['enviados']} falhas={c['falhas']}")
+    for item in dados["itens"]:
+        erro = f" | {item['ultimo_erro']}" if item["ultimo_erro"] else ""
+        click.echo(
+            f"#{item['id_email']} {item['status']:<9} {item['resumo_destinatarios']} | {item['origem']} | "
+            f"{item['assunto']} | tentativa {item['tentativas']}/{item['maximo_tentativas']}{erro}"
+        )
+
+
+@email.command("processar")
+@click.option("--lote", default=50, show_default=True, type=int, help="E-mails por conexao SMTP.")
+@with_appcontext
+def email_processar(lote: int) -> None:
+    """Entrega agora o que esta na fila (ideal para agendar quando nenhum servidor roda o envio)."""
+
+    from luftbase.plataforma import obter_luftbase
+
+    resultado = obter_luftbase().fila_email.processar_tudo(limite_lote=lote)
+    click.echo(
+        f"reservados={resultado.reservados} enviados={resultado.enviados} "
+        f"reagendados={resultado.reagendados} falhas={resultado.falhas}"
+    )
+    if resultado.falhas:
+        raise click.exceptions.Exit(1)

@@ -2,6 +2,20 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a125] - 2026-10-22
+
+### Adicionado
+
+- **Fila de e-mails** (`core.tb_email_fila`, migracao `20261022_0019`, aditiva): quem envia grava na fila e a requisicao termina na hora; um servico em segundo plano entrega em lotes,
+  com nova tentativa (1, 5 e 30 min) e `SKIP LOCKED` para varios servidores. Dar acesso a um grupo grande deixa de travar a tela. `estado.fila_email`, thread ligada por padrao nos
+  servidores (`LUFT_EMAIL_FILA_ATIVO`, `LUFT_EMAIL_FILA_INTERVALO_SEGUNDOS`, `LUFT_EMAIL_FILA_RETENCAO_DIAS`), comandos `email fila` e `email processar`.
+- Aba **Fila de e-mails** na Auditoria (pendentes, enviados, falhas, busca, cancelar e reenviar, com auditoria).
+
+### Alterado
+
+- O aviso de **acesso liberado** passa a enfileirar o e-mail (a notificacao interna continua imediata). Sem a tabela, envia direto como antes.
+- **Antes de publicar** o pin nos apps, aplique a migracao: `FLASK bootstrap --atualizar --ambiente <ambiente>`.
+
 ## [0.1.0a124] - 2026-10-22
 
 ### Corrigido
