@@ -637,3 +637,28 @@ def test_tela_pergunta_antes_de_gravar_so_quando_pedido() -> None:
     assert salvar.index('status="confirmar"') < salvar.index("estado.bancos.core.escrita()")
     assert "enviar_email=escolha_email is not False" in salvar
     assert 'avisar_email") is not False' in codigo
+
+
+def test_permissao_mae_da_base_tambem_conta_como_acesso(ambiente: Bancos) -> None:
+    """ADMINISTRAR libera ACESSAR por heranca: a pergunta do e-mail tem que valer para as duas."""
+
+    from luftbase.web.seguranca import _permissoes_que_dao_acesso
+
+    with ambiente.core.unidade_trabalho() as s:
+        s.add(
+            Permissao(
+                id_permissao=20,
+                id_sistema=3,
+                id_modulo=1,
+                chave_permissao="WORKSPACE.SISTEMA.ADMINISTRAR",
+                recurso="SISTEMA",
+                acao="ADMINISTRAR",
+                descricao_permissao="Administrar",
+                ativo=True,
+            )
+        )
+        s.flush()
+        s.execute(text("update tb_permissao set id_permissao_pai = 20 where id_permissao = 10"))
+    with ambiente.core.leitura() as s:
+        ids = _permissoes_que_dao_acesso(s, 3)
+    assert ids == {10, 20}  # a base e a mae; RELATORIO.VER (11) nao mexe no acesso

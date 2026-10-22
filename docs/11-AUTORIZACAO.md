@@ -92,7 +92,7 @@ pessoas por operacao. **Falha de e-mail ou notificacao nunca desfaz a concessao*
 
 ### Perguntar antes de enviar o e-mail
 
-Ao **Permitir** a permissao base na tela do Gerenciador, o servidor ve quem ainda nao tem acesso (`quem_ganharia_acesso`) e, se houver alguem e o e-mail
+Ao **Permitir** a permissao base (ou uma permissao mae dela, como `ADMINISTRAR`, que libera o acesso por heranca) na tela do Gerenciador, o servidor ve quem ainda nao tem acesso (`quem_ganharia_acesso`) e, se houver alguem e o e-mail
 estiver configurado, **nao grava ainda**: responde `status: "confirmar"` com quantas pessoas ganhariam acesso e quantas tem e-mail. A tela abre um
 dialogo com **Salvar e enviar e-mail**, **Salvar sem e-mail** (a notificacao dentro do sistema sai do mesmo jeito) e **Cancelar**; a escolha volta
 como `AvisarEmail` (true/false) e so entao a regra e gravada. A pergunta so existe quando a tela manda `PerguntarAviso: true`: quem chama a API direto continua

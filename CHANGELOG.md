@@ -2,6 +2,13 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a124] - 2026-10-22
+
+### Corrigido
+
+- A pergunta "enviar e-mail?" nao aparecia ao permitir uma permissao **mae** da base (ex.: `PLATAFORMA.SISTEMA.ADMINISTRAR`, que libera `ACESSAR` por heranca) e o
+  e-mail saia direto. Agora vale para a permissao base e para todas as ancestrais dela.
+
 ## [0.1.0a123] - 2026-10-22
 
 ### Adicionado

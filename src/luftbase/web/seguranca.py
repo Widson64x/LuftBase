@@ -13,6 +13,7 @@ from flask import Blueprint, jsonify, redirect, render_template, request, url_fo
 from flask_login import current_user, login_required
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from luftbase.autorizacao.aviso_acesso import (
     CapturaAcesso,
@@ -268,6 +269,30 @@ def _url_base_publica() -> str:
     """Endereco publico da plataforma para links de e-mail (`LUFT_URL_PUBLICA` ou o host da requisicao)."""
 
     return (os.environ.get("LUFT_URL_PUBLICA") or "").strip() or request.host_url
+
+
+def _permissoes_que_dao_acesso(sessao: Session, id_sistema: int) -> set[int]:
+    """Ids da permissao base do sistema e de todas as suas ancestrais (quem as recebe herda o acesso)."""
+
+    linhas = sessao.execute(
+        select(
+            Permissao.id_permissao,
+            Permissao.id_permissao_pai,
+            Permissao.eh_acesso_sistema,
+            Permissao.chave_permissao,
+            Permissao.ativo,
+        ).where(Permissao.id_sistema == id_sistema)
+    ).all()
+    pais = {int(i): (int(p) if p is not None else None) for i, p, *_ in linhas}
+    resultado: set[int] = set()
+    for id_perm, _pai, eh_base, chave, ativo in linhas:
+        if not ativo or not (eh_base or str(chave).upper().endswith(SUFIXO_ACESSO_BASE)):
+            continue
+        atual: int | None = int(id_perm)
+        while atual is not None and atual not in resultado and len(resultado) < 10_000:
+            resultado.add(atual)
+            atual = pais.get(atual)
+    return resultado
 
 
 def _lembrete_acesso_base(antes: CapturaAcesso) -> str:
@@ -614,11 +639,14 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
         return jsonify(status="error", message="Usuario nao encontrado no diretorio."), 404
     with estado.bancos.core.leitura() as sessao_previa:
         linha_regra = sessao_previa.execute(
-            select(Permissao.id_sistema, Permissao.eh_acesso_sistema, Permissao.chave_permissao).where(
-                Permissao.id_permissao == id_permissao
-            )
+            select(Permissao.id_sistema).where(Permissao.id_permissao == id_permissao)
         ).first()
-    id_sistema_regra = linha_regra[0] if linha_regra else None
+        id_sistema_regra = linha_regra[0] if linha_regra else None
+        # A regra mexe no acesso quando e a permissao base ou uma "mae" dela (ex.: ADMINISTRAR libera ACESSAR por heranca).
+        afeta_acesso = (
+            id_sistema_regra is not None
+            and id_permissao in _permissoes_que_dao_acesso(sessao_previa, id_sistema_regra)
+        )
     antes_acesso = (
         capturar_acesso(estado.bancos, tipo=tipo, id_alvo=id_alvo, id_sistema=id_sistema_regra)
         if id_sistema_regra is not None
@@ -632,8 +660,7 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
         and escolha_email is None
         and acao == "Permitir"
         and antes_acesso is not None
-        and linha_regra is not None
-        and (linha_regra[1] or str(linha_regra[2]).upper().endswith(SUFIXO_ACESSO_BASE))
+        and afeta_acesso
         and estado.email.configurado
     ):
         futuros = quem_ganharia_acesso(antes_acesso)
