@@ -80,6 +80,7 @@ class ResultadoAviso:
     ignoradas: int = 0
     email_nao_configurado: bool = False
     modo_teste: bool = False
+    email_dispensado: bool = False  # quem libera escolheu nao avisar por e-mail (a notificacao sai igual)
 
     def como_dict(self) -> dict[str, int]:
         return {
@@ -91,6 +92,7 @@ class ResultadoAviso:
             "ignoradas": self.ignoradas,
             "email_nao_configurado": int(self.email_nao_configurado),
             "modo_teste": int(self.modo_teste),
+            "email_dispensado": int(self.email_dispensado),
         }
 
     def texto(self) -> str:
@@ -98,6 +100,16 @@ class ResultadoAviso:
 
         if not self.com_acesso_novo:
             return ""
+        if self.email_dispensado:
+            partes = [
+                f"Acesso liberado a {self.com_acesso_novo} pessoa(s): {self.notificacoes} notificação(ões) enviada(s); "
+                "e-mail não enviado, como você escolheu."
+            ]
+            if self.falhas:
+                partes.append(f"{self.falhas} falha(s); veja o log do servidor.")
+            if self.ignoradas:
+                partes.append(f"{self.ignoradas} pessoa(s) acima do limite não foram avisadas.")
+            return " ".join(partes)
         partes = [
             f"Acesso liberado a {self.com_acesso_novo} pessoa(s): "
             f"{self.notificacoes} notificação(ões) e {self.emails_enviados} e-mail(s) enviado(s)."
@@ -324,6 +336,12 @@ def url_absoluta(link: str | None, url_base: str | None) -> str | None:
     return f"{base}/{texto.lstrip('/')}"
 
 
+def quem_ganharia_acesso(antes: CapturaAcesso) -> list[Pessoa]:
+    """Pessoas afetadas que hoje ainda NAO tem o acesso base: sao as que um "Permitir" provavelmente vai avisar."""
+
+    return [p for p in antes.pessoas if not antes.tem_acesso.get(p.id_usuario)]
+
+
 def avisar_acessos_liberados(
     bancos: CatalogoBancos,
     email: ServicoEmail,
@@ -332,8 +350,12 @@ def avisar_acessos_liberados(
     url_base: str | None,
     liberado_por: str,
     garantir_usuario: Callable[[int], bool],
+    enviar_email: bool = True,
 ) -> ResultadoAviso:
-    """Compara com a foto de antes e avisa (notificacao + e-mail) quem ganhou acesso. Nunca levanta."""
+    """Compara com a foto de antes e avisa (notificacao + e-mail) quem ganhou acesso. Nunca levanta.
+
+    Com `enviar_email=False` so a notificacao dentro do sistema sai (a pessoa e avisada ao entrar), sem e-mail.
+    """
 
     try:
         return _avisar(
@@ -343,6 +365,7 @@ def avisar_acessos_liberados(
             url_base=url_base,
             liberado_por=liberado_por,
             garantir_usuario=garantir_usuario,
+            enviar_email=enviar_email,
         )
     except Exception:
         logger.exception("Aviso de acesso liberado falhou; a permissao foi gravada normalmente")
@@ -357,6 +380,7 @@ def _avisar(
     url_base: str | None,
     liberado_por: str,
     garantir_usuario: Callable[[int], bool],
+    enviar_email: bool = True,
 ) -> ResultadoAviso:
     if not antes.pessoas:
         logger.info(
@@ -442,6 +466,8 @@ def _avisar(
             falhas += 1
             logger.exception("Aviso de acesso: notificacao falhou para %s", pessoa.login)
 
+        if not enviar_email:
+            continue
         if not pessoa.email:
             sem_email += 1
             continue
@@ -496,8 +522,9 @@ def _avisar(
         sem_email=sem_email,
         falhas=falhas,
         ignoradas=ignoradas,
-        email_nao_configurado=not email.configurado,
+        email_nao_configurado=enviar_email and not email.configurado,
         modo_teste=bool(email.modo_teste),
+        email_dispensado=not enviar_email,
     )
 
 

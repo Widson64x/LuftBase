@@ -2,6 +2,15 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a123] - 2026-10-22
+
+### Adicionado
+
+- **Perguntar antes de enviar o e-mail de acesso liberado**: ao permitir a permissao base de um sistema, a tela do Gerenciador pergunta "Salvar e enviar e-mail",
+  "Salvar sem e-mail" (a notificacao interna sai igual) ou "Cancelar", e so grava depois da resposta. So pergunta quando alguem realmente vai ganhar acesso e o
+  e-mail esta configurado. No espelhamento de permissoes ha a caixa "Avisar por e-mail quem ganhar acesso". A API continua avisando como antes, a menos que
+  envie `AvisarEmail: false` (ou `avisar_email: false`).
+
 ## [0.1.0a122] - 2026-10-22
 
 ### Adicionado

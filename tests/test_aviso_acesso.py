@@ -588,3 +588,52 @@ def test_log_do_aviso_para_um_usuario_e_quando_ninguem_ganhou_acesso(
     with caplog.at_level("INFO", logger="luftbase.autorizacao.aviso_acesso"):
         _avisar(ambiente, EmailFalso(), antes2)
     assert "para o usuario bia: 1 pessoa(s) ganharam acesso (bia)" in _mensagens_info(caplog)[0]
+
+
+def test_sem_email_a_notificacao_sai_e_o_email_nao(ambiente: Bancos) -> None:
+    email = EmailFalso()
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+
+    _regra_usuario(ambiente, 1, 10)
+    resultado = avisar_acessos_liberados(
+        ambiente,  # type: ignore[arg-type]
+        email,  # type: ignore[arg-type]
+        antes,
+        url_base="https://luft.exemplo/",
+        liberado_por="widson.araujo",
+        garantir_usuario=lambda _id: True,
+        enviar_email=False,
+    )
+
+    assert resultado.com_acesso_novo == 1
+    assert resultado.notificacoes == 1
+    assert resultado.emails_enviados == 0 and resultado.sem_email == 0
+    assert resultado.email_dispensado and not resultado.email_nao_configurado
+    assert email.preparados == []
+    assert len(_notificacoes(ambiente)) == 1
+    assert "e-mail não enviado, como você escolheu" in resultado.texto()
+
+
+def test_quem_ganharia_acesso_so_lista_quem_ainda_nao_tem(ambiente: Bancos) -> None:
+    from luftbase.autorizacao.aviso_acesso import quem_ganharia_acesso
+
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+    assert [p.id_usuario for p in quem_ganharia_acesso(antes)] == [1]
+
+    _regra_usuario(ambiente, 1, 10)
+    depois = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+    assert quem_ganharia_acesso(depois) == []
+
+
+def test_tela_pergunta_antes_de_gravar_so_quando_pedido() -> None:
+    from pathlib import Path
+
+    from luftbase.web import seguranca
+
+    codigo = Path(seguranca.__file__).read_text(encoding="utf-8")
+    salvar = codigo[codigo.index("def salvar_vinculo") : codigo.index("def resumo_regras_origem")]
+    # Quem chama a API direto (sem PerguntarAviso) continua avisando como antes; a tela pergunta antes de gravar.
+    assert 'dados.get("PerguntarAviso") is True' in salvar
+    assert salvar.index('status="confirmar"') < salvar.index("estado.bancos.core.escrita()")
+    assert "enviar_email=escolha_email is not False" in salvar
+    assert 'avisar_email") is not False' in codigo

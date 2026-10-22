@@ -16,8 +16,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from luftbase.autorizacao.aviso_acesso import (
     CapturaAcesso,
+    SUFIXO_ACESSO_BASE,
     avisar_acessos_liberados,
     capturar_acesso,
+    quem_ganharia_acesso,
 )
 from luftbase.autorizacao.catalogo import ACOES_PERMISSAO, PermissaoLuftBase
 from luftbase.autorizacao.resolucao import resolver_estados as _resolver_estados
@@ -286,7 +288,11 @@ def _lembrete_acesso_base(antes: CapturaAcesso) -> str:
 
 
 def _avisar_acesso_liberado(
-    antes: CapturaAcesso, estado: object, *, explicar_se_ninguem: bool = False
+    antes: CapturaAcesso,
+    estado: object,
+    *,
+    explicar_se_ninguem: bool = False,
+    enviar_email: bool = True,
 ) -> str:
     """Avisa (notificacao + e-mail) quem ganhou acesso por causa desta mudanca. Nunca levanta."""
 
@@ -297,6 +303,7 @@ def _avisar_acesso_liberado(
         url_base=_url_base_publica(),
         liberado_por=str(getattr(current_user, "login", "") or ""),
         garantir_usuario=garantir_usuario_no_core,
+        enviar_email=enviar_email,
     )
     if resultado.com_acesso_novo:
         registrar_alteracao_auditoria(
@@ -606,14 +613,40 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
     if tipo == "Usuario" and acao != "Resetar" and not garantir_usuario_no_core(id_alvo):
         return jsonify(status="error", message="Usuario nao encontrado no diretorio."), 404
     with estado.bancos.core.leitura() as sessao_previa:
-        id_sistema_regra = sessao_previa.execute(
-            select(Permissao.id_sistema).where(Permissao.id_permissao == id_permissao)
-        ).scalar_one_or_none()
+        linha_regra = sessao_previa.execute(
+            select(Permissao.id_sistema, Permissao.eh_acesso_sistema, Permissao.chave_permissao).where(
+                Permissao.id_permissao == id_permissao
+            )
+        ).first()
+    id_sistema_regra = linha_regra[0] if linha_regra else None
     antes_acesso = (
         capturar_acesso(estado.bancos, tipo=tipo, id_alvo=id_alvo, id_sistema=id_sistema_regra)
         if id_sistema_regra is not None
         else None
     )
+    # A tela pergunta antes de gravar quando um "Permitir" na permissao base vai avisar alguem por e-mail.
+    # So quem pede (`PerguntarAviso`) recebe a pergunta; chamadas diretas da API continuam avisando como antes.
+    escolha_email = dados.get("AvisarEmail")
+    if (
+        dados.get("PerguntarAviso") is True
+        and escolha_email is None
+        and acao == "Permitir"
+        and antes_acesso is not None
+        and linha_regra is not None
+        and (linha_regra[1] or str(linha_regra[2]).upper().endswith(SUFIXO_ACESSO_BASE))
+        and estado.email.configurado
+    ):
+        futuros = quem_ganharia_acesso(antes_acesso)
+        if futuros:
+            return jsonify(
+                status="confirmar",
+                pergunta={
+                    "alvo": antes_acesso.alvo,
+                    "quantidade": len(futuros),
+                    "com_email": sum(1 for p in futuros if p.email),
+                    "nomes": [p.nome or p.login for p in futuros[:5]],
+                },
+            )
     with estado.bancos.core.escrita() as sessao:
         permissao = sessao.get(Permissao, id_permissao)
         if permissao is None:
@@ -675,7 +708,10 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
     )
     aviso = (
         _avisar_acesso_liberado(
-            antes_acesso, estado, explicar_se_ninguem=permissao_de_acesso and acao == "Permitir"
+            antes_acesso,
+            estado,
+            explicar_se_ninguem=permissao_de_acesso and acao == "Permitir",
+            enviar_email=escolha_email is not False,
         )
         if antes_acesso is not None
         else ""
@@ -900,7 +936,7 @@ def espelhar_permissoes():  # type: ignore[no-untyped-def]
         dados_novos={"id_destino": id_destino, "tipo_destino": tipo_destino, "total_regras": total_copiadas},
         severidade=SeveridadeAuditoria.MEDIA,
     )
-    aviso = _avisar_acesso_liberado(antes_acesso, estado)
+    aviso = _avisar_acesso_liberado(antes_acesso, estado, enviar_email=dados.get("avisar_email") is not False)
     return jsonify(
         status="success",
         message=f"{total_copiadas} regra(s) espelhada(s) com sucesso."

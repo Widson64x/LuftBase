@@ -90,6 +90,15 @@ pessoas por operacao. **Falha de e-mail ou notificacao nunca desfaz a concessao*
 `ACESSO_LIBERADO_AVISO` com as contagens). A tela do Gerenciador mostra o mesmo resumo (pessoas, notificacoes, e-mails enviados, sem e-mail cadastrado, modo teste, falhas), que sai de `ResultadoAviso.texto()`. O e-mail vem de `core.tb_usuario.email_usuario` (PostgreSQL) e, se estiver vazio, do diretorio (`Email_Usuario`); sem nenhum dos dois a pessoa recebe so a notificacao. Membros do grupo que existem so em `core.tb_usuario` tambem sao avisados. O link usa `Sistema.link`: absoluto como esta; relativo, preso a `LUFT_URL_PUBLICA`
 (ou ao endereco da requisicao).
 
+### Perguntar antes de enviar o e-mail
+
+Ao **Permitir** a permissao base na tela do Gerenciador, o servidor ve quem ainda nao tem acesso (`quem_ganharia_acesso`) e, se houver alguem e o e-mail
+estiver configurado, **nao grava ainda**: responde `status: "confirmar"` com quantas pessoas ganhariam acesso e quantas tem e-mail. A tela abre um
+dialogo com **Salvar e enviar e-mail**, **Salvar sem e-mail** (a notificacao dentro do sistema sai do mesmo jeito) e **Cancelar**; a escolha volta
+como `AvisarEmail` (true/false) e so entao a regra e gravada. A pergunta so existe quando a tela manda `PerguntarAviso: true`: quem chama a API direto continua
+avisando como antes (`AvisarEmail: false` desliga so o e-mail). No espelhamento ha a caixa "Avisar por e-mail quem ganhar acesso" (`avisar_email`).
+`ResultadoAviso.email_dispensado` marca a escolha e o resumo diz "e-mail nao enviado, como voce escolheu".
+
 ## Bloqueio de login
 
 A permissao `SEGURANCA.USUARIOS.DESATIVAR` (filha de `SEGURANCA.MODULO.GERENCIAR`, sensivel) controla quem bloqueia e

@@ -916,6 +916,17 @@
 <!-- ==========================================================================
      MODAL: NOVA PERMISSÃO (INTELIGENTE E GUIADA)
      ========================================================================== -->
+<dialog id="dlgAvisoAcesso" style="border:1px solid var(--luft-border);border-radius:14px;padding:22px;max-width:440px;background:var(--luft-bg-panel);color:var(--luft-text-main)">
+    <h4 style="margin:0 0 8px">Enviar e-mail de acesso liberado?</h4>
+    <p id="dlgAvisoAcessoTexto" style="margin:0 0 6px"></p>
+    <p id="dlgAvisoAcessoDetalhe" class="text-xs text-muted" style="margin:0 0 16px"></p>
+    <div class="d-flex gap-2" style="justify-content:flex-end;flex-wrap:wrap">
+        <button type="button" class="btn btn-sm btn-outline" data-escolha="cancelar">Cancelar</button>
+        <button type="button" class="btn btn-sm btn-outline" data-escolha="nao">Salvar sem e-mail</button>
+        <button type="button" class="btn btn-sm btn-primary" data-escolha="enviar"><i class="ph-bold ph-paper-plane-tilt"></i> Salvar e enviar e-mail</button>
+    </div>
+</dialog>
+
 {% call ui.modal('modalPermissao', 'Cadastrar Nova Permissão', 'md', 'ph-key') %}
     <p class="text-xs text-muted mb-4">
         Cadastre novas permissões no formato padrão <code>MÓDULO.RECURSO.AÇÃO</code>.
@@ -1220,6 +1231,11 @@
             </label>
         </div>
 
+        <label class="esp-escolha mt-2">
+            <input type="checkbox" id="espAvisarEmail" checked>
+            <div><strong>Avisar por e-mail quem ganhar acesso</strong><span>Desmarque para enviar só a notificação dentro do sistema.</span></div>
+        </label>
+
         <div class="esp-resumo pendente" id="resumoEspelho">Escolha de quem copiar e quem recebe para ver o resumo.</div>
         <div class="esp-erro d-none" id="erroEspelho"></div>
 
@@ -1499,14 +1515,46 @@ Informe o motivo (obrigatório):`) || '';
         await EnviarRegraAPI(MODO, ID_ATUAL, idPerm, 'Resetar');
     }
 
-    async function EnviarRegraAPI(tipo, alvo, perm, acao) {
+    // Pergunta se o e-mail de "acesso liberado" deve sair. Devolve true (enviar), false (so a notificacao) ou null (cancelar).
+    function PerguntarEnvioEmail(p) {
+        return new Promise((resolver) => {
+            const dlg = document.getElementById('dlgAvisoAcesso');
+            if (!dlg || typeof dlg.showModal !== 'function') {
+                resolver(confirm(`Enviar e-mail de acesso liberado para ${p.quantidade} pessoa(s)?`));
+                return;
+            }
+            const quem = p.quantidade === 1 ? p.nomes[0] : `${p.quantidade} pessoas`;
+            document.getElementById('dlgAvisoAcessoTexto').textContent =
+                `${quem} vai ganhar acesso${p.alvo ? ' (' + p.alvo + ')' : ''}. A notificação dentro do sistema sempre sai; quer também enviar o e-mail?`;
+            const detalhe = p.quantidade > 1 ? `${p.nomes.join(', ')}${p.quantidade > p.nomes.length ? '…' : ''}` : '';
+            document.getElementById('dlgAvisoAcessoDetalhe').textContent =
+                (detalhe ? detalhe + '. ' : '') + `${p.com_email} de ${p.quantidade} com e-mail cadastrado.`;
+            let escolha = null;
+            const fechar = (valor) => { escolha = valor; dlg.close(); };
+            dlg.querySelector('[data-escolha="enviar"]').onclick = () => fechar(true);
+            dlg.querySelector('[data-escolha="nao"]').onclick = () => fechar(false);
+            dlg.querySelector('[data-escolha="cancelar"]').onclick = () => fechar(null);
+            dlg.addEventListener('close', () => resolver(escolha), { once: true });
+            dlg.showModal();
+        });
+    }
+
+    async function EnviarRegraAPI(tipo, alvo, perm, acao, avisarEmail) {
         try {
+            const corpo = { Tipo: tipo, IdAlvo: alvo, IdPermissao: perm, Acao: acao, SistemaId: SISTEMA_ID_SELECIONADO, PerguntarAviso: true };
+            if (avisarEmail !== undefined) corpo.AvisarEmail = avisarEmail;
             const resp = await fetch("{{ url_for('Seguranca.salvar_vinculo') }}", {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN},
-                body: JSON.stringify({ Tipo: tipo, IdAlvo: alvo, IdPermissao: perm, Acao: acao, SistemaId: SISTEMA_ID_SELECIONADO })
+                body: JSON.stringify(corpo)
             });
             const d = await resp.json();
+            if (resp.ok && d.status === 'confirmar') {
+                // Nada foi gravado ainda: a pessoa decide se o e-mail sai e so entao a regra e salva.
+                const escolha = await PerguntarEnvioEmail(d.pergunta);
+                if (escolha === null) { if (RECARREGAR_ATUAL) await RECARREGAR_ATUAL(); return; }
+                return EnviarRegraAPI(tipo, alvo, perm, acao, escolha);
+            }
             if (!resp.ok || d.status !== 'success') throw new Error(d.message || d.erro || 'Falha');
             if (d.aviso) {
                 // Resultado do aviso de acesso liberado (e-mail e notificacao): o administrador ve o que de fato saiu.
@@ -1809,7 +1857,8 @@ Informe o motivo (obrigatório):`) || '';
                     tipo_destino: TIPO_DESTINO_ESPELHO,
                     id_destino: parseInt(ID_DESTINO_ESPELHO),
                     modo: modo,
-                    sistema_id: SISTEMA_ID_SELECIONADO
+                    sistema_id: SISTEMA_ID_SELECIONADO,
+                    avisar_email: document.getElementById('espAvisarEmail')?.checked !== false
                 })
             });
             const d = await resp.json().catch(() => ({}));
