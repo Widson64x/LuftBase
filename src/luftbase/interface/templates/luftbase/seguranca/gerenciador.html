@@ -715,7 +715,7 @@
             <div class="luft-list-content d-none" id="listaUsuarios">
                 {% for user in Usuarios %}
                 {% set bloqueado_user = (user|attr('bloqueado')) %}
-                <div class="luft-list-item{{ ' bloqueado' if bloqueado_user else '' }}" data-bloqueado="{{ '1' if bloqueado_user else '0' }}" data-nome="{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }} {{ (user|attr('Login_Usuario')) | default(user|attr('login'), true) }}" onclick="CarregarUsuario(this, '{{ (user|attr('Codigo_Usuario')) | default(user|attr('id'), true) }}', '{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }}')">
+                <div class="luft-list-item{{ ' bloqueado' if bloqueado_user else '' }}" data-bloqueado="{{ '1' if bloqueado_user else '0' }}" data-bloqueado-dir="{{ '1' if (user|attr('bloqueado_diretorio')) else '0' }}" data-nome="{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }} {{ (user|attr('Login_Usuario')) | default(user|attr('login'), true) }}" onclick="CarregarUsuario(this, '{{ (user|attr('Codigo_Usuario')) | default(user|attr('id'), true) }}', '{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }}')">
                     <div class="d-flex flex-col truncate" style="flex: 1;">
                         <span class="font-semibold text-xs text-main truncate nome-item">{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }}</span>
                         <span class="text-muted truncate" style="font-size: 0.7rem;">
@@ -1364,7 +1364,7 @@
         return !!(u && u.bloqueado);
     }
 
-    function AplicarModoSomenteLeitura(bloqueado, motivo) {
+    function AplicarModoSomenteLeitura(bloqueado, motivo, soDiretorio) {
         ALVO_BLOQUEADO = !!bloqueado;
         document.getElementById('painelPermissoes').classList.toggle('painel-somente-leitura', ALVO_BLOQUEADO);
         ['btnEspelharAlvo', 'btnLimparRegras'].forEach(idBotao => {
@@ -1373,7 +1373,9 @@
         });
         const txt = document.getElementById('faixaBloqueadoTxt');
         if (txt && ALVO_BLOQUEADO) {
-            txt.textContent = 'Acesso bloqueado' + (motivo ? ` (${motivo})` : '') + ': nenhuma alteração de permissões é permitida. Desbloqueie o acesso para editar.';
+            txt.textContent = soDiretorio
+                ? 'Acesso bloqueado no cadastro corporativo (Luftinforma): nenhuma alteração de permissões é permitida. O desbloqueio é feito lá.'
+                : 'Acesso bloqueado' + (motivo ? ` (${motivo})` : '') + ': nenhuma alteração de permissões é permitida. Desbloqueie o acesso para editar.';
         }
     }
 
@@ -1418,7 +1420,7 @@
         RECARREGAR_ATUAL = () => CarregarUsuario(el, id, nome);
         AtivarItemLista(el);
         PrepararPainel(nome, 'Exceções do Usuário', 'Regras manuais sobrepõem as permissões herdadas do grupo');
-        AplicarModoSomenteLeitura(el.dataset.bloqueado === '1');
+        AplicarModoSomenteLeitura(el.dataset.bloqueado === '1', null, el.dataset.bloqueadoDir === '1');
 
         try {
             const resp = await fetch(`{{ url_for('Seguranca.buscar_acessos_usuario') }}?idUsuario=${id}&sistema_id=${SISTEMA_ID_SELECIONADO}`);
@@ -1444,13 +1446,16 @@
             const resp = await fetch(`{{ request.script_root }}/seguranca/api/usuarios/${id}/bloqueio`);
             const d = await resp.json();
             if (!resp.ok || d.status !== 'success') return;
+            // BLOQUEADO_ATUAL e o bloqueio do core (o que o botao alterna); o do cadastro corporativo so trava a tela.
             BLOQUEADO_ATUAL = !!d.data.bloqueado;
-            AplicarModoSomenteLeitura(BLOQUEADO_ATUAL, d.data.motivo);
-            AtualizarItemBloqueado(id, BLOQUEADO_ATUAL);
-            document.getElementById('subtituloSelecionado').innerText = BLOQUEADO_ATUAL
-                ? `ACESSO BLOQUEADO${d.data.motivo ? ': ' + d.data.motivo : ''}`
+            const soDiretorio = !!d.data.bloqueado_diretorio && !BLOQUEADO_ATUAL;
+            const efetivo = BLOQUEADO_ATUAL || !!d.data.bloqueado_diretorio;
+            AplicarModoSomenteLeitura(efetivo, d.data.motivo, soDiretorio);
+            AtualizarItemBloqueado(id, efetivo);
+            document.getElementById('subtituloSelecionado').innerText = efetivo
+                ? (soDiretorio ? 'ACESSO BLOQUEADO NO CADASTRO CORPORATIVO' : `ACESSO BLOQUEADO${d.data.motivo ? ': ' + d.data.motivo : ''}`)
                 : 'Regras manuais sobrepõem as permissões herdadas do grupo';
-            if (!d.data.pode_alterar) return;
+            if (!d.data.pode_alterar || soDiretorio) return;
             document.getElementById('btnBloqueioTxt').innerText = BLOQUEADO_ATUAL ? 'Desbloquear acesso' : 'Bloquear acesso';
             botao.classList.remove('d-none');
         } catch (e) {

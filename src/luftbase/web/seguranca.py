@@ -83,6 +83,8 @@ class UsuarioItem:
     id_grupo: int | None
     nome_grupo: str | None
     bloqueado: bool = False
+    # Parte do `bloqueado` que vem do cadastro corporativo (Luftinforma), onde o LuftBase nao desbloqueia.
+    bloqueado_diretorio: bool = False
 
     @property
     def Codigo_Usuario(self) -> int:
@@ -356,35 +358,64 @@ def _avisar_acesso_liberado(
     return texto
 
 
-def _codigos_bloqueados(estado) -> set[int]:  # type: ignore[no-untyped-def]
-    """Codigos das pessoas com o acesso bloqueado (`core.tb_usuario.bloqueado`).
+def _codigos_bloqueados(estado) -> tuple[set[int], set[int]]:  # type: ignore[no-untyped-def]
+    """Codigos das pessoas com o acesso bloqueado: `(no core, no cadastro corporativo)`.
 
-    Se o core nao responder, devolve vazio: a tela abre sem as tarjas, e o servidor continua recusando a
-    alteracao de quem estiver bloqueado (`_recusar_alteracao_de_bloqueado`).
+    Dois bloqueios diferentes: `core.tb_usuario.bloqueado` (do LuftBase, desbloqueavel na tela) e
+    `usuario.Usuario_Bloqueado` do Luftinforma (so lido aqui). Cada banco e consultado na sua propria
+    conexao; se um nao responder, o conjunto dele vem vazio: a tela abre sem aquelas tarjas, e o servidor
+    continua recusando a alteracao de quem estiver bloqueado (`_recusar_alteracao_de_bloqueado`).
     """
 
+    no_core: set[int] = set()
+    no_diretorio: set[int] = set()
     try:
         with estado.bancos.core.leitura() as sessao_core:
-            return {
+            no_core = {
                 int(codigo)
                 for codigo in sessao_core.execute(
                     select(Usuario.codigo_usuario).where(Usuario.bloqueado.is_(True))
                 ).scalars()
             }
     except SQLAlchemyError as erro:
-        logger.warning("Nao foi possivel listar os usuarios bloqueados: %s", erro)
-        return set()
+        logger.warning("Nao foi possivel listar os usuarios bloqueados no core: %s", erro)
+    try:
+        with estado.bancos.diretorio.leitura() as sessao_dir:
+            no_diretorio = {
+                int(codigo)
+                for codigo in sessao_dir.execute(
+                    select(UsuarioDiretorio.id_usuario).where(UsuarioDiretorio.bloqueado == 1)
+                ).scalars()
+            }
+    except SQLAlchemyError as erro:
+        logger.warning("Nao foi possivel listar os usuarios bloqueados no cadastro corporativo: %s", erro)
+    return no_core, no_diretorio
+
+
+def _bloqueado_no_diretorio(estado, codigo: int) -> bool:  # type: ignore[no-untyped-def]
+    """Verdadeiro se o cadastro corporativo (Luftinforma) marca a pessoa como bloqueada."""
+
+    try:
+        with estado.bancos.diretorio.leitura() as sessao_dir:
+            valor = sessao_dir.execute(
+                select(UsuarioDiretorio.bloqueado).where(UsuarioDiretorio.id_usuario == codigo)
+            ).scalar_one_or_none()
+    except SQLAlchemyError as erro:
+        logger.warning("Nao foi possivel consultar o bloqueio no cadastro corporativo: %s", erro)
+        return False
+    return bool(valor)
 
 
 def _recusar_alteracao_de_bloqueado(tipo: str, codigo: int):  # type: ignore[no-untyped-def]
     """Resposta 423 quando a alteracao de permissoes mira uma pessoa com o acesso bloqueado; senao `None`.
 
-    Pessoa bloqueada aparece na tela, mas nada nela pode ser alterado ate o desbloqueio.
+    Pessoa bloqueada (no core ou no cadastro corporativo) aparece na tela, mas nada nela pode ser alterado.
     """
 
     if tipo != "Usuario":
         return None
-    if obter_luftbase().usuarios_core.esta_bloqueado(codigo):
+    estado = obter_luftbase()
+    if estado.usuarios_core.esta_bloqueado(codigo) or _bloqueado_no_diretorio(estado, codigo):
         return (
             jsonify(
                 status="error",
@@ -498,6 +529,8 @@ def visualizar_gerenciador():  # type: ignore[no-untyped-def]
             for nome_mod, itens in itens_brutos_por_modulo.items()
         }
 
+    bloqueados_core, bloqueados_diretorio = _codigos_bloqueados(estado)
+    bloqueados = bloqueados_core | bloqueados_diretorio
     try:
         with estado.bancos.diretorio.leitura() as sessao_dir:
             grupos_db = (
@@ -517,7 +550,6 @@ def visualizar_gerenciador():  # type: ignore[no-untyped-def]
                 .all()
             )
             nomes_grupo = {grupo.codigo_usuariogrupo: grupo.sigla for grupo in grupos}
-            bloqueados = _codigos_bloqueados(estado)
             usuarios = [
                 UsuarioItem(
                     usuario.id_usuario,
@@ -526,6 +558,7 @@ def visualizar_gerenciador():  # type: ignore[no-untyped-def]
                     usuario.id_grupo,
                     nomes_grupo.get(usuario.id_grupo or -1),
                     usuario.id_usuario in bloqueados,
+                    usuario.id_usuario in bloqueados_diretorio,
                 )
                 for usuario in usuarios_db
             ]
@@ -1038,6 +1071,7 @@ def consultar_bloqueio_usuario(codigo_usuario: int):  # type: ignore[no-untyped-
             )
         ).first()
     bloqueado = bool(linha[0]) if linha else False
+    bloqueado_diretorio = _bloqueado_no_diretorio(estado, codigo_usuario)
     pode = bool(consultar_permissoes([PermissaoLuftBase.USUARIOS_DESATIVAR.value]).get(
         PermissaoLuftBase.USUARIOS_DESATIVAR.value
     ))
@@ -1045,6 +1079,7 @@ def consultar_bloqueio_usuario(codigo_usuario: int):  # type: ignore[no-untyped-
         status="success",
         data={
             "bloqueado": bloqueado,
+            "bloqueado_diretorio": bloqueado_diretorio,
             "motivo": (linha[1] if linha and pode else None),
             "pode_alterar": pode,
         },

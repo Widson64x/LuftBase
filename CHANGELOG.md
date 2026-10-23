@@ -2,6 +2,16 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a129] - 2026-10-23
+
+### Corrigido
+
+- **Gerenciador de Permissoes: a tarja "Bloqueado" nao aparecia para quem esta bloqueado no cadastro corporativo.** A a128 so olhava o bloqueio do LuftBase (`core.tb_usuario.bloqueado`); o bloqueio que a
+  operacao mantem e o do Luftinforma (`usuario.Usuario_Bloqueado`, `bit`). Agora vale **qualquer um dos dois**: a pessoa aparece com a tarja, fica so para leitura e o servidor recusa (HTTP 423) salvar regra,
+  limpar regras e espelhar para ela. `UsuarioDiretorio.bloqueado` mapeia a coluna como `deferred` (so e lida por consulta explicita, as demais consultas do diretorio nao mudam). Quem esta bloqueado so no
+  cadastro corporativo nao ganha o botao "Desbloquear acesso" (o LuftBase nao grava no Luftinforma); a faixa avisa que o desbloqueio e feito la. `GET /seguranca/api/usuarios/<id>/bloqueio` passa a devolver
+  `bloqueado_diretorio`. Cada banco e consultado na sua conexao: se um nao responder, o bloqueio do outro continua valendo.
+
 ## [0.1.0a128] - 2026-10-23
 
 ### Alterado

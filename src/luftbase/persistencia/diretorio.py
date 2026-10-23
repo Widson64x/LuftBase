@@ -46,6 +46,9 @@ class UsuarioDiretorio(BaseDiretorio):
         "codigo_usuariogrupo",
         ForeignKey(f"{ESQUEMA_DIRETORIO}.usuariogrupo.codigo_usuariogrupo"),
     )
+    # Bloqueio do cadastro corporativo (1 = bloqueado). E outro, alem do `core.tb_usuario.bloqueado` do LuftBase.
+    # `deferred`: as consultas que carregam o usuario inteiro nao pedem esta coluna; so quem a seleciona a le.
+    bloqueado: Mapped[int | None] = mapped_column("Usuario_Bloqueado", Integer, deferred=True)
 
     grupo: Mapped[GrupoDiretorio | None] = relationship(back_populates="usuarios")
 

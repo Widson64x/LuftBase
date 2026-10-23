@@ -134,8 +134,11 @@ Como a sessao e compartilhada, sair de um sistema sai de todos.
   Limpar Regras ficam travados, e ela nao aparece como destino do espelhamento (como origem, aparece). O unico botao que sobra e
   "Desbloquear acesso". O servidor tambem recusa (**HTTP 423**) `POST /seguranca/api/permissoes/salvar`,
   `/api/permissoes/espelhar` (destino) e `/api/permissoes/limpar-todas` quando o alvo e uma pessoa bloqueada, mesmo por chamada
-  direta. Grupo nunca e recusado. A lista le `core.tb_usuario.bloqueado`; se o core nao responder, a tela abre sem tarjas e a
-  recusa do servidor continua valendo.
+  direta. Grupo nunca e recusado. Contam **dois bloqueios**: o do LuftBase (`core.tb_usuario.bloqueado`, o que o botao
+  "Bloquear/Desbloquear acesso" altera) e o do cadastro corporativo (`Usuario_Bloqueado` do Luftinforma, `bit`, so lido). Quem esta
+  bloqueado so no cadastro corporativo fica travado do mesmo jeito, sem botao de desbloqueio (o LuftBase nao grava no Luftinforma;
+  a faixa avisa que o desbloqueio e feito la). Se um dos bancos nao responder, a tela abre sem as tarjas dele e a recusa do
+  servidor continua valendo para o outro.
 - **Aviso na tela de entrada**: quando a sessao e derrubada por um administrador (`REVOGADA_ADMIN` ou `BLOQUEIO_ADMIN`),
   a proxima visita da pessoa cai no login com "Sua sessao foi encerrada por um administrador. Entre novamente." (ou a
   mensagem de bloqueio), uma unica vez. Sai de `ArmazenamentoSessoesPostgreSQL.motivo_encerramento`, consultado so quando
