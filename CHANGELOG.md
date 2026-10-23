@@ -2,6 +2,22 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a127] - 2026-10-23
+
+### Corrigido
+
+- **Login perdido ao usar varios sistemas ou abas.** O cookie `luft_sessao` e compartilhado, e qualquer requisicao que chegasse sem um cookie valido (arquivo estatico, chamada de API,
+  polling de `mensagens`, requisicao iniciada antes do login) ganhava uma sessao anonima nova e um `Set-Cookie` com ela. Quando o navegador aplicava essa resposta, o cookie bom era
+  substituido e a pessoa caia em todos os sistemas, apesar de a sessao dela continuar `ATIVA` no core. Agora:
+  - quem chega sem sessao valida so ganha sessao e cookie se a requisicao realmente guardou algo (ex.: o token CSRF da tela de entrada); requisicao de fundo (`X-Background-Request`)
+    nunca cria sessao; as chaves que o Flask e o Flask-Login escrevem sozinhos (`_permanent`, `_fresh`, `_id`) nao contam;
+  - o cookie so e reenviado quando a sessao e nova, quando o id muda (login) ou quando ele ja tem 5 minutos (`min(300 s, TTL/10)`), e nao mais a cada resposta; uma resposta atrasada
+    deixa de sobrescrever o cookie novo;
+  - `ArmazenamentoSessoes.salvar` pode devolver `False` ("sessao ja encerrada"); o PostgreSQL o faz, e a interface nao entrega cookie de uma sessao encerrada durante a requisicao;
+  - o carimbo do cookie tolera ate 30 s de diferenca entre os relogios dos servidores (antes, um servidor adiantado em fracao de segundo produzia cookies "do futuro" recusados pelo outro).
+  Reproduzido com o armazenamento real: o login perdido logo apos entrar caia de 29 em 30 para 0 em 30. Deixam de ser criadas tambem as milhares de sessoes anonimas que a tela de login
+  e as chamadas sem cookie acumulavam em `core.tb_sessao`.
+
 ## [0.1.0a126] - 2026-10-22
 
 ### Corrigido

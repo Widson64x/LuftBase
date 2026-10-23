@@ -13,7 +13,7 @@ from typing import Any, Protocol
 from flask import Flask, Request, Response, current_app, request, session
 from flask.sessions import SessionInterface, SessionMixin
 from flask_login import login_user, logout_user
-from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
+from itsdangerous import BadSignature, TimestampSigner
 from werkzeug.datastructures import CallbackDict
 
 from luftbase.identidade.modelos import UsuarioAutenticado
@@ -25,6 +25,16 @@ CHAVE_LEMBRAR = "_lembrar"
 # Guardada na sessao nova quando a anterior foi derrubada por um administrador; a tela de entrada a le.
 CHAVE_AVISO_ENCERRAMENTO = "_aviso_encerramento"
 MOTIVOS_COM_AVISO = frozenset({"REVOGADA_ADMIN", "BLOQUEIO_ADMIN"})
+# Chaves que o Flask e o Flask-Login escrevem sozinhos, ate numa requisicao de visitante (ex.: `_fresh` a cada
+# `current_user`). Sozinhas, nao dao motivo para criar uma sessao nem para trocar o cookie do navegador.
+_CHAVES_INTERNAS = frozenset({"_permanent", "_fresh", "_id", "_remember", "_remember_seconds"})
+# Diferenca de relogio aceita entre servidores: o carimbo do cookie e em segundos inteiros, e um servidor
+# adiantado em fracao de segundo produziria cookies "do futuro" para os demais.
+_TOLERANCIA_RELOGIO_SEGUNDOS = 30
+# O cookie so e reenviado quando a sessao e nova, quando o id muda (login) ou quando ele ja tem esta idade:
+# reenviar a cada resposta fazia uma resposta atrasada (de uma requisicao iniciada antes do login, por exemplo)
+# sobrescrever o cookie novo no navegador. Vale `min(isto, ttl / 10)`, para a validade do cookie acompanhar a da sessao.
+_RENOVAR_COOKIE_APOS_SEGUNDOS = 300
 
 
 class ArmazenamentoSessoes(Protocol):
@@ -33,8 +43,12 @@ class ArmazenamentoSessoes(Protocol):
     def obter(self, chave: str) -> bytes | None:
         """Le o payload bruto de uma sessao."""
 
-    def salvar(self, chave: str, valor: bytes, ttl_segundos: int) -> None:
-        """Salva o payload com expiracao obrigatoria."""
+    def salvar(self, chave: str, valor: bytes, ttl_segundos: int) -> bool | None:
+        """Salva o payload com expiracao obrigatoria.
+
+        `False` indica que a sessao ja estava encerrada e a gravacao foi recusada; `None` e `True` valem
+        como gravada (armazenamentos que nao distinguem continuam validos).
+        """
 
     def remover(self, chave: str) -> None:
         """Revoga definitivamente a chave informada."""
@@ -61,6 +75,9 @@ class SessaoServidor(CallbackDict[str, Any], SessionMixin):
         self.new = nova
         self.modified = False
         self.permanent = True
+        # O que o navegador ja tem: id e idade (s) do cookie recebido. `None` = nao veio cookie valido.
+        self.identificador_cookie: str | None = None
+        self.idade_cookie: float | None = None
 
 
 class InterfaceSessaoCompartilhada(SessionInterface):
@@ -111,14 +128,21 @@ class InterfaceSessaoCompartilhada(SessionInterface):
     def _assinar(self, identificador: str) -> str:
         return self._assinador().sign(identificador.encode("ascii")).decode("ascii")
 
-    def _validar_cookie(self, valor: str, ttl_segundos: int) -> str | None:
+    def _validar_cookie(self, valor: str, ttl_segundos: int) -> tuple[str, float] | None:
+        """Devolve `(identificador, idade_em_segundos)` do cookie, ou `None` se ele nao vale."""
+
         try:
-            identificador = self._assinador().unsign(valor, max_age=ttl_segundos).decode("ascii")
-        except (BadSignature, SignatureExpired, UnicodeDecodeError):
+            bruto, assinado_em = self._assinador().unsign(valor, return_timestamp=True)
+            identificador = bruto.decode("ascii")
+        except (BadSignature, UnicodeDecodeError):
+            return None
+        # Idade pelo carimbo: velha demais, ou "do futuro" alem da tolerancia entre os relogios dos servidores.
+        idade = (datetime.now(UTC) - assinado_em).total_seconds()
+        if idade > ttl_segundos or idade < -_TOLERANCIA_RELOGIO_SEGUNDOS:
             return None
         if len(identificador) > 128 or not identificador:
             return None
-        return identificador
+        return identificador, idade
 
     def open_session(self, app: Flask, request: Request) -> SessaoServidor:
         """Carrega o JSON externo ou inicia uma sessao vazia em falha segura."""
@@ -127,9 +151,10 @@ class InterfaceSessaoCompartilhada(SessionInterface):
         # A assinatura so barra cookies abandonados; o prazo real de cada sessao e conferido abaixo.
         ttl_cookie = max(ttl, self._ttl_lembrar_segundos)
         valor_cookie = request.cookies.get(self.get_cookie_name(app))
-        identificador = self._validar_cookie(valor_cookie, ttl_cookie) if valor_cookie else None
-        if identificador is None:
+        lido = self._validar_cookie(valor_cookie, ttl_cookie) if valor_cookie else None
+        if lido is None:
             return self.session_class(identificador=self._novo_identificador(), nova=True)
+        identificador, idade_cookie = lido
         try:
             bruto = self._armazenamento.obter(self._chave(identificador))
             if bruto is None:
@@ -161,9 +186,25 @@ class InterfaceSessaoCompartilhada(SessionInterface):
                 nova=False,
             )
             sessao.permanent = True
+            sessao.identificador_cookie = identificador
+            sessao.idade_cookie = idade_cookie
             return sessao
         except Exception as erro:
             raise ErroSessao("Nao foi possivel carregar a sessao compartilhada.") from erro
+
+    @staticmethod
+    def _cookie_precisa_ser_enviado(sessao: SessaoServidor, ttl_segundos: int) -> bool:
+        """So reenvia o cookie quando o navegador precisa de um novo: sessao nova, id trocado ou cookie envelhecendo."""
+
+        if sessao.new or sessao.idade_cookie is None or sessao.identificador != sessao.identificador_cookie:
+            return True
+        return sessao.idade_cookie >= min(_RENOVAR_COOKIE_APOS_SEGUNDOS, ttl_segundos / 10)
+
+    @staticmethod
+    def _tem_conteudo(sessao: SessionMixin) -> bool:
+        """Diz se a sessao guarda algo alem do que o Flask e o Flask-Login escrevem sozinhos."""
+
+        return any(chave not in _CHAVES_INTERNAS for chave in sessao)
 
     def _aviso_de_encerramento(self, identificador: str) -> dict[str, str]:
         """Se a sessao do cookie foi derrubada por um administrador, devolve o aviso para o login.
@@ -216,6 +257,14 @@ class InterfaceSessaoCompartilhada(SessionInterface):
             # Requisicao automatica em segundo plano nao renova o tempo de inatividade
             return
 
+        # Quem chegou sem uma sessao valida (sem cookie, cookie velho de uma sessao ja trocada no login, requisicao em
+        # voo de outra aba) so ganha sessao e cookie novos se a requisicao de fato guardou algo nela (ex.: o token
+        # CSRF da tela de entrada). Sem isso, qualquer arquivo estatico ou chamada de API sem cookie devolvia um
+        # `Set-Cookie` anonimo que, ao chegar no navegador, substituia o cookie bom e derrubava o login em TODOS os
+        # sistemas (o cookie e compartilhado). Requisicao de fundo nunca cria sessao.
+        if sessao.new and (eh_segundo_plano or not self._tem_conteudo(sessao)):
+            return
+
         ttl = self._ttl_segundos(app, sessao)
         envelope = {
             "versao": 1,
@@ -230,7 +279,13 @@ class InterfaceSessaoCompartilhada(SessionInterface):
             ).encode("utf-8")
         except (TypeError, ValueError) as erro:
             raise ErroSessao("A sessao contem um valor que nao pode ser serializado.") from erro
-        self._armazenamento.salvar(chave, bruto, ttl)
+        gravada = self._armazenamento.salvar(chave, bruto, ttl)
+        if gravada is False:
+            # A sessao foi encerrada enquanto esta requisicao rodava (ex.: o login trocou o id): o cookie dela nao
+            # pode sobrescrever o novo no navegador.
+            return
+        if not self._cookie_precisa_ser_enviado(sessao, ttl):
+            return
         response.set_cookie(
             nome_cookie,
             self._assinar(sessao.identificador),

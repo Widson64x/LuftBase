@@ -298,8 +298,12 @@ class ArmazenamentoSessoesPostgreSQL:
             logger.error("Erro ao obter sessao PostgreSQL: %s", erro)
             return None
 
-    def salvar(self, chave: str, valor: bytes, ttl_segundos: int) -> None:
-        """Persiste ou renova a sessao no PostgreSQL."""
+    def salvar(self, chave: str, valor: bytes, ttl_segundos: int) -> bool | None:
+        """Persiste ou renova a sessao no PostgreSQL.
+
+        Devolve `False` quando a gravacao foi recusada porque a sessao ja foi encerrada (logout, troca de id no
+        login, expiracao ou revogacao): quem chamou nao deve entregar ao navegador um cookie dessa sessao morta.
+        """
 
         if not self._eh_chave_sessao(chave):
             return
@@ -363,7 +367,7 @@ class ArmazenamentoSessoesPostgreSQL:
                     logger.debug(
                         "Gravacao ignorada: a sessao %s esta %s.", id_sessao, registro.status
                     )
-                    return
+                    return False
 
                 if registro is not None:
                     # Se a sessao legada apontava para um usuario ausente em tb_usuario, sanitizar

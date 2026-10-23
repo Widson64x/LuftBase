@@ -52,7 +52,17 @@ Todas as aplicacoes da Luft guardam a sessao no **mesmo banco** (`core.tb_sessao
 (`luft_sessao`, nome configuravel). Por isso entrar em um sistema deixa a pessoa autenticada nos outros.
 
 - O navegador recebe so um identificador aleatorio, assinado (`TimestampSigner`, SHA-256).
-  Cookie adulterado ou vencido inicia uma sessao anonima.
+  Cookie adulterado ou vencido inicia uma sessao anonima. O carimbo da assinatura tolera ate **30 s** de diferenca entre os
+  relogios dos servidores (o cookie e assinado por um sistema e lido por outro, em maquinas diferentes).
+- **Quando o cookie e enviado** (`save_session`): so se a sessao e nova, se o id mudou (login, troca de id) ou se o cookie
+  recebido ja tem 5 minutos (`min(300 s, TTL/10)`, para a validade acompanhar a da sessao). Antes ele ia em toda resposta, e
+  uma resposta atrasada (requisicao iniciada antes do login) sobrescrevia o cookie novo no navegador.
+- **Visitante sem sessao valida nao cria sessao nem recebe cookie**, a menos que a requisicao guarde algo nela (o token CSRF
+  da tela de entrada, uma mensagem na fila). Requisicao de fundo (`X-Background-Request`) nunca cria sessao. As chaves que o
+  Flask e o Flask-Login escrevem sozinhos (`_permanent`, `_fresh`, `_id`, `_remember`) nao contam. Por que importa: o cookie e
+  compartilhado, e um `Set-Cookie` anonimo que chegasse ao navegador derrubava o login em todos os sistemas.
+- `ArmazenamentoSessoes.salvar` pode devolver `False` ("a sessao ja esta encerrada, gravacao recusada"); o PostgreSQL faz
+  isso e a interface, nesse caso, nao entrega cookie. `None` e `True` valem como gravada.
 - Os dados da sessao ficam no banco como JSON (nunca `pickle`).
 - `iniciar_sessao_usuario()` **rotaciona** o identificador depois do login (evita fixacao de sessao).
 - O `user_loader` restaura o usuario a partir da propria sessao: nao consulta SQL Server nem PostgreSQL a cada requisicao.
