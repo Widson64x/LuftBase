@@ -155,16 +155,60 @@ def _descrever_alvo(
     return f'o grupo "{nome or "#" + str(id_alvo)}" ({len(pessoas)} pessoa(s))'
 
 
+_BLOCO_IDS = 500
+
+
+def _ids_bloqueados(bancos: CatalogoBancos, ids: Iterable[int]) -> set[int]:
+    """Quem nao deve receber aviso: inativo ou bloqueado no core, ou bloqueado no cadastro corporativo (Luftinforma).
+
+    Levanta se um dos bancos nao responder (quem chama decide); consulta em blocos por causa do limite de
+    parametros do SQL Server.
+    """
+
+    todos = sorted({int(i) for i in ids})
+    resultado: set[int] = set()
+    for inicio in range(0, len(todos), _BLOCO_IDS):
+        bloco = todos[inicio : inicio + _BLOCO_IDS]
+        with bancos.core.leitura() as sessao:
+            resultado |= {
+                int(linha[0])
+                for linha in sessao.execute(
+                    select(Usuario.codigo_usuario).where(
+                        Usuario.codigo_usuario.in_(bloco),
+                        (Usuario.bloqueado.is_(True)) | (Usuario.ativo.is_(False)),
+                    )
+                ).all()
+            }
+        with bancos.diretorio.leitura() as sessao:
+            resultado |= {
+                int(codigo)
+                for codigo in sessao.execute(
+                    select(UsuarioDiretorio.id_usuario).where(
+                        UsuarioDiretorio.id_usuario.in_(bloco), UsuarioDiretorio.bloqueado == 1
+                    )
+                ).scalars()
+            }
+    return resultado
+
+
 def _pessoas_do_alvo(bancos: CatalogoBancos, tipo: str, id_alvo: int) -> tuple[Pessoa, ...]:
     """Usuario: ele mesmo. Grupo: todos os membros. O e-mail vem do PostgreSQL (`core.tb_usuario`), com o diretorio
-    como reserva; quem ja entrou no sistema mas o diretorio nao listou tambem entra. Nunca levanta."""
+    como reserva; quem ja entrou no sistema mas o diretorio nao listou tambem entra. Pessoa bloqueada ou inativa
+    fica de fora (nao e contada na pergunta nem avisada). Nunca levanta."""
 
     do_diretorio = _pessoas_do_diretorio(bancos, tipo, id_alvo)
     try:
-        return _completar_com_core(bancos, do_diretorio, tipo, id_alvo)
+        pessoas = _completar_com_core(bancos, do_diretorio, tipo, id_alvo)
     except Exception:
         logger.exception("Aviso de acesso: falha ao ler core.tb_usuario (tipo=%s, id=%s)", tipo, id_alvo)
-        return do_diretorio
+        pessoas = do_diretorio
+    try:
+        bloqueados = _ids_bloqueados(bancos, (p.id_usuario for p in pessoas))
+    except Exception:
+        # Sem conseguir conferir aqui, a lista segue inteira; o envio confere de novo e nao avisa sem a certeza.
+        logger.exception("Aviso de acesso: falha ao conferir bloqueios (tipo=%s, id=%s)", tipo, id_alvo)
+        return pessoas
+    return tuple(p for p in pessoas if p.id_usuario not in bloqueados)
 
 
 def _completar_com_core(
@@ -430,15 +474,8 @@ def _avisar(
             return ResultadoAviso(com_acesso_novo=len(novos), ignoradas=ignoradas)
         nome_sistema = sistema.nome_sistema
         link_relativo = (sistema.link or "").strip() or None
-        bloqueados = {
-            int(linha[0])
-            for linha in sessao.execute(
-                select(Usuario.codigo_usuario).where(
-                    Usuario.codigo_usuario.in_([p.id_usuario for p in novos]),
-                    (Usuario.bloqueado.is_(True)) | (Usuario.ativo.is_(False)),
-                )
-            ).all()
-        }
+    # Bloqueado no core (inclui inativo) ou no cadastro corporativo: nao recebe notificacao nem e-mail.
+    bloqueados = _ids_bloqueados(bancos, (p.id_usuario for p in novos))
     url = url_absoluta(link_relativo, url_base)
 
     repositorio = RepositorioNotificacoes(bancos.core)

@@ -245,6 +245,49 @@ def test_usuario_bloqueado_nao_e_avisado(ambiente: Bancos) -> None:
     assert email.preparados == []
 
 
+def _bloquear_no_cadastro_corporativo(bancos: Bancos, uid: int) -> None:
+    with bancos.diretorio.unidade_trabalho() as s:
+        s.get(UsuarioDiretorio, uid).bloqueado = 1  # type: ignore[union-attr]
+
+
+def test_bloqueado_no_cadastro_corporativo_nao_e_avisado(ambiente: Bancos) -> None:
+    _bloquear_no_cadastro_corporativo(ambiente, 1)
+    email = EmailFalso()
+    antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]
+
+    _regra_usuario(ambiente, 1, 10)
+    resultado = _avisar(ambiente, email, antes)
+
+    assert resultado.notificacoes == 0
+    assert email.preparados == []
+
+
+def test_pergunta_do_email_nao_conta_quem_esta_bloqueado(ambiente: Bancos) -> None:
+    from luftbase.autorizacao.aviso_acesso import quem_ganharia_acesso
+
+    with ambiente.core.unidade_trabalho() as s:
+        s.execute(text("UPDATE tb_usuario SET bloqueado = 1 WHERE codigo_usuario = 2"))  # Bia: bloqueada no core
+    _bloquear_no_cadastro_corporativo(ambiente, 1)  # Ana: bloqueada no cadastro corporativo
+
+    antes = capturar_acesso(ambiente, tipo="Grupo", id_alvo=7, id_sistema=3)  # type: ignore[arg-type]
+
+    assert [p.id_usuario for p in antes.pessoas] == [3]  # so Caio
+    assert [p.id_usuario for p in quem_ganharia_acesso(antes)] == [3]
+
+
+def test_grupo_com_bloqueados_avisa_so_quem_esta_livre(ambiente: Bancos) -> None:
+    _bloquear_no_cadastro_corporativo(ambiente, 2)
+    email = EmailFalso()
+    antes = capturar_acesso(ambiente, tipo="Grupo", id_alvo=7, id_sistema=3)  # type: ignore[arg-type]
+
+    _regra_grupo(ambiente, 7, 10)
+    resultado = _avisar(ambiente, email, antes)
+
+    assert sorted(n.id_usuario_destino for n in _notificacoes(ambiente)) == [1, 3]  # Bia ficou de fora
+    assert [p["para"] for p in email.preparados] == ["ana@luft.com"]
+    assert resultado.com_acesso_novo == 2
+
+
 def test_falha_do_email_nao_levanta_e_e_contada(ambiente: Bancos) -> None:
     email = EmailFalso(falhar_envio=True)
     antes = capturar_acesso(ambiente, tipo="Usuario", id_alvo=1, id_sistema=3)  # type: ignore[arg-type]

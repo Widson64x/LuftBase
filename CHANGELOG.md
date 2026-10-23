@@ -2,6 +2,16 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a130] - 2026-10-23
+
+### Corrigido
+
+- **Pessoa bloqueada nao recebe o aviso de acesso liberado.** Antes so o bloqueio do core (`core.tb_usuario.bloqueado`) e a conta inativa eram pulados, e so na hora de enviar; quem estava bloqueado no
+  cadastro corporativo (`Usuario_Bloqueado` do Luftinforma) recebia notificacao e e-mail, e todos eram contados na pergunta "enviar e-mail de acesso liberado para N pessoas?". Agora `capturar_acesso`
+  ja tira da lista quem esta bloqueado em qualquer dos dois bancos (inativo no core tambem), entao a pergunta e o envio contam so quem esta livre. A conferencia e refeita no envio, e se um banco nao
+  responder o aviso nao sai sem a certeza (o log registra). A consulta e feita em blocos de 500 ids, por causa do limite de parametros do SQL Server em grupos grandes. Os alertas tecnicos por e-mail
+  (`observabilidade/alertas.py`) vao para enderecos fixos no codigo e nao mudam.
+
 ## [0.1.0a129] - 2026-10-23
 
 ### Corrigido

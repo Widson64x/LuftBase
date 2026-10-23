@@ -85,7 +85,7 @@ como `PLATAFORMA.SISTEMA.ACESSAR` ou `CONNECTAIR.SISTEMA.ACESSAR`), a pessoa rec
 `web/seguranca.py` tira uma foto do acesso efetivo antes de gravar (`autorizacao/aviso_acesso.py: capturar_acesso`) e compara
 depois; so quem passou de **sem acesso** para **com acesso** e avisado, entao regravar a mesma regra, bloquear, revogar ou
 conceder outra permissao nao avisa. Vale para `salvar` (usuario ou grupo; grupo avisa cada membro que ainda nao tinha acesso)
-e para espelhar permissoes. Pessoa bloqueada ou inativa nao e avisada; sem e-mail cadastrado recebe so a notificacao; ate 300
+e para espelhar permissoes. Pessoa bloqueada ou inativa nao e avisada (nem notificacao, nem e-mail) e **nao entra na conta** da pergunta "enviar e-mail para N pessoas?": vale o bloqueio do LuftBase (`core.tb_usuario.bloqueado`, ou `ativo = false`) **e** o do cadastro corporativo (`Usuario_Bloqueado` do Luftinforma), conferidos por `_ids_bloqueados` em blocos de 500 ids; sem e-mail cadastrado recebe so a notificacao; ate 300
 pessoas por operacao. **Falha de e-mail ou notificacao nunca desfaz a concessao** (vai para o log e a auditoria registra
 `ACESSO_LIBERADO_AVISO` com as contagens). A tela do Gerenciador mostra o mesmo resumo (pessoas, notificacoes, e-mails enviados, sem e-mail cadastrado, modo teste, falhas), que sai de `ResultadoAviso.texto()`. O e-mail vem de `core.tb_usuario.email_usuario` (PostgreSQL) e, se estiver vazio, do diretorio (`Email_Usuario`); sem nenhum dos dois a pessoa recebe so a notificacao. Membros do grupo que existem so em `core.tb_usuario` tambem sao avisados. O link usa `Sistema.link`: absoluto como esta; relativo, preso a `LUFT_URL_PUBLICA`
 (ou ao endereco da requisicao).
