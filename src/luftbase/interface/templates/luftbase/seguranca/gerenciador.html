@@ -97,6 +97,23 @@
         align-items: center;
     }
     .luft-list-item:hover { background: var(--luft-bg-panel-hover); }
+    /* Pessoa com o acesso bloqueado: aparece na lista, mas nada nela pode ser alterado */
+    .luft-list-item.bloqueado { border-left-color: var(--luft-danger-500, #dc2626); }
+    .luft-list-item.bloqueado .nome-item { text-decoration: line-through; text-decoration-color: rgba(220, 38, 38, 0.5); }
+    .tarja-bloqueado {
+        display: none; align-items: center; gap: 3px; flex-shrink: 0; margin-right: 6px;
+        padding: 1px 7px; border-radius: 999px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em;
+        text-transform: uppercase; color: #b91c1c; background: rgba(220, 38, 38, 0.12); border: 1px solid rgba(220, 38, 38, 0.35);
+    }
+    .luft-list-item.bloqueado .tarja-bloqueado { display: inline-flex; }
+    [data-theme="dark"] .tarja-bloqueado, [data-luft-mode="escuro"] .tarja-bloqueado { color: #fca5a5; background: rgba(248, 113, 113, 0.16); border-color: rgba(248, 113, 113, 0.4); }
+    .faixa-bloqueado {
+        display: none; align-items: center; gap: 8px; padding: 9px 14px; font-size: 0.8rem; font-weight: 600;
+        color: #b91c1c; background: rgba(220, 38, 38, 0.1); border-bottom: 1px solid rgba(220, 38, 38, 0.3);
+    }
+    .painel-somente-leitura .faixa-bloqueado { display: flex; }
+    [data-theme="dark"] .faixa-bloqueado, [data-luft-mode="escuro"] .faixa-bloqueado { color: #fca5a5; background: rgba(248, 113, 113, 0.12); }
+    .painel-somente-leitura .perm-switch, .painel-somente-leitura .btn-perm-undo { pointer-events: none; opacity: 0.4; }
     .luft-list-item.ativo { 
         background: rgba(var(--luft-brand-rgb, 37, 99, 235), 0.1); 
         border-left-color: var(--luft-primary-600); 
@@ -697,13 +714,15 @@
 
             <div class="luft-list-content d-none" id="listaUsuarios">
                 {% for user in Usuarios %}
-                <div class="luft-list-item" data-nome="{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }} {{ (user|attr('Login_Usuario')) | default(user|attr('login'), true) }}" onclick="CarregarUsuario(this, '{{ (user|attr('Codigo_Usuario')) | default(user|attr('id'), true) }}', '{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }}')">
+                {% set bloqueado_user = (user|attr('bloqueado')) %}
+                <div class="luft-list-item{{ ' bloqueado' if bloqueado_user else '' }}" data-bloqueado="{{ '1' if bloqueado_user else '0' }}" data-nome="{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }} {{ (user|attr('Login_Usuario')) | default(user|attr('login'), true) }}" onclick="CarregarUsuario(this, '{{ (user|attr('Codigo_Usuario')) | default(user|attr('id'), true) }}', '{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }}')">
                     <div class="d-flex flex-col truncate" style="flex: 1;">
-                        <span class="font-semibold text-xs text-main truncate">{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }}</span>
+                        <span class="font-semibold text-xs text-main truncate nome-item">{{ (user|attr('Nome_Usuario')) | default(user|attr('nome'), true) }}</span>
                         <span class="text-muted truncate" style="font-size: 0.7rem;">
                             {{ (user|attr('Login_Usuario')) | default(user|attr('login'), true) }} • {{ (user|attr('cargo')) | default(user|attr('Nome_UsuarioGrupo') | default('Sem Grupo', true), true) }}
                         </span>
                     </div>
+                    <span class="tarja-bloqueado" title="Acesso bloqueado: nenhuma alteração é permitida"><i class="ph-bold ph-prohibit"></i> Bloqueado</span>
                     <i class="ph-bold ph-caret-right text-muted" style="font-size: 0.7rem;"></i>
                 </div>
                 {% endfor %}
@@ -754,6 +773,11 @@
                             <input type="text" id="filtroPermissoesInput" class="form-control form-control-sm" placeholder="Filtrar permissões..." style="padding-left: 28px;" onkeyup="FiltrarPermissoes(this.value)">
                         </div>
                     </div>
+                </div>
+
+                <div id="faixaBloqueado" class="faixa-bloqueado" role="status">
+                    <i class="ph-bold ph-prohibit"></i>
+                    <span id="faixaBloqueadoTxt">Acesso bloqueado: nenhuma alteração de permissões é permitida enquanto o acesso estiver bloqueado.</span>
                 </div>
 
                 <!-- Barra de Ferramentas / Filtros Rápidos -->
@@ -1283,7 +1307,7 @@
 
     const LISTA_USUARIOS = [
         {% for user in Usuarios %}
-        { id: {{ (user|attr('Codigo_Usuario')) | default(user|attr('id'), true) }}, nome: "{{ ((user|attr('Nome_Usuario')) | default(user|attr('nome'), true))|e }}", login: "{{ ((user|attr('Login_Usuario')) | default(user|attr('login'), true))|e }}" },
+        { id: {{ (user|attr('Codigo_Usuario')) | default(user|attr('id'), true) }}, nome: "{{ ((user|attr('Nome_Usuario')) | default(user|attr('nome'), true))|e }}", login: "{{ ((user|attr('Login_Usuario')) | default(user|attr('login'), true))|e }}", bloqueado: {{ 'true' if (user|attr('bloqueado')) else 'false' }} },
         {% endfor %}
     ];
 
@@ -1328,6 +1352,42 @@
         FiltrarLateral('');
     }
 
+    // Pessoa com o acesso bloqueado: so da para ver (e desbloquear); nenhuma permissao dela pode ser alterada.
+    let ALVO_BLOQUEADO = false;
+
+    function PodeAlterarAlvo() {
+        return PODE_EDITAR && !(MODO === 'Usuario' && ALVO_BLOQUEADO);
+    }
+
+    function UsuarioBloqueadoPorId(id) {
+        const u = LISTA_USUARIOS.find(x => String(x.id) === String(id));
+        return !!(u && u.bloqueado);
+    }
+
+    function AplicarModoSomenteLeitura(bloqueado, motivo) {
+        ALVO_BLOQUEADO = !!bloqueado;
+        document.getElementById('painelPermissoes').classList.toggle('painel-somente-leitura', ALVO_BLOQUEADO);
+        ['btnEspelharAlvo', 'btnLimparRegras'].forEach(idBotao => {
+            const b = document.getElementById(idBotao);
+            if (b) b.style.display = ALVO_BLOQUEADO ? 'none' : '';
+        });
+        const txt = document.getElementById('faixaBloqueadoTxt');
+        if (txt && ALVO_BLOQUEADO) {
+            txt.textContent = 'Acesso bloqueado' + (motivo ? ` (${motivo})` : '') + ': nenhuma alteração de permissões é permitida. Desbloqueie o acesso para editar.';
+        }
+    }
+
+    // Mantem a lista lateral em dia depois de bloquear ou desbloquear sem recarregar a tela.
+    function AtualizarItemBloqueado(id, bloqueado) {
+        const u = LISTA_USUARIOS.find(x => String(x.id) === String(id));
+        if (u) u.bloqueado = !!bloqueado;
+        const item = document.querySelector('#listaUsuarios .luft-list-item.ativo');
+        if (item) {
+            item.classList.toggle('bloqueado', !!bloqueado);
+            item.dataset.bloqueado = bloqueado ? '1' : '0';
+        }
+    }
+
     // Carregar Grupo
     async function CarregarGrupo(el, id, nome) {
         if (MODO !== 'Grupo') return;
@@ -1336,6 +1396,7 @@
         RECARREGAR_ATUAL = () => CarregarGrupo(el, id, nome);
         AtivarItemLista(el);
         PrepararPainel(nome, 'Grupo Corporativo', 'Permissões gerais aplicadas a todos os membros do grupo');
+        AplicarModoSomenteLeitura(false);
 
         try {
             const resp = await fetch(`{{ url_for('Seguranca.buscar_acessos_grupo') }}?idGrupo=${id}&sistema_id=${SISTEMA_ID_SELECIONADO}`);
@@ -1357,6 +1418,7 @@
         RECARREGAR_ATUAL = () => CarregarUsuario(el, id, nome);
         AtivarItemLista(el);
         PrepararPainel(nome, 'Exceções do Usuário', 'Regras manuais sobrepõem as permissões herdadas do grupo');
+        AplicarModoSomenteLeitura(el.dataset.bloqueado === '1');
 
         try {
             const resp = await fetch(`{{ url_for('Seguranca.buscar_acessos_usuario') }}?idUsuario=${id}&sistema_id=${SISTEMA_ID_SELECIONADO}`);
@@ -1381,12 +1443,15 @@
         try {
             const resp = await fetch(`{{ request.script_root }}/seguranca/api/usuarios/${id}/bloqueio`);
             const d = await resp.json();
-            if (!resp.ok || d.status !== 'success' || !d.data.pode_alterar) return;
+            if (!resp.ok || d.status !== 'success') return;
             BLOQUEADO_ATUAL = !!d.data.bloqueado;
-            document.getElementById('btnBloqueioTxt').innerText = BLOQUEADO_ATUAL ? 'Desbloquear acesso' : 'Bloquear acesso';
+            AplicarModoSomenteLeitura(BLOQUEADO_ATUAL, d.data.motivo);
+            AtualizarItemBloqueado(id, BLOQUEADO_ATUAL);
             document.getElementById('subtituloSelecionado').innerText = BLOQUEADO_ATUAL
                 ? `ACESSO BLOQUEADO${d.data.motivo ? ': ' + d.data.motivo : ''}`
                 : 'Regras manuais sobrepõem as permissões herdadas do grupo';
+            if (!d.data.pode_alterar) return;
+            document.getElementById('btnBloqueioTxt').innerText = BLOQUEADO_ATUAL ? 'Desbloquear acesso' : 'Bloquear acesso';
             botao.classList.remove('d-none');
         } catch (e) {
             console.error(e);
@@ -1518,7 +1583,7 @@ Informe o motivo (obrigatório):`) || '';
 
     // Ações de Permitir / Bloquear / Resetar
     async function DefinirRegra(idPerm, acao) {
-        if (!PODE_EDITAR) {
+        if (!PodeAlterarAlvo()) {
             alert('Sem permissão para alterar acessos.');
             return;
         }
@@ -1527,6 +1592,7 @@ Informe o motivo (obrigatório):`) || '';
     }
 
     async function ResetarPermissao(idPerm) {
+        if (!PodeAlterarAlvo()) return;
         const msg = (MODO === 'Grupo')
             ? 'Remover a regra manual e voltar a herdar automaticamente da árvore?'
             : 'Remover a exceção manual deste usuário e voltar a herdar do seu grupo?';
@@ -1596,7 +1662,7 @@ Informe o motivo (obrigatório):`) || '';
     // =========================================================================
 
     function AbrirModalEspelhar() {
-        if (!PODE_EDITAR) {
+        if (!PodeAlterarAlvo()) {
             alert('Sem permissão para alterar acessos.');
             return;
         }
@@ -1650,13 +1716,14 @@ Informe o motivo (obrigatório):`) || '';
         return tipo === 'Grupo' ? `${item.sigla} - ${item.nome}` : `${item.nome} (${item.login})`;
     }
 
-    function PreencherLista(select, tipo, termo, excluirId) {
+    function PreencherLista(select, tipo, termo, excluirId, ocultarBloqueados) {
         const lista = tipo === 'Grupo' ? LISTA_GRUPOS : LISTA_USUARIOS;
         const busca = (termo || '').trim().toLowerCase();
         const valorAtual = select.value;
         select.innerHTML = '';
         lista.forEach(item => {
             if (excluirId && String(item.id) === String(excluirId)) return;
+            if (ocultarBloqueados && item.bloqueado) return;
             const rotulo = RotuloEntidade(tipo, item);
             if (busca && !rotulo.toLowerCase().includes(busca)) return;
             const opt = document.createElement('option');
@@ -1711,7 +1778,7 @@ Informe o motivo (obrigatório):`) || '';
     function FiltrarDestino() {
         const sel = document.getElementById('selectDestinoAlvo');
         if (!sel) return;
-        PreencherLista(sel, TIPO_DESTINO_ESPELHO || 'Grupo', document.getElementById('buscaDestino')?.value, null);
+        PreencherLista(sel, TIPO_DESTINO_ESPELHO || 'Grupo', document.getElementById('buscaDestino')?.value, null, true);
     }
 
     async function AtualizarDestinoSelecionado() {
@@ -1850,6 +1917,10 @@ Informe o motivo (obrigatório):`) || '';
         e.preventDefault();
         EspelhoErro('');
         if (!PODE_EDITAR) { EspelhoErro('Você não tem permissão para alterar regras.'); return; }
+        if (TIPO_DESTINO_ESPELHO === 'Usuario' && UsuarioBloqueadoPorId(ID_DESTINO_ESPELHO)) {
+            EspelhoErro('Esta pessoa está com o acesso bloqueado: nenhuma alteração é permitida.');
+            return;
+        }
         const selOrigem = document.getElementById('selectOrigemAlvo');
         const idOrigem = selOrigem ? selOrigem.value : null;
         if (!idOrigem) { EspelhoErro('Escolha de quem copiar as permissões.'); return; }
@@ -1907,7 +1978,7 @@ Informe o motivo (obrigatório):`) || '';
     }
 
     async function LimparTodasRegrasAlvo() {
-        if (!PODE_EDITAR) {
+        if (!PodeAlterarAlvo()) {
             alert('Sem permissão para alterar acessos.');
             return;
         }

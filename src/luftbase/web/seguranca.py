@@ -82,6 +82,7 @@ class UsuarioItem:
     login_usuario: str
     id_grupo: int | None
     nome_grupo: str | None
+    bloqueado: bool = False
 
     @property
     def Codigo_Usuario(self) -> int:
@@ -355,6 +356,45 @@ def _avisar_acesso_liberado(
     return texto
 
 
+def _codigos_bloqueados(estado) -> set[int]:  # type: ignore[no-untyped-def]
+    """Codigos das pessoas com o acesso bloqueado (`core.tb_usuario.bloqueado`).
+
+    Se o core nao responder, devolve vazio: a tela abre sem as tarjas, e o servidor continua recusando a
+    alteracao de quem estiver bloqueado (`_recusar_alteracao_de_bloqueado`).
+    """
+
+    try:
+        with estado.bancos.core.leitura() as sessao_core:
+            return {
+                int(codigo)
+                for codigo in sessao_core.execute(
+                    select(Usuario.codigo_usuario).where(Usuario.bloqueado.is_(True))
+                ).scalars()
+            }
+    except SQLAlchemyError as erro:
+        logger.warning("Nao foi possivel listar os usuarios bloqueados: %s", erro)
+        return set()
+
+
+def _recusar_alteracao_de_bloqueado(tipo: str, codigo: int):  # type: ignore[no-untyped-def]
+    """Resposta 423 quando a alteracao de permissoes mira uma pessoa com o acesso bloqueado; senao `None`.
+
+    Pessoa bloqueada aparece na tela, mas nada nela pode ser alterado ate o desbloqueio.
+    """
+
+    if tipo != "Usuario":
+        return None
+    if obter_luftbase().usuarios_core.esta_bloqueado(codigo):
+        return (
+            jsonify(
+                status="error",
+                message="Usuario bloqueado: nenhuma alteracao de permissoes e permitida. Desbloqueie o acesso antes.",
+            ),
+            423,
+        )
+    return None
+
+
 @SegurancaBp.get("/gerenciador")
 @login_required
 @exigir_permissao(PermissaoLuftBase.PERMISSOES_VISUALIZAR)
@@ -477,6 +517,7 @@ def visualizar_gerenciador():  # type: ignore[no-untyped-def]
                 .all()
             )
             nomes_grupo = {grupo.codigo_usuariogrupo: grupo.sigla for grupo in grupos}
+            bloqueados = _codigos_bloqueados(estado)
             usuarios = [
                 UsuarioItem(
                     usuario.id_usuario,
@@ -484,6 +525,7 @@ def visualizar_gerenciador():  # type: ignore[no-untyped-def]
                     usuario.login or "",
                     usuario.id_grupo,
                     nomes_grupo.get(usuario.id_grupo or -1),
+                    usuario.id_usuario in bloqueados,
                 )
                 for usuario in usuarios_db
             ]
@@ -623,6 +665,10 @@ def salvar_vinculo():  # type: ignore[no-untyped-def]
         return jsonify(status="error", message="Tipo ou acao invalida."), 400
     if id_alvo <= 0 or id_permissao <= 0:
         return jsonify(status="error", message="IDs devem ser positivos."), 400
+
+    recusa = _recusar_alteracao_de_bloqueado(tipo, id_alvo)
+    if recusa is not None:
+        return recusa
 
     estado = obter_luftbase()
     ator = getattr(current_user, "id_usuario", None)
@@ -836,6 +882,10 @@ def espelhar_permissoes():  # type: ignore[no-untyped-def]
             ),
             400,
         )
+
+    recusa = _recusar_alteracao_de_bloqueado(tipo_destino, id_destino)
+    if recusa is not None:
+        return recusa
 
     if modo not in {"substituir", "mesclar"}:
         return (
@@ -1095,6 +1145,10 @@ def limpar_todas_regras():  # type: ignore[no-untyped-def]
         return jsonify(status="error", message="Tipo de entidade invalido."), 400
     if id_alvo <= 0:
         return jsonify(status="error", message="ID de alvo invalido."), 400
+
+    recusa = _recusar_alteracao_de_bloqueado(tipo, id_alvo)
+    if recusa is not None:
+        return recusa
 
     modelo: type[PermissaoGrupo | PermissaoUsuario] = (
         PermissaoGrupo if tipo == "Grupo" else PermissaoUsuario

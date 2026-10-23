@@ -2,6 +2,15 @@
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
+## [0.1.0a128] - 2026-10-23
+
+### Alterado
+
+- **Gerenciador de Permissoes: pessoa bloqueada aparece, mas nada nela pode ser alterado.** A lista lateral passa a mostrar quem esta com o acesso bloqueado (`core.tb_usuario.bloqueado`) com a tarja
+  **Bloqueado** e o nome riscado; ao abrir, uma faixa vermelha avisa e os botoes Permitir/Bloquear/Restaurar, Espelhar e Limpar Regras ficam travados. Ela nao aparece como destino do espelhamento. So
+  "Desbloquear acesso" continua disponivel. O servidor tambem recusa com **HTTP 423** salvar regra, limpar regras e espelhar para uma pessoa bloqueada (`/api/permissoes/salvar`, `/limpar-todas`, `/espelhar`),
+  mesmo por chamada direta; grupos nao sao afetados. Se o core nao responder, a tela abre sem tarjas e a recusa do servidor continua valendo.
+
 ## [0.1.0a127] - 2026-10-23
 
 ### Corrigido

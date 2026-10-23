@@ -129,6 +129,13 @@ Como a sessao e compartilhada, sair de um sistema sai de todos.
   **derruba todas as sessoes ativas** da pessoa (motivo `BLOQUEIO_ADMIN`) e audita `USUARIO_BLOQUEADO`. "Desbloquear
   acesso" devolve o direito de entrar. Ninguem bloqueia o proprio acesso. Rotas: `POST /seguranca/api/usuarios/bloquear`,
   `POST /seguranca/api/usuarios/desbloquear`, `GET /seguranca/api/usuarios/<id>/bloqueio`.
+- **Pessoa bloqueada na tela de permissoes**: ela continua na lista do Gerenciador, com a tarja **Bloqueado** (nome riscado e
+  faixa vermelha ao abrir), mas **nada nela pode ser alterado** ate o desbloqueio: os botoes Permitir/Bloquear/Restaurar, Espelhar e
+  Limpar Regras ficam travados, e ela nao aparece como destino do espelhamento (como origem, aparece). O unico botao que sobra e
+  "Desbloquear acesso". O servidor tambem recusa (**HTTP 423**) `POST /seguranca/api/permissoes/salvar`,
+  `/api/permissoes/espelhar` (destino) e `/api/permissoes/limpar-todas` quando o alvo e uma pessoa bloqueada, mesmo por chamada
+  direta. Grupo nunca e recusado. A lista le `core.tb_usuario.bloqueado`; se o core nao responder, a tela abre sem tarjas e a
+  recusa do servidor continua valendo.
 - **Aviso na tela de entrada**: quando a sessao e derrubada por um administrador (`REVOGADA_ADMIN` ou `BLOQUEIO_ADMIN`),
   a proxima visita da pessoa cai no login com "Sua sessao foi encerrada por um administrador. Entre novamente." (ou a
   mensagem de bloqueio), uma unica vez. Sai de `ArmazenamentoSessoesPostgreSQL.motivo_encerramento`, consultado so quando
